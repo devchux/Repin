@@ -1,0 +1,53 @@
+services:
+  server:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+    container_name: repin-server
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://repin:repin@postgres:5432/repin
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: repin-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    restart: always
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: repin-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=repin
+      - POSTGRES_PASSWORD=repin
+      - POSTGRES_DB=repin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:8-alpine
+    container_name: repin-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
