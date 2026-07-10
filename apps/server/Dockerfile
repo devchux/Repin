@@ -6,20 +6,27 @@ FROM node:${NODE_VERSION}
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
+RUN corepack enable pnpm
 
-# Install the application dependencies
-RUN npm install
+# Copy workspace manifests first for better dependency layer caching
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/server/package.json apps/server/package.json
+COPY packages/typescript-config/package.json packages/typescript-config/package.json
 
-# Copy the rest of the application files
-COPY . .
+# Install the server and its workspace dependencies
+RUN pnpm install --filter server... --frozen-lockfile
+
+# Copy the source files needed by the server build
+COPY apps/server apps/server
+COPY packages/typescript-config packages/typescript-config
+
+WORKDIR /usr/src/app/apps/server
 
 # Build the NestJS application
-RUN npm run build
+RUN pnpm run build
 
 # Expose the application port
 EXPOSE 3001
 
 # Run migrations before starting the application
-CMD ["npm", "run", "start:migrate"]
+CMD ["pnpm", "run", "start:migrate"]

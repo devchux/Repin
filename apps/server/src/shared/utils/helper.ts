@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from 'crypto';
+
 export const numberOrUndefined = (number: string | number) => {
   if (typeof number === 'number' || typeof number === 'undefined')
     return number;
@@ -54,4 +56,24 @@ export const optionalInt = (key: string, fallback: number): number => {
   }
 
   return parsed;
+};
+
+export const normalizeEmail = (email: string) => email.toLowerCase().trim();
+
+export const getAuthCodeKey = (email: string) => `auth-code:${email}`;
+
+export const getRefreshTokenKey = (sessionId: string) =>
+  `refresh-token:${sessionId}`;
+
+export const hashToken = (token: string) =>
+  createHash('sha256').update(token).digest('hex');
+
+export const hashAuthCode = (email: string, code: string, secret: string) =>
+  createHash('sha256').update(`${email}:${code}:${secret}`).digest('hex');
+
+export const isHashMatch = (expectedHash: string, actualHash: string) => {
+  const expected = Buffer.from(expectedHash);
+  const actual = Buffer.from(actualHash);
+
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 };

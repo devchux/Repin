@@ -16,7 +16,8 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    const { email, firstName, lastName } = createUserDto;
+    const { email: rawEmail, firstName, lastName } = createUserDto;
+    const email = rawEmail.toLowerCase().trim();
     const user = await this.userRepository.findOne({ where: { email } });
     if (user && user.status !== Status.DELETED) {
       throw new BadRequestException('User already exists');
@@ -51,8 +52,43 @@ export class UserService {
   }
 
   async findOneByEmail(email: string) {
-    const data = await this.userRepository.findOne({ where: { email } });
+    const data = await this.userRepository.findOne({
+      where: { email: email.toLowerCase().trim() },
+    });
     return data;
+  }
+
+  async createPendingRegistration(createUserDto: CreateUserDto) {
+    const { email: rawEmail, firstName, lastName } = createUserDto;
+    const email = rawEmail.toLowerCase().trim();
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (user?.status === Status.ACTIVE) {
+      throw new BadRequestException(
+        'User already exists. Please login instead',
+      );
+    }
+
+    if (user) {
+      return this.updateUser(user.id, {
+        firstName,
+        lastName,
+        email,
+        status: Status.INACTIVE,
+      });
+    }
+
+    const data = this.userRepository.create({
+      firstName,
+      lastName,
+      email,
+      status: Status.INACTIVE,
+    });
+    return this.userRepository.save(data);
+  }
+
+  async activateUser(id: number) {
+    return this.updateUser(id, { status: Status.ACTIVE });
   }
 
   async isSuperUser(id: number) {
