@@ -1,4 +1,4 @@
-ARG NODE_VERSION=24.13.0-slim
+ARG NODE_VERSION=24-slim
 
 # Use the official Node.js image as the base image
 FROM node:${NODE_VERSION}
@@ -21,5 +21,5 @@ RUN npm run build
 # Expose the application port
 EXPOSE 3000
 
-# Command to run the application
-CMD ["node", "dist/main"]
+# Run migrations before starting the application
+CMD ["npm", "run", "start:migrate"]
