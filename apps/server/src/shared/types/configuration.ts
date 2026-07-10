@@ -1,6 +1,9 @@
 export type Configuration = {
+  nodeEnv: string;
   port: number;
   redis: string;
+  corsOrigin: string;
+  enableSwagger: boolean;
   auth: {
     accessTokenSecret: string;
     refreshTokenSecret: string;

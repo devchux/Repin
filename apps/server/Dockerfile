@@ -19,7 +19,7 @@ COPY . .
 RUN npm run build
 
 # Expose the application port
-EXPOSE 3000
+EXPOSE 3001
 
 # Run migrations before starting the application
 CMD ["npm", "run", "start:migrate"]
