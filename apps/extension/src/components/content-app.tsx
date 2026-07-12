@@ -1,18 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
+import { useReducerState } from "@repo/ui/hooks/use-reducer-state";
 import { getRepinThemeClass } from "@/lib/theme";
 import { RepinSidebar } from "./repin-sidebar";
 import { RepinToolbar } from "./repin-toolbar";
 import { useRepinTheme } from "@/hooks/use-theme";
-import { getCurrentSelectionRange, getSelectionToolbarPosition, isSameSelectionRange } from "@/lib/utils";
-import { ToolbarPosition } from "@/types";
+import {
+  getCurrentSelectionRange,
+  getDockedSidebarWidth,
+  getSelectionToolbarPosition,
+  isSameSelectionRange,
+} from "@/lib/utils";
+import type { RepinSidebarMode, ToolbarPosition } from "@/types";
 
+interface ContentAppState {
+  selectedText: string;
+  sidebarMode: RepinSidebarMode;
+  sidebarOpen: boolean;
+  sidebarPinned: boolean;
+  toolbarPosition: ToolbarPosition | null;
+}
 
-export function ContentApp() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [toolbarPosition, setToolbarPosition] =
-    useState<ToolbarPosition | null>(null);
+export const ContentApp = () => {
+  const [state, setState] = useReducerState<ContentAppState>({
+    selectedText: "",
+    sidebarMode: "summarize",
+    sidebarOpen: false,
+    sidebarPinned: false,
+    toolbarPosition: null,
+  });
   const dismissedSelectionRangeRef = useRef<Range | null>(null);
+  const previousPageStylesRef = useRef<{
+    bodyMarginRight: string;
+    bodyTransition: string;
+    rootSidebarOffset: string;
+  } | null>(null);
   const theme = useRepinTheme();
   const page = useMemo(
     () => ({
@@ -22,7 +44,13 @@ export function ContentApp() {
     [],
   );
 
-  const openSidebar = () => setSidebarOpen(true);
+  const openSidebar = (mode: RepinSidebarMode) => {
+    setState({
+      selectedText: window.getSelection()?.toString().trim() ?? "",
+      sidebarMode: mode,
+      sidebarOpen: true,
+    });
+  };
 
   useEffect(() => {
     let frame = 0;
@@ -34,7 +62,10 @@ export function ContentApp() {
 
         if (!range) {
           dismissedSelectionRangeRef.current = null;
-          setToolbarPosition(null);
+          setState({
+            selectedText: "",
+            toolbarPosition: null,
+          });
           return;
         }
 
@@ -42,12 +73,17 @@ export function ContentApp() {
           dismissedSelectionRangeRef.current &&
           isSameSelectionRange(range, dismissedSelectionRangeRef.current)
         ) {
-          setToolbarPosition(null);
+          setState({
+            toolbarPosition: null,
+          });
           return;
         }
 
         dismissedSelectionRangeRef.current = null;
-        setToolbarPosition(getSelectionToolbarPosition(range));
+        setState({
+          selectedText: window.getSelection()?.toString().trim() ?? "",
+          toolbarPosition: getSelectionToolbarPosition(range),
+        });
       });
     };
 
@@ -67,32 +103,83 @@ export function ContentApp() {
       window.removeEventListener("resize", updateToolbarPosition);
       window.removeEventListener("scroll", updateToolbarPosition, true);
     };
-  }, []);
+  }, [setState]);
+
+  useEffect(() => {
+    const restorePageOffset = () => {
+      const previousStyles = previousPageStylesRef.current;
+
+      if (!previousStyles) {
+        return;
+      }
+
+      document.documentElement.style.setProperty(
+        "--repin-sidebar-offset",
+        previousStyles.rootSidebarOffset,
+      );
+      document.body.style.marginRight = previousStyles.bodyMarginRight;
+      document.body.style.transition = previousStyles.bodyTransition;
+      previousPageStylesRef.current = null;
+    };
+
+    if (!state.sidebarOpen || !state.sidebarPinned) {
+      restorePageOffset();
+      return;
+    }
+
+    previousPageStylesRef.current ??= {
+      bodyMarginRight: document.body.style.marginRight,
+      bodyTransition: document.body.style.transition,
+      rootSidebarOffset: document.documentElement.style.getPropertyValue(
+        "--repin-sidebar-offset",
+      ),
+    };
+
+    const updatePageOffset = () => {
+      const sidebarWidth = getDockedSidebarWidth();
+
+      document.documentElement.style.setProperty(
+        "--repin-sidebar-offset",
+        `${sidebarWidth}px`,
+      );
+      document.body.style.marginRight = "var(--repin-sidebar-offset)";
+      document.body.style.transition = "margin-right 200ms ease-out";
+    };
+
+    updatePageOffset();
+    window.addEventListener("resize", updatePageOffset);
+
+    return () => {
+      window.removeEventListener("resize", updatePageOffset);
+      restorePageOffset();
+    };
+  }, [state.sidebarOpen, state.sidebarPinned]);
 
   return (
     <div
       className={`${getRepinThemeClass(theme)} repin-extension text-neutral-950 antialiased dark:text-neutral-50`}
     >
-      {toolbarPosition && (
+      {state.toolbarPosition && (
         <RepinToolbar
-          onChat={openSidebar}
           onClose={() => {
             dismissedSelectionRangeRef.current =
               getCurrentSelectionRange()?.cloneRange() ?? null;
-            setToolbarPosition(null);
+            setState({
+              toolbarPosition: null,
+            });
           }}
-          onExplain={openSidebar}
-          onSavePage={openSidebar}
-          onSummarize={openSidebar}
-          onTakeNote={openSidebar}
-          onTranslateText={openSidebar}
-          position={toolbarPosition}
+          onModeSelect={openSidebar}
+          position={state.toolbarPosition}
         />
       )}
       <RepinSidebar
+        mode={state.sidebarMode}
         page={page}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        pinned={state.sidebarPinned}
+        open={state.sidebarOpen}
+        selectedText={state.selectedText}
+        onClose={() => setState({ sidebarOpen: false })}
+        onPinnedChange={(sidebarPinned) => setState({ sidebarPinned })}
       />
     </div>
   );

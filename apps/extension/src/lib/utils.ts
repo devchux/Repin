@@ -1,5 +1,10 @@
 import { ToolbarPosition } from "@/types";
-import { TOOLBAR_EDGE_OFFSET, TOOLBAR_VERTICAL_OFFSET } from "./constants";
+import {
+  REPIN_SIDEBAR_MAX_WIDTH,
+  REPIN_SIDEBAR_VIEWPORT_GAP,
+  TOOLBAR_EDGE_OFFSET,
+  TOOLBAR_VERTICAL_OFFSET,
+} from "./constants";
 
 export const getCurrentSelectionRange: () => Range | null = () => {
   const selection = window.getSelection();
@@ -47,4 +52,11 @@ export const getSelectionToolbarPosition: (
     left,
     top: rect.bottom + TOOLBAR_VERTICAL_OFFSET,
   };
+};
+
+export const getDockedSidebarWidth = () => {
+  return Math.min(
+    REPIN_SIDEBAR_MAX_WIDTH,
+    Math.max(0, window.innerWidth - REPIN_SIDEBAR_VIEWPORT_GAP),
+  );
 };

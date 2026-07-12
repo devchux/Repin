@@ -6,3 +6,11 @@ export interface ToolbarPosition {
   left: number;
   top: number;
 }
+
+export type RepinSidebarMode =
+  | "summarize"
+  | "explain"
+  | "translate"
+  | "note"
+  | "save"
+  | "chat";

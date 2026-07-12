@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
+    "./hooks/*": "./src/hooks/*.ts",
     "./lib/*": "./src/lib/*.ts",
     "./*": "./src/*.tsx"
   },
@@ -21,7 +22,12 @@
     "typescript": "5.9.2"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^1.1.19",
     "@radix-ui/react-slot": "^1.2.4",
+    "@tiptap/extension-placeholder": "^3.27.3",
+    "@tiptap/pm": "^3.27.3",
+    "@tiptap/react": "^3.27.3",
+    "@tiptap/starter-kit": "^3.27.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "^19.2.0",
