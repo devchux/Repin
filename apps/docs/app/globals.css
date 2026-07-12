@@ -1,4 +1,6 @@
 :root {
+  --primary: #f15a24;
+  --primary-hover: #d94b1d;
   --background: #ffffff;
   --foreground: #171717;
 }
