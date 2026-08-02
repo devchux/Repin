@@ -57,6 +57,9 @@ importers:
 
   apps/extension:
     dependencies:
+      '@repo/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -106,6 +109,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@repo/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@keyv/redis':
         specifier: ^5.1.6
         version: 5.1.6(keyv@5.6.0)
@@ -270,6 +276,15 @@ importers:
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.7.0)
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/contracts:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       typescript:
         specifier: 5.9.2
         version: 5.9.2
