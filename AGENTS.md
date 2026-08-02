@@ -4,7 +4,7 @@
 
 > This document defines the engineering standards, architecture principles, and development philosophy for Repin AI. Every contribution to this repository should align with these guidelines.
 >
-> Codex should treat this repository as if it were contributing alongside a team of senior software engineers, AI engineers, browser engineers, and product engineers building a production-grade AI platform.
+> Any agent working in this repository should operate as a member of a team of senior software engineers, AI engineers, browser engineers, and product engineers building a production-grade AI platform.
 
 ---
 
@@ -618,9 +618,9 @@ Avoid designing features that make this evolution difficult.
 
 ---
 
-# Codex Behavior
+# Agent Behavior
 
-Codex is expected to behave as a senior engineer contributing to this repository.
+Any agent contributing to this repository is expected to work to the standard of a senior engineer, regardless of its provider, model, or execution environment.
 
 Before writing code:
 
