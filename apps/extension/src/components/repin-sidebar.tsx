@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pin, Square, X, ArrowUp, Mic } from "lucide-react";
+import { Pin, Square, X, ArrowUp, Mic, PinOff } from "lucide-react";
 
 import { Button } from "@repo/ui/button";
 import { RichTextEditor } from "@repo/ui/rich-text-editor";
@@ -73,16 +73,13 @@ export const RepinSidebar = ({
             <Button
               aria-label={pinned ? "Unpin Repin sidebar" : "Pin Repin sidebar"}
               aria-pressed={pinned}
-              className={cn(
-                "size-9",
-                pinned && "bg-primary text-white hover:bg-primary",
-              )}
+              className="size-9"
               size="icon"
               title={pinned ? "Unpin sidebar" : "Pin sidebar"}
-              variant="ghost"
+              variant="link"
               onClick={() => onPinnedChange(!pinned)}
             >
-              <Pin aria-hidden="true" />
+              {pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
             </Button>
             <Button
               aria-label="Close Repin sidebar"
@@ -104,12 +101,9 @@ export const RepinSidebar = ({
             Selected text
           </h2>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4">
             <p className="line-clamp-4 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm leading-6 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
               {hasSelection ? selectedText : "No selected text available."}
-            </p>
-            <p className="break-all text-xs text-neutral-500 dark:text-neutral-400">
-              {page.url}
             </p>
           </div>
         </section>
