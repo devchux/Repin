@@ -8,7 +8,7 @@ import configuration from './config/configuration';
 import { UserModule } from './resources/user/user.module';
 import { AuthModule } from './resources/auth/auth.module';
 import { CacheModule } from './resources/cache/cache.module';
-import { AiModule } from './resources/ai/ai.module';
+import { AssistantModule } from './resources/assistant/assistant.module';
 
 @Module({
   imports: [
@@ -20,7 +20,7 @@ import { AiModule } from './resources/ai/ai.module';
     UserModule,
     AuthModule,
     CacheModule,
-    AiModule,
+    AssistantModule,
   ],
   controllers: [AppController],
   providers: [AppService],

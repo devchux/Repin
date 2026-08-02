@@ -19,4 +19,10 @@ export default (): Configuration => ({
   database: {
     url: required('DATABASE_URL'),
   },
+  ai: {
+    provider: process.env.AI_PROVIDER || 'groq',
+    apiKey: process.env.AI_API_KEY || '',
+    baseUrl: process.env.AI_BASE_URL || 'https://api.groq.com/openai/v1',
+    model: process.env.AI_MODEL || 'llama-3.1-8b-instant',
+  },
 });

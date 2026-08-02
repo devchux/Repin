@@ -13,4 +13,10 @@ export type Configuration = {
   database: {
     url: string;
   };
+  ai: {
+    provider: string;
+    apiKey: string;
+    baseUrl: string;
+    model: string;
+  };
 };
