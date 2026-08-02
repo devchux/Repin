@@ -63,7 +63,6 @@ export const ContentApp = () => {
         if (!range) {
           dismissedSelectionRangeRef.current = null;
           setState({
-            selectedText: "",
             toolbarPosition: null,
           });
           return;
@@ -81,7 +80,6 @@ export const ContentApp = () => {
 
         dismissedSelectionRangeRef.current = null;
         setState({
-          selectedText: window.getSelection()?.toString().trim() ?? "",
           toolbarPosition: getSelectionToolbarPosition(range),
         });
       });

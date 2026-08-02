@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pin, Square, X, ArrowUp, ChevronDown, Mic } from "lucide-react";
+import { Pin, Square, X, ArrowUp, Mic } from "lucide-react";
 
 import { Button } from "@repo/ui/button";
 import { RichTextEditor } from "@repo/ui/rich-text-editor";
@@ -10,8 +10,6 @@ import {
   REPIN_SIDEBAR_VIEWPORT_GAP,
 } from "@/lib/constants";
 import type { RepinSidebarMode } from "@/types";
-import PersonalityControl from "./personality-control";
-import { PERSONALITIES, Personality } from "@/types/sidebar";
 
 interface RepinSidebarProps {
   mode: RepinSidebarMode;
@@ -35,8 +33,6 @@ export const RepinSidebar = ({
   onClose,
   onPinnedChange,
 }: RepinSidebarProps) => {
-  const [personality, setPersonality] = useState<Personality>("Curious");
-  const [personalityOpen, setPersonalityOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const config = modeConfig[mode];
   const Icon = config.icon;
@@ -64,14 +60,8 @@ export const RepinSidebar = ({
               <Icon aria-hidden="true" className="size-4" />
             </span>
             <span className="min-w-0">
-              <span className="flex items-center gap-2">
-                <span className="truncate text-base font-semibold">
-                  {config.title}
-                </span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className="size-4 text-neutral-500 dark:text-neutral-400"
-                />
+              <span className="truncate text-base font-semibold">
+                {config.title}
               </span>
               <span className="block truncate text-xs text-neutral-500 dark:text-neutral-400">
                 {page.title || "Current page"}
@@ -144,15 +134,6 @@ export const RepinSidebar = ({
       <footer className="relative border-t border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950">
         {recording ? (
           <div className="flex items-center gap-2 rounded-3xl border border-neutral-200 bg-white p-2.5 dark:border-neutral-800 dark:bg-neutral-900">
-            <PersonalityControl
-              chevron="down"
-              open={personalityOpen}
-              setOpen={setPersonalityOpen}
-              personality={personality}
-              personalities={PERSONALITIES}
-              setPersonality={setPersonality}
-            />
-
             <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-neutral-100 px-3 dark:bg-neutral-950">
               <Square
                 aria-hidden="true"
@@ -173,7 +154,7 @@ export const RepinSidebar = ({
 
             <Button
               aria-label="Send message"
-              className="size-12 shrink-0 rounded-full"
+              className="size-9 shrink-0 rounded-full"
               size="icon"
               title="Send"
             >
@@ -193,14 +174,6 @@ export const RepinSidebar = ({
 
             <div className="mt-1.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <PersonalityControl
-                  chevron="up"
-                  open={personalityOpen}
-                  setOpen={setPersonalityOpen}
-                  personality={personality}
-                  personalities={PERSONALITIES}
-                  setPersonality={setPersonality}
-                />
                 <Button
                   aria-label="Start audio recording"
                   className="size-9 rounded-full text-neutral-500 dark:text-neutral-400"
@@ -208,7 +181,6 @@ export const RepinSidebar = ({
                   title="Record audio"
                   variant="ghost"
                   onClick={() => {
-                    setPersonalityOpen(false);
                     setRecording(true);
                   }}
                 >
