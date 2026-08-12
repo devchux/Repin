@@ -24,5 +24,13 @@ export default (): Configuration => ({
     apiKey: process.env.AI_API_KEY || '',
     baseUrl: process.env.AI_BASE_URL || 'https://api.groq.com/openai/v1',
     model: process.env.AI_MODEL || 'llama-3.1-8b-instant',
+    requestTimeout: optionalInt('AI_REQUEST_TIMEOUT', 120000),
+  },
+  assistantQueue: {
+    rateLimitMax: optionalInt('ASSISTANT_RATE_LIMIT_MAX', 25),
+    rateLimitDuration: optionalInt('ASSISTANT_RATE_LIMIT_DURATION', 60000),
+    scaleCheckInterval: optionalInt('ASSISTANT_SCALE_CHECK_INTERVAL', 15000),
+    scaleDepthThreshold: optionalInt('ASSISTANT_SCALE_DEPTH_THRESHOLD', 20),
+    scaleWaitThreshold: optionalInt('ASSISTANT_SCALE_WAIT_THRESHOLD', 5000),
   },
 });

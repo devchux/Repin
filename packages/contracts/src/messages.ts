@@ -1,7 +1,4 @@
-import type {
-  AssistantRun,
-  CreateAssistantRunRequest,
-} from "./assistant";
+import type { AssistantRun, CreateAssistantRunRequest } from "./assistant";
 
 export const REPIN_PROTOCOL_VERSION = 1 as const;
 
@@ -38,5 +35,5 @@ export type ExtensionResponseMessage =
     };
 
 export interface AssistantRunReference {
-  readonly runId: number;
+  readonly runId: string;
 }

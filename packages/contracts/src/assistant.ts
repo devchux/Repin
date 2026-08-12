@@ -43,56 +43,23 @@ export interface AssistantRunOptions {
 }
 
 export interface AssistantRun {
-  readonly id: number;
+  readonly id: string;
   readonly capability: AiAssistantCapability;
   readonly status: AssistantRunStatus;
-  readonly context: PageContext;
-  readonly input?: string;
-  readonly result?: AssistantRunResult;
-  readonly error?: AssistantRunError;
+  readonly result?: string;
+  readonly error?: string;
+  readonly provider?: string;
+  readonly model?: string;
+  readonly usage?: AssistantRunUsage;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly startedAt?: string;
+  readonly queueWaitMs?: number;
   readonly completedAt?: string;
+  readonly cancelledAt?: string;
 }
 
-export type AssistantRunResult =
-  | TextAssistantRunResult
-  | TranslationAssistantRunResult
-  | ChatAssistantRunResult;
-
-export interface TextAssistantRunResult {
-  readonly type: "text";
-  readonly content: string;
-}
-
-export interface TranslationAssistantRunResult {
-  readonly type: "translation";
-  readonly content: string;
-  readonly sourceLanguage?: string;
-  readonly targetLanguage: string;
-}
-
-export interface ChatAssistantRunResult {
-  readonly type: "chat-message";
-  readonly content: string;
-  readonly conversationId: number;
-  readonly messageId: number;
-}
-
-export const ASSISTANT_RUN_ERROR_CODES = [
-  "invalid_context",
-  "unsupported_capability",
-  "provider_unavailable",
-  "rate_limited",
-  "run_cancelled",
-  "internal_error",
-] as const;
-
-export type AssistantRunErrorCode =
-  (typeof ASSISTANT_RUN_ERROR_CODES)[number];
-
-export interface AssistantRunError {
-  readonly code: AssistantRunErrorCode;
-  readonly message: string;
-  readonly retryable: boolean;
+export interface AssistantRunUsage {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
 }

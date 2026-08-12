@@ -2,6 +2,8 @@ import { AiService } from './ai.service';
 import type { AiGenerateResult, AiProvider } from './types/provider';
 
 const result: AiGenerateResult = {
+  provider: 'test',
+  model: 'test-model',
   content: 'done',
   toolCalls: [],
 };

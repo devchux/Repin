@@ -26,6 +26,34 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Assistant queues
+
+Interactive extension requests use the `assistant-interactive` BullMQ queue.
+Future autonomous browser tasks must use the separate
+`browser-agent-background` queue so long-running navigation cannot delay
+summaries, explanations, translations, or chat responses.
+
+The interactive worker starts with concurrency `5` and can increase local
+concurrency to `10` when queue depth or the recent average queue wait crosses a
+configured threshold. BullMQ's Redis-backed global rate limit remains shared
+across all application replicas.
+
+Per user, at most two runs may be `running` and ten may be `queued`. PostgreSQL
+advisory locks enforce those limits across multiple API and worker processes.
+
+```env
+ASSISTANT_RATE_LIMIT_MAX=25
+ASSISTANT_RATE_LIMIT_DURATION=60000
+ASSISTANT_SCALE_CHECK_INTERVAL=15000
+ASSISTANT_SCALE_DEPTH_THRESHOLD=20
+ASSISTANT_SCALE_WAIT_THRESHOLD=5000
+```
+
+`queueWaitMs` is persisted when a run starts and represents
+`startedAt - createdAt`. Infrastructure autoscaling should use queue depth and
+this metric when increasing worker replicas; the application scaler only
+adjusts concurrency within each running worker process.
+
 ## Installation
 
 ```bash

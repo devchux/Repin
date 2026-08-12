@@ -18,5 +18,13 @@ export type Configuration = {
     apiKey: string;
     baseUrl: string;
     model: string;
+    requestTimeout: number;
+  };
+  assistantQueue: {
+    rateLimitMax: number;
+    rateLimitDuration: number;
+    scaleCheckInterval: number;
+    scaleDepthThreshold: number;
+    scaleWaitThreshold: number;
   };
 };

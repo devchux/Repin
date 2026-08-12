@@ -18,6 +18,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
     this.client = new OpenAI({
       apiKey: options.apiKey,
       baseURL: options.baseUrl,
+      timeout: options.requestTimeout,
     });
   }
 
@@ -53,6 +54,8 @@ export class OpenAiCompatibleProvider implements AiProvider {
     }
 
     return {
+      provider: this.options.provider,
+      model: response.model,
       content: message.content || '',
       toolCalls: message.tool_calls?.flatMap((toolCall) =>
         toolCall.type === 'function'

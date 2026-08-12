@@ -1,9 +1,9 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
-import { AssistantProcessor } from './processors/assistant.processor';
-import { AssistantService } from './services/assistant.service';
-import { AssistantRun } from './entities/run.entity';
+import { AssistantProcessor } from '../processors/assistant.processor';
+import { AssistantService } from './assistant.service';
+import { AssistantRun } from '../entities/run.entity';
 
 describe('AssistantService', () => {
   const now = new Date();

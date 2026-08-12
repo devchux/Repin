@@ -3,4 +3,5 @@ export interface OpenAiCompatibleProviderOptions {
   apiKey: string;
   baseUrl: string;
   model: string;
+  requestTimeout: number;
 }

@@ -16,6 +16,9 @@ import { Configuration } from 'src/shared/types';
           apiKey: configService.get('ai.apiKey', { infer: true }),
           baseUrl: configService.get('ai.baseUrl', { infer: true }),
           model: configService.get('ai.model', { infer: true }),
+          requestTimeout: configService.get('ai.requestTimeout', {
+            infer: true,
+          }),
         }),
     },
     AiService,

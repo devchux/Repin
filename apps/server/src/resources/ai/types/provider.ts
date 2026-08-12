@@ -29,6 +29,8 @@ export interface AiGenerateOptions {
 }
 
 export interface AiGenerateResult {
+  provider: string;
+  model: string;
   content: string;
   toolCalls?: AiToolCall[];
   usage?: {
