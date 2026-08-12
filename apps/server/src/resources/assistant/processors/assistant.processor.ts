@@ -5,7 +5,10 @@ import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import { Repository } from 'typeorm';
 import { AiService } from '../../ai/ai.service';
-import { createAssistantMessages } from '../assistant.prompts';
+import {
+  createAssistantMessages,
+  createConversationMessages,
+} from '../assistant.prompts';
 import {
   ASSISTANT_INTERACTIVE_QUEUE,
   ASSISTANT_MAX_ACTIVE_RUNS_PER_USER,
@@ -14,6 +17,8 @@ import {
   EXECUTE_ASSISTANT_JOB,
 } from '../assistant.constants';
 import { AssistantRun } from '../entities/run.entity';
+import { AssistantConversation } from '../entities/conversation.entity';
+import { AssistantConversationMessage } from '../entities/conversation-message.entity';
 
 interface AssistantJobData {
   runId: string;
@@ -97,8 +102,9 @@ export class AssistantProcessor extends WorkerHost {
     }
 
     try {
+      const messages = await this.createMessages(run);
       const result = await this.aiService.generate({
-        messages: createAssistantMessages(run),
+        messages,
         signal: abortController.signal,
       });
       const currentRun = await this.runRepository.findOne({
@@ -109,14 +115,37 @@ export class AssistantProcessor extends WorkerHost {
         return;
       }
 
-      await this.runRepository.update(run.id, {
-        status: 'completed',
-        result: result.content,
-        provider: result.provider,
-        model: result.model,
-        inputTokens: result.usage?.inputTokens,
-        outputTokens: result.usage?.outputTokens,
-        completedAt: new Date(),
+      await this.runRepository.manager.transaction(async (manager) => {
+        const completion = await manager.update(
+          AssistantRun,
+          { id: run.id, status: 'running' },
+          {
+            status: 'completed',
+            result: result.content,
+            provider: result.provider,
+            model: result.model,
+            inputTokens: result.usage?.inputTokens,
+            outputTokens: result.usage?.outputTokens,
+            completedAt: new Date(),
+          },
+        );
+        if (completion.affected === 0) {
+          return;
+        }
+        if (run.conversationId) {
+          await manager.save(
+            AssistantConversationMessage,
+            manager.create(AssistantConversationMessage, {
+              conversationId: run.conversationId,
+              runId: run.id,
+              role: 'assistant',
+              content: result.content,
+            }),
+          );
+          await manager.update(AssistantConversation, run.conversationId, {
+            updatedAt: new Date(),
+          });
+        }
       });
     } catch (error) {
       const currentRun = await this.runRepository.findOne({
@@ -140,5 +169,35 @@ export class AssistantProcessor extends WorkerHost {
 
   cancel(runId: string): void {
     this.activeRuns.get(runId)?.abort();
+  }
+
+  private async createMessages(run: AssistantRun) {
+    if (!run.conversationId) {
+      return createAssistantMessages(run);
+    }
+
+    const conversation = await this.runRepository.manager.findOne(
+      AssistantConversation,
+      { where: { id: run.conversationId, userId: run.userId } },
+    );
+    if (!conversation) {
+      throw new Error('Assistant conversation not found');
+    }
+
+    const history = await this.runRepository.manager.find(
+      AssistantConversationMessage,
+      {
+        where: { conversationId: conversation.id },
+        order: { createdAt: 'DESC' },
+        take: 20,
+      },
+    );
+    const hasPreviousAssistantResponse = history.some(
+      (message) => message.role === 'assistant',
+    );
+
+    return hasPreviousAssistantResponse
+      ? createConversationMessages(conversation, history.reverse())
+      : createAssistantMessages(run);
   }
 }

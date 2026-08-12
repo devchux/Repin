@@ -29,6 +29,9 @@ export class AssistantRun {
   @Column()
   userId: number;
 
+  @Column({ type: 'uuid', nullable: true })
+  conversationId?: string;
+
   @Column({ type: 'enum', enum: AI_ASSISTANT_CAPABILITIES })
   capability: AiAssistantCapability;
 

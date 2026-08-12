@@ -14,6 +14,7 @@ import { AssistantService } from './services/assistant.service';
 import { ExecuteAssistantDto } from './dto/execute-assistant.dto';
 import { SkipTimeout } from 'src/shared/decorators/skip-timeout.decorator';
 import { SkipResponseTransform } from 'src/shared/decorators/skip-response-transform.decorator';
+import { CreateConversationMessageDto } from './dto/create-conversation-message.dto';
 
 @ApiTags('Assistant')
 @Controller('assistant')
@@ -52,5 +53,26 @@ export class AssistantController {
     @Param('id', ParseUUIDPipe) runId: string,
   ) {
     return this.assistantService.cancelRun(user.id, runId);
+  }
+
+  @Get('conversations/:id')
+  findConversation(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) conversationId: string,
+  ) {
+    return this.assistantService.findConversation(user.id, conversationId);
+  }
+
+  @Post('conversations/:id/messages')
+  createConversationMessage(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) conversationId: string,
+    @Body() request: CreateConversationMessageDto,
+  ) {
+    return this.assistantService.createConversationMessage(
+      user.id,
+      conversationId,
+      request,
+    );
   }
 }

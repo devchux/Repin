@@ -10,11 +10,17 @@ import { AssistantProcessor } from './processors/assistant.processor';
 import { AssistantQueueScaler } from './services/assistant-queue-scaler.service';
 import { AssistantService } from './services/assistant.service';
 import { AssistantRun } from './entities/run.entity';
+import { AssistantConversation } from './entities/conversation.entity';
+import { AssistantConversationMessage } from './entities/conversation-message.entity';
 
 @Module({
   imports: [
     AiModule,
-    TypeOrmModule.forFeature([AssistantRun]),
+    TypeOrmModule.forFeature([
+      AssistantRun,
+      AssistantConversation,
+      AssistantConversationMessage,
+    ]),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService<Configuration>) => {

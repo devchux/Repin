@@ -65,8 +65,9 @@ describe('AssistantProcessor', () => {
 
     await processor.process(job);
 
-    expect(runRepository.update).toHaveBeenLastCalledWith(
-      run.id,
+    expect(manager.update).toHaveBeenCalledWith(
+      AssistantRun,
+      { id: run.id, status: 'running' },
       expect.objectContaining({
         status: 'completed',
         result: 'Summary',

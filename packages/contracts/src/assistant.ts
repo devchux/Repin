@@ -39,11 +39,11 @@ export interface CreateAssistantRunRequest {
 
 export interface AssistantRunOptions {
   readonly targetLanguage?: string;
-  readonly conversationId?: number;
 }
 
 export interface AssistantRun {
   readonly id: string;
+  readonly conversationId: string;
   readonly capability: AiAssistantCapability;
   readonly status: AssistantRunStatus;
   readonly result?: string;
@@ -69,4 +69,25 @@ export type AssistantRunEventType = AssistantRunStatus | "heartbeat";
 export interface AssistantRunEvent {
   readonly type: AssistantRunEventType;
   readonly data: AssistantRun | { readonly runId: string };
+}
+
+export interface AssistantConversation {
+  readonly id: string;
+  readonly initialCapability: AiAssistantCapability;
+  readonly context: PageContext;
+  readonly messages: readonly AssistantConversationMessage[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AssistantConversationMessage {
+  readonly id: string;
+  readonly runId?: string;
+  readonly role: "user" | "assistant";
+  readonly content: string;
+  readonly createdAt: string;
+}
+
+export interface CreateConversationMessageRequest {
+  readonly content: string;
 }

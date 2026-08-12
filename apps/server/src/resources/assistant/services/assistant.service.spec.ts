@@ -5,12 +5,14 @@ import { firstValueFrom } from 'rxjs';
 import { AssistantProcessor } from '../processors/assistant.processor';
 import { AssistantService } from './assistant.service';
 import { AssistantRun } from '../entities/run.entity';
+import { AssistantConversation } from '../entities/conversation.entity';
 
 describe('AssistantService', () => {
   const now = new Date();
   const run: AssistantRun = {
     id: '9d06cd75-e508-4d25-8a0d-a018863c2186',
     userId: 1,
+    conversationId: '3b8f0241-a8a4-4f64-86dd-21ac7db99ea3',
     capability: 'summarize',
     status: 'queued',
     context: {
@@ -27,6 +29,9 @@ describe('AssistantService', () => {
     count: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    update: jest.fn(),
   };
   const runRepository = {
     manager,
@@ -48,8 +53,18 @@ describe('AssistantService', () => {
     jest.clearAllMocks();
     manager.transaction.mockImplementation((callback) => callback(manager));
     manager.count.mockResolvedValue(0);
-    manager.create.mockReturnValue(run);
-    manager.save.mockResolvedValue(run);
+    manager.create.mockImplementation((_entity, value) => value);
+    manager.save.mockImplementation((_entity, value) =>
+      Promise.resolve({
+        id:
+          value.initialCapability !== undefined
+            ? run.conversationId
+            : value.id || run.id,
+        createdAt: now,
+        updatedAt: now,
+        ...value,
+      }),
+    );
     jest
       .spyOn(runRepository, 'update')
       .mockResolvedValue({ affected: 1 } as never);
@@ -108,6 +123,51 @@ describe('AssistantService', () => {
     expect(runRepository.findOne).toHaveBeenCalledWith({
       where: { id: run.id, userId: 1 },
     });
+  });
+
+  it('queues a follow-up turn in the existing conversation', async () => {
+    const conversation: AssistantConversation = {
+      id: run.conversationId,
+      userId: 1,
+      initialCapability: 'explain',
+      context: run.context,
+      createdAt: now,
+      updatedAt: now,
+    };
+    manager.findOne.mockResolvedValue(conversation);
+    manager.count.mockResolvedValue(0);
+    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+
+    await expect(
+      service.createConversationMessage(1, conversation.id, {
+        content: 'Can you give me an example?',
+      }),
+    ).resolves.toMatchObject({
+      message: 'Conversation message queued successfully',
+      data: { conversationId: conversation.id, capability: 'chat' },
+    });
+    expect(manager.save).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'Can you give me an example?',
+      }),
+    );
+  });
+
+  it('rejects a second turn while the conversation has a pending run', async () => {
+    manager.findOne.mockResolvedValue({
+      id: run.conversationId,
+      userId: 1,
+    });
+    manager.count.mockResolvedValueOnce(1);
+
+    await expect(
+      service.createConversationMessage(1, run.conversationId, {
+        content: 'Another question',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('streams a completed run with its result', async () => {

@@ -72,6 +72,26 @@ they receive a terminal event; browsers otherwise reconnect automatically.
 The regular `GET /api/assistant/runs/:id` endpoint remains the recovery path
 after reconnects, browser suspension, or extension restarts.
 
+### Assistant conversations
+
+Creating an assistant run also creates a conversation and returns its
+`conversationId`. The initial capability and browsing context are retained so
+later questions can refer to the original selection or page.
+
+```http
+GET /api/assistant/conversations/:conversationId
+POST /api/assistant/conversations/:conversationId/messages
+
+{
+  "content": "Can you explain the second point in simpler terms?"
+}
+```
+
+Each follow-up creates another run on `assistant-interactive`. Subscribe to
+that run's existing SSE endpoint for completion. Conversation turns are
+processed sequentially, and the model receives the latest 20 persisted
+messages together with the original browsing context.
+
 ## Installation
 
 ```bash
