@@ -54,6 +54,24 @@ ASSISTANT_SCALE_WAIT_THRESHOLD=5000
 this metric when increasing worker replicas; the application scaler only
 adjusts concurrency within each running worker process.
 
+### Run events
+
+Clients can subscribe to a run after creating it:
+
+```http
+GET /api/assistant/runs/:id/events
+Accept: text/event-stream
+```
+
+The authenticated SSE stream emits the current run immediately, emits again
+when its persisted status changes, and sends a heartbeat every 15 seconds. A
+terminal `completed`, `failed`, or `cancelled` event includes the latest run
+data and closes the server stream. Clients must call `EventSource.close()` when
+they receive a terminal event; browsers otherwise reconnect automatically.
+
+The regular `GET /api/assistant/runs/:id` endpoint remains the recovery path
+after reconnects, browser suspension, or extension restarts.
+
 ## Installation
 
 ```bash

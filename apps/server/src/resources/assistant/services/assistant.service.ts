@@ -9,6 +9,21 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
+import type { MessageEvent } from '@nestjs/common';
+import {
+  distinctUntilChanged,
+  filter,
+  interval,
+  map,
+  merge,
+  Observable,
+  share,
+  switchMap,
+  take,
+  takeUntil,
+  takeWhile,
+  timer,
+} from 'rxjs';
 import {
   ASSISTANT_INTERACTIVE_QUEUE,
   ASSISTANT_MAX_QUEUED_RUNS_PER_USER,
@@ -92,6 +107,49 @@ export class AssistantService {
       message: 'Assistant run found successfully',
       data: this.toResponse(run),
     };
+  }
+
+  async watchRun(
+    userId: number,
+    runId: string,
+  ): Promise<Observable<MessageEvent>> {
+    await this.findUserRun(userId, runId);
+
+    const runs = timer(0, 1000).pipe(
+      switchMap(() => this.findUserRun(userId, runId)),
+      share(),
+    );
+    const terminalRun = runs.pipe(
+      filter((run) => this.isTerminal(run)),
+      take(1),
+    );
+    const statusEvents = runs.pipe(
+      distinctUntilChanged(
+        (previous, current) =>
+          previous.status === current.status &&
+          previous.updatedAt.getTime() === current.updatedAt.getTime(),
+      ),
+      map(
+        (run): MessageEvent => ({
+          id: `${run.id}:${run.updatedAt.getTime()}`,
+          type: run.status,
+          retry: 2000,
+          data: this.toResponse(run),
+        }),
+      ),
+      takeWhile((event) => !this.isTerminalStatus(event.type), true),
+    );
+    const heartbeats = interval(15_000).pipe(
+      map(
+        (): MessageEvent => ({
+          type: 'heartbeat',
+          data: { runId },
+        }),
+      ),
+      takeUntil(terminalRun),
+    );
+
+    return merge(statusEvents, heartbeats);
   }
 
   async cancelRun(userId: number, runId: string) {
@@ -181,6 +239,16 @@ export class AssistantService {
         'Target language is required for translation',
       );
     }
+  }
+
+  private isTerminal(run: AssistantRun): boolean {
+    return this.isTerminalStatus(run.status);
+  }
+
+  private isTerminalStatus(status?: string): boolean {
+    return (
+      status === 'completed' || status === 'failed' || status === 'cancelled'
+    );
   }
 
   private toResponse(run: AssistantRun) {

@@ -63,3 +63,10 @@ export interface AssistantRunUsage {
   readonly inputTokens: number;
   readonly outputTokens: number;
 }
+
+export type AssistantRunEventType = AssistantRunStatus | "heartbeat";
+
+export interface AssistantRunEvent {
+  readonly type: AssistantRunEventType;
+  readonly data: AssistantRun | { readonly runId: string };
+}

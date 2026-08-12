@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
+import { firstValueFrom } from 'rxjs';
 import { AssistantProcessor } from '../processors/assistant.processor';
 import { AssistantService } from './assistant.service';
 import { AssistantRun } from '../entities/run.entity';
@@ -106,6 +107,28 @@ describe('AssistantService', () => {
     });
     expect(runRepository.findOne).toHaveBeenCalledWith({
       where: { id: run.id, userId: 1 },
+    });
+  });
+
+  it('streams a completed run with its result', async () => {
+    const completedRun = {
+      ...run,
+      status: 'completed' as const,
+      result: 'A short summary',
+      completedAt: now,
+    };
+    jest.spyOn(runRepository, 'findOne').mockResolvedValue(completedRun);
+
+    const stream = await service.watchRun(1, run.id);
+    const event = await firstValueFrom(stream);
+
+    expect(event).toMatchObject({
+      type: 'completed',
+      data: {
+        id: run.id,
+        status: 'completed',
+        result: 'A short summary',
+      },
     });
   });
 
