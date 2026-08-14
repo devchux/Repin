@@ -90,6 +90,21 @@ export class OpenAiCompatibleProvider implements AiProvider {
       };
     }
 
+    if (message.role === 'assistant' && message.toolCalls?.length) {
+      return {
+        role: 'assistant',
+        content: message.content || null,
+        tool_calls: message.toolCalls.map((toolCall) => ({
+          id: toolCall.id,
+          type: 'function' as const,
+          function: {
+            name: toolCall.name,
+            arguments: JSON.stringify(toolCall.arguments),
+          },
+        })),
+      };
+    }
+
     return {
       role: message.role,
       content: message.content,

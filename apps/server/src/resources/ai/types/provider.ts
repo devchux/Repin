@@ -6,6 +6,7 @@ export interface AiMessage {
   role: AiMessageRole;
   content: string;
   toolCallId?: string;
+  toolCalls?: AiToolCall[];
 }
 
 export interface AiTool {

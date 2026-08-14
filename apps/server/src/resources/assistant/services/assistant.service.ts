@@ -69,6 +69,7 @@ export class AssistantService {
             initialCapability: request.capability,
             context: request.context,
             options: request.options,
+            browserSessionId: request.browserSessionId,
           }),
         );
         const run = await manager.save(
@@ -196,6 +197,7 @@ export class AssistantService {
             context: conversation.context,
             input: content,
             options: conversation.options,
+            browserSessionId: request.browserSessionId,
             status: 'queued',
           }),
         );

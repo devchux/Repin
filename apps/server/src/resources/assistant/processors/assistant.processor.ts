@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import { Repository } from 'typeorm';
+import { AssistantAgentLoop } from '../services/assistant-agent-loop.service';
 import { AiService } from '../../ai/ai.service';
 import {
   createAssistantMessages,
@@ -34,6 +35,7 @@ export class AssistantProcessor extends WorkerHost {
   constructor(
     @InjectRepository(AssistantRun)
     private readonly runRepository: Repository<AssistantRun>,
+    private readonly agentLoop: AssistantAgentLoop,
     private readonly aiService: AiService,
   ) {
     super();
@@ -103,10 +105,13 @@ export class AssistantProcessor extends WorkerHost {
 
     try {
       const messages = await this.createMessages(run);
-      const result = await this.aiService.generate({
-        messages,
-        signal: abortController.signal,
-      });
+      const result =
+        run.capability === 'chat'
+          ? await this.agentLoop.run(run, messages, abortController.signal)
+          : await this.aiService.generate({
+              messages,
+              signal: abortController.signal,
+            });
       const currentRun = await this.runRepository.findOne({
         where: { id: run.id },
       });

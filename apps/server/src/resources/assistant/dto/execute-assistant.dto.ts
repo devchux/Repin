@@ -57,4 +57,10 @@ export class ExecuteAssistantDto {
   @ValidateNested()
   @Type(() => AssistantOptionsDto)
   options?: AssistantOptionsDto;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  browserSessionId?: string;
 }

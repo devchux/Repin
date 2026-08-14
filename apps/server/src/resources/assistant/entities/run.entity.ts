@@ -32,6 +32,9 @@ export class AssistantRun {
   @Column({ type: 'uuid', nullable: true })
   conversationId?: string;
 
+  @Column({ nullable: true })
+  browserSessionId?: string;
+
   @Column({ type: 'enum', enum: AI_ASSISTANT_CAPABILITIES })
   capability: AiAssistantCapability;
 

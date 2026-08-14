@@ -10,6 +10,7 @@ import { AssistantController } from './assistant.controller';
 import { AssistantProcessor } from './processors/assistant.processor';
 import { AssistantQueueScaler } from './services/assistant-queue-scaler.service';
 import { AssistantService } from './services/assistant.service';
+import { AssistantAgentLoop } from './services/assistant-agent-loop.service';
 import { AssistantRun } from './entities/run.entity';
 import { AssistantConversation } from './entities/conversation.entity';
 import { AssistantConversationMessage } from './entities/conversation-message.entity';
@@ -44,6 +45,11 @@ import { AssistantConversationMessage } from './entities/conversation-message.en
     BullModule.registerQueue({ name: ASSISTANT_INTERACTIVE_QUEUE }),
   ],
   controllers: [AssistantController],
-  providers: [AssistantService, AssistantProcessor, AssistantQueueScaler],
+  providers: [
+    AssistantService,
+    AssistantAgentLoop,
+    AssistantProcessor,
+    AssistantQueueScaler,
+  ],
 })
 export class AssistantModule {}

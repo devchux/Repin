@@ -1,6 +1,7 @@
 import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import type { Repository } from 'typeorm';
+import { AssistantAgentLoop } from '../services/assistant-agent-loop.service';
 import { AiService } from '../../ai/ai.service';
 import { AssistantProcessor } from './assistant.processor';
 import { AssistantRun } from '../entities/run.entity';
@@ -30,10 +31,13 @@ describe('AssistantProcessor', () => {
     findOne: jest.fn(),
     update: jest.fn(),
   } as unknown as Repository<AssistantRun>;
+  const agentLoop = {
+    run: jest.fn(),
+  } as unknown as AssistantAgentLoop;
   const aiService = {
     generate: jest.fn(),
   } as unknown as AiService;
-  const processor = new AssistantProcessor(runRepository, aiService);
+  const processor = new AssistantProcessor(runRepository, agentLoop, aiService);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -77,6 +81,7 @@ describe('AssistantProcessor', () => {
         outputTokens: 5,
       }),
     );
+    expect(agentLoop.run).not.toHaveBeenCalled();
     expect(manager.update).toHaveBeenCalledWith(
       AssistantRun,
       { id: run.id, status: 'queued' },
@@ -103,6 +108,36 @@ describe('AssistantProcessor', () => {
     expect(moveToDelayed).toHaveBeenCalledWith(
       expect.any(Number),
       'worker-token',
+    );
+    expect(agentLoop.run).not.toHaveBeenCalled();
+    expect(aiService.generate).not.toHaveBeenCalled();
+  });
+
+  it('uses the agent loop for chat runs', async () => {
+    const chatRun = { ...run, capability: 'chat' as const };
+    jest
+      .spyOn(runRepository, 'findOne')
+      .mockResolvedValueOnce(chatRun)
+      .mockResolvedValueOnce({ ...chatRun, status: 'running' });
+    jest.spyOn(agentLoop, 'run').mockResolvedValue({
+      provider: 'groq',
+      model: 'llama-3.1-8b-instant',
+      content: 'Done',
+      usage: { inputTokens: 10, outputTokens: 2 },
+    });
+    const job = {
+      name: 'execute-assistant',
+      data: { runId: chatRun.id },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+    } as Job<{ runId: string }>;
+
+    await processor.process(job);
+
+    expect(agentLoop.run).toHaveBeenCalledWith(
+      chatRun,
+      expect.any(Array),
+      expect.any(AbortSignal),
     );
     expect(aiService.generate).not.toHaveBeenCalled();
   });

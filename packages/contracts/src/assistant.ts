@@ -35,6 +35,7 @@ export interface CreateAssistantRunRequest {
   readonly context: PageContext;
   readonly input?: string;
   readonly options?: AssistantRunOptions;
+  readonly browserSessionId?: string;
 }
 
 export interface AssistantRunOptions {
@@ -90,4 +91,5 @@ export interface AssistantConversationMessage {
 
 export interface CreateConversationMessageRequest {
   readonly content: string;
+  readonly browserSessionId?: string;
 }
