@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { Configuration } from 'src/shared/types';
 import { AiModule } from '../ai/ai.module';
+import { ToolsModule } from '../tools/tools.module';
 import { ASSISTANT_INTERACTIVE_QUEUE } from './assistant.constants';
 import { AssistantController } from './assistant.controller';
 import { AssistantProcessor } from './processors/assistant.processor';
@@ -16,6 +17,7 @@ import { AssistantConversationMessage } from './entities/conversation-message.en
 @Module({
   imports: [
     AiModule,
+    ToolsModule,
     TypeOrmModule.forFeature([
       AssistantRun,
       AssistantConversation,
