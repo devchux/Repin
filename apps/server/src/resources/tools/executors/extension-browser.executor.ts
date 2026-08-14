@@ -34,6 +34,7 @@ import type {
   BrowserToolName,
   TabTargetInput,
 } from '../types/browser-tool.types';
+import { BrowserToolApprovalService } from '../policy/browser-tool-approval.service';
 
 @Injectable()
 export class ExtensionBrowserExecutor implements BrowserToolExecutor {
@@ -41,6 +42,7 @@ export class ExtensionBrowserExecutor implements BrowserToolExecutor {
     @Optional()
     @Inject(EXTENSION_BROWSER_TRANSPORT)
     private readonly transport?: ExtensionBrowserTransport,
+    private readonly approvals?: BrowserToolApprovalService,
   ) {}
 
   navigate(
@@ -263,6 +265,8 @@ export class ExtensionBrowserExecutor implements BrowserToolExecutor {
         'The extension browser transport is not configured',
       );
     }
+
+    this.approvals?.authorize(context.userId, context.runId, name);
 
     return this.transport.send<TResult>(context, {
       commandId: randomUUID(),

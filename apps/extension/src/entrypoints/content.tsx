@@ -2,11 +2,13 @@ import ReactDOM from "react-dom/client";
 
 import "../assets/tailwind.css";
 import { ContentApp } from "../components/content-app";
+import { handleContentCommand } from "../browser-tools/content-command-handler";
 
 export default defineContentScript({
   matches: ["<all_urls>"],
   cssInjectionMode: "ui",
   async main(ctx) {
+    browser.runtime.onMessage.addListener(handleContentCommand);
     const ui = await createShadowRootUi(ctx, {
       name: "repin-toolbar",
       position: "inline",

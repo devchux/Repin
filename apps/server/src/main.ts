@@ -8,6 +8,7 @@ import { TransformInterceptor } from './shared/interceptors/response.interceptor
 import { TimeoutInterceptor } from './shared/interceptors/error.interceptor';
 import cookieParser from 'cookie-parser';
 import { AUTH_COOKIE_NAME } from './config/constants';
+import { BrowserSessionGateway } from './resources/tools/transport/browser-session.gateway';
 
 const COOKIE_AUTH_SECURITY_NAME = 'cookie';
 
@@ -63,5 +64,8 @@ async function bootstrap() {
   await app.listen(port, () => {
     Logger.log(`App is currently running on port - ${port}`);
   });
+  app
+    .get(BrowserSessionGateway)
+    .attach(app.getHttpServer() as import('node:http').Server);
 }
 bootstrap();

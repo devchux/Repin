@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./assistant": "./src/assistant.ts",
     "./browser": "./src/browser.ts",
+    "./browser-session": "./src/browser-session.ts",
     "./messages": "./src/messages.ts"
   },
   "scripts": {

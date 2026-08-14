@@ -168,7 +168,7 @@ importers:
         version: 5.6.0
       openai:
         specifier: ^6.39.0
-        version: 6.49.0(zod@4.4.3)
+        version: 6.49.0(ws@8.21.3)(zod@4.4.3)
       pg:
         specifier: ^8.22.0
         version: 8.22.0
@@ -181,6 +181,9 @@ importers:
       typeorm:
         specifier: ^0.3.30
         version: 0.3.30(ioredis@5.11.1)(pg@8.22.0)(ts-node@10.9.2(@types/node@20.19.43)(typescript@5.9.2))
+      ws:
+        specifier: ^8.21.3
+        version: 8.21.3
     devDependencies:
       '@nestjs/cli':
         specifier: ^10.0.0
@@ -6255,6 +6258,18 @@ packages:
     resolution: {integrity: sha512-7KxauUdBmSdWnmpaGFg+ppNjKF8uNLry8LyzjauQDOVONfFLNKrKvQOxZ/VuTIcS/gge/YNahf5RIIQWTSarlg==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
 
+  ws@8.21.3:
+    resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   wsl-utils@0.3.1:
     resolution: {integrity: sha512-g/eziiSUNBSsdDJtCLB8bdYEUMj4jR7AGeUo96p/3dTafgjHhpF4RiCFPiRILwjQoDXx5MqkBr4fwWtR3Ky4Wg==}
     engines: {node: '>=20'}
@@ -11090,8 +11105,9 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@6.49.0(zod@4.4.3):
+  openai@6.49.0(ws@8.21.3)(zod@4.4.3):
     optionalDependencies:
+      ws: 8.21.3
       zod: 4.4.3
 
   optionator@0.9.4:
@@ -12746,6 +12762,8 @@ snapshots:
     dependencies:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
+
+  ws@8.21.3: {}
 
   wsl-utils@0.3.1:
     dependencies:
