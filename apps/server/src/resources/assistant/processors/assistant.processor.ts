@@ -20,6 +20,7 @@ import {
 import { AssistantRun } from '../entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
 import { AssistantConversationMessage } from '../entities/conversation-message.entity';
+import { AssistantExecutionService } from '../services/assistant-execution.service';
 
 interface AssistantJobData {
   runId: string;
@@ -37,6 +38,7 @@ export class AssistantProcessor extends WorkerHost {
     private readonly runRepository: Repository<AssistantRun>,
     private readonly agentLoop: AssistantAgentLoop,
     private readonly aiService: AiService,
+    private readonly execution: AssistantExecutionService,
   ) {
     super();
   }
@@ -71,6 +73,7 @@ export class AssistantProcessor extends WorkerHost {
           { id: run.id, status: 'queued' },
           {
             status: 'running',
+            phase: 'initializing',
             startedAt,
             queueWaitMs: Math.max(
               0,
@@ -104,14 +107,19 @@ export class AssistantProcessor extends WorkerHost {
     }
 
     try {
+      await this.execution.transition(run.id, {
+        expectedStatuses: ['running'],
+        status: 'running',
+        phase: 'reasoning',
+        eventType: 'run.started',
+        checkpointState: { queueJobId: String(job.id ?? '') },
+      });
       const messages = await this.createMessages(run);
-      const result =
-        run.capability === 'chat'
-          ? await this.agentLoop.run(run, messages, abortController.signal)
-          : await this.aiService.generate({
-              messages,
-              signal: abortController.signal,
-            });
+      const result = await this.agentLoop.run(
+        run,
+        messages,
+        abortController.signal,
+      );
       const currentRun = await this.runRepository.findOne({
         where: { id: run.id },
       });
@@ -120,23 +128,22 @@ export class AssistantProcessor extends WorkerHost {
         return;
       }
 
+      await this.execution.transition(run.id, {
+        expectedStatuses: ['running'],
+        status: 'completed',
+        phase: 'terminal',
+        eventType: 'run.completed',
+        checkpointState: { result: result.content },
+        patch: {
+          result: result.content,
+          provider: result.provider,
+          model: result.model,
+          inputTokens: result.usage?.inputTokens,
+          outputTokens: result.usage?.outputTokens,
+          completedAt: new Date(),
+        },
+      });
       await this.runRepository.manager.transaction(async (manager) => {
-        const completion = await manager.update(
-          AssistantRun,
-          { id: run.id, status: 'running' },
-          {
-            status: 'completed',
-            result: result.content,
-            provider: result.provider,
-            model: result.model,
-            inputTokens: result.usage?.inputTokens,
-            outputTokens: result.usage?.outputTokens,
-            completedAt: new Date(),
-          },
-        );
-        if (completion.affected === 0) {
-          return;
-        }
         if (run.conversationId) {
           await manager.save(
             AssistantConversationMessage,
@@ -159,10 +166,18 @@ export class AssistantProcessor extends WorkerHost {
 
       if (currentRun?.status !== 'cancelled') {
         const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts || 1);
-        await this.runRepository.update(run.id, {
+        await this.execution.transition(run.id, {
+          expectedStatuses: ['running'],
           status: finalAttempt ? 'failed' : 'queued',
-          error: error instanceof Error ? error.message : 'Unknown AI error',
-          completedAt: finalAttempt ? new Date() : null,
+          phase: finalAttempt ? 'terminal' : 'queued',
+          eventType: finalAttempt ? 'run.failed' : 'run.retry_scheduled',
+          eventData: {
+            error: error instanceof Error ? error.message : 'Unknown AI error',
+          },
+          patch: {
+            error: error instanceof Error ? error.message : 'Unknown AI error',
+            completedAt: finalAttempt ? new Date() : null,
+          },
         });
       }
 

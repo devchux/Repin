@@ -5,12 +5,18 @@ import {
   Entity,
   Index,
   PrimaryGeneratedColumn,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
   UpdateDateColumn,
 } from 'typeorm';
 import type {
   AssistantOptionsDto,
   AssistantPageContextDto,
 } from '../dto/execute-assistant.dto';
+import { User } from '../../user/entities/user.entity';
+import { AssistantConversationMessage } from './conversation-message.entity';
+import { AssistantRun } from './run.entity';
 
 @Entity('assistant_conversations')
 @Index(['userId', 'updatedAt'])
@@ -20,6 +26,12 @@ export class AssistantConversation {
 
   @Column()
   userId: number;
+
+  @ManyToOne(() => User, (user) => user.assistantConversations, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
   @Column()
   initialCapability: AiAssistantCapability;
@@ -35,4 +47,13 @@ export class AssistantConversation {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => AssistantRun, (run) => run.conversation)
+  runs: AssistantRun[];
+
+  @OneToMany(
+    () => AssistantConversationMessage,
+    (message) => message.conversation,
+  )
+  messages: AssistantConversationMessage[];
 }

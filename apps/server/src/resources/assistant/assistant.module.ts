@@ -14,6 +14,10 @@ import { AssistantAgentLoop } from './services/assistant-agent-loop.service';
 import { AssistantRun } from './entities/run.entity';
 import { AssistantConversation } from './entities/conversation.entity';
 import { AssistantConversationMessage } from './entities/conversation-message.entity';
+import { AssistantRunStep } from './entities/run-step.entity';
+import { AssistantRunEvent } from './entities/run-event.entity';
+import { AssistantRunCheckpoint } from './entities/run-checkpoint.entity';
+import { AssistantExecutionService } from './services/assistant-execution.service';
 
 @Module({
   imports: [
@@ -23,6 +27,9 @@ import { AssistantConversationMessage } from './entities/conversation-message.en
       AssistantRun,
       AssistantConversation,
       AssistantConversationMessage,
+      AssistantRunStep,
+      AssistantRunEvent,
+      AssistantRunCheckpoint,
     ]),
     BullModule.forRootAsync({
       inject: [ConfigService],
@@ -50,6 +57,7 @@ import { AssistantConversationMessage } from './entities/conversation-message.en
     AssistantAgentLoop,
     AssistantProcessor,
     AssistantQueueScaler,
+    AssistantExecutionService,
   ],
 })
 export class AssistantModule {}

@@ -5,6 +5,7 @@ import { AssistantAgentLoop } from '../services/assistant-agent-loop.service';
 import { AiService } from '../../ai/ai.service';
 import { AssistantProcessor } from './assistant.processor';
 import { AssistantRun } from '../entities/run.entity';
+import type { AssistantExecutionService } from '../services/assistant-execution.service';
 
 describe('AssistantProcessor', () => {
   const run: AssistantRun = {
@@ -37,7 +38,15 @@ describe('AssistantProcessor', () => {
   const aiService = {
     generate: jest.fn(),
   } as unknown as AiService;
-  const processor = new AssistantProcessor(runRepository, agentLoop, aiService);
+  const execution = {
+    transition: jest.fn().mockResolvedValue(undefined),
+  } as unknown as AssistantExecutionService;
+  const processor = new AssistantProcessor(
+    runRepository,
+    agentLoop,
+    aiService,
+    execution,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -54,7 +63,7 @@ describe('AssistantProcessor', () => {
       .spyOn(runRepository, 'findOne')
       .mockResolvedValueOnce(run)
       .mockResolvedValueOnce({ ...run, status: 'running' });
-    jest.spyOn(aiService, 'generate').mockResolvedValue({
+    jest.spyOn(agentLoop, 'run').mockResolvedValue({
       provider: 'groq',
       model: 'llama-3.1-8b-instant',
       content: 'Summary',
@@ -69,19 +78,21 @@ describe('AssistantProcessor', () => {
 
     await processor.process(job);
 
-    expect(manager.update).toHaveBeenCalledWith(
-      AssistantRun,
-      { id: run.id, status: 'running' },
+    expect(execution.transition).toHaveBeenCalledWith(
+      run.id,
       expect.objectContaining({
         status: 'completed',
-        result: 'Summary',
-        provider: 'groq',
-        model: 'llama-3.1-8b-instant',
-        inputTokens: 20,
-        outputTokens: 5,
+        phase: 'terminal',
+        patch: expect.objectContaining({
+          result: 'Summary',
+          provider: 'groq',
+          model: 'llama-3.1-8b-instant',
+          inputTokens: 20,
+          outputTokens: 5,
+        }),
       }),
     );
-    expect(agentLoop.run).not.toHaveBeenCalled();
+    expect(agentLoop.run).toHaveBeenCalled();
     expect(manager.update).toHaveBeenCalledWith(
       AssistantRun,
       { id: run.id, status: 'queued' },

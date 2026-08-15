@@ -30,6 +30,38 @@ export const ASSISTANT_RUN_STATUSES = [
 
 export type AssistantRunStatus = (typeof ASSISTANT_RUN_STATUSES)[number];
 
+export const ASSISTANT_RUN_PHASES = [
+  "queued",
+  "initializing",
+  "reasoning",
+  "executing",
+  "finalizing",
+  "terminal",
+] as const;
+
+export type AssistantRunPhase = (typeof ASSISTANT_RUN_PHASES)[number];
+
+export const ASSISTANT_STEP_TYPES = ["model", "tool"] as const;
+export type AssistantStepType = (typeof ASSISTANT_STEP_TYPES)[number];
+
+export const ASSISTANT_STEP_STATUSES = [
+  "running",
+  "completed",
+  "failed",
+] as const;
+export type AssistantStepStatus = (typeof ASSISTANT_STEP_STATUSES)[number];
+
+export type AssistantAgentDecision =
+  | {
+      readonly kind: "tool";
+      readonly calls: readonly {
+        readonly id: string;
+        readonly name: string;
+        readonly arguments: Readonly<Record<string, unknown>>;
+      }[];
+    }
+  | { readonly kind: "complete"; readonly content: string };
+
 export interface CreateAssistantRunRequest {
   readonly capability: AiAssistantCapability;
   readonly context: PageContext;
@@ -48,6 +80,7 @@ export interface AssistantRun {
   readonly conversationId: string;
   readonly capability: AiAssistantCapability;
   readonly status: AssistantRunStatus;
+  readonly phase: AssistantRunPhase;
   readonly result?: string;
   readonly error?: string;
   readonly provider?: string;

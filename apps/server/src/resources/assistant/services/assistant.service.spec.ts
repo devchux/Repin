@@ -6,6 +6,7 @@ import { AssistantProcessor } from '../processors/assistant.processor';
 import { AssistantService } from './assistant.service';
 import { AssistantRun } from '../entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
+import type { AssistantExecutionService } from './assistant-execution.service';
 
 describe('AssistantService', () => {
   const now = new Date();
@@ -47,7 +48,15 @@ describe('AssistantService', () => {
   const processor = {
     cancel: jest.fn(),
   } as unknown as AssistantProcessor;
-  const service = new AssistantService(runRepository, queue, processor);
+  const execution = {
+    transition: jest.fn().mockResolvedValue(undefined),
+  } as unknown as AssistantExecutionService;
+  const service = new AssistantService(
+    runRepository,
+    queue,
+    processor,
+    execution,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();

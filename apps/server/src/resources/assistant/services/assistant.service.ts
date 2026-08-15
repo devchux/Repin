@@ -35,6 +35,7 @@ import { AssistantRun } from '../entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
 import { AssistantConversationMessage } from '../entities/conversation-message.entity';
 import { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
+import { AssistantExecutionService } from './assistant-execution.service';
 
 @Injectable()
 export class AssistantService {
@@ -44,6 +45,7 @@ export class AssistantService {
     @InjectQueue(ASSISTANT_INTERACTIVE_QUEUE)
     private readonly assistantQueue: Queue,
     private readonly assistantProcessor: AssistantProcessor,
+    private readonly execution: AssistantExecutionService,
   ) {}
 
   async createRun(userId: number, request: ExecuteAssistantDto) {
@@ -307,16 +309,18 @@ export class AssistantService {
       );
     }
 
-    const cancellation = await this.runRepository.update(
-      { id: run.id, userId, status: run.status },
-      {
+    try {
+      await this.execution.transition(run.id, {
+        expectedStatuses: [run.status],
         status: 'cancelled',
-        cancelledAt: new Date(),
-        completedAt: new Date(),
-      },
-    );
-
-    if (cancellation.affected === 0) {
+        phase: 'terminal',
+        eventType: 'run.cancelled',
+        patch: {
+          cancelledAt: new Date(),
+          completedAt: new Date(),
+        },
+      });
+    } catch {
       const currentRun = await this.findUserRun(userId, runId);
       if (currentRun.status === 'cancelled') {
         return {
@@ -426,6 +430,7 @@ export class AssistantService {
       conversationId: run.conversationId,
       capability: run.capability,
       status: run.status,
+      phase: run.phase,
       result: run.result,
       error: run.error,
       provider: run.provider,

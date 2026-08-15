@@ -8,12 +8,15 @@ import { AiService } from '../../ai/ai.service';
 import { ToolsService } from '../../tools/tools.service';
 import type { AssistantRun } from '../entities/run.entity';
 import { ASSISTANT_MAX_AGENT_ITERATIONS } from '../assistant.constants';
+import type { AssistantAgentDecision } from '@repo/contracts/assistant';
+import { AssistantExecutionService } from './assistant-execution.service';
 
 @Injectable()
 export class AssistantAgentLoop {
   constructor(
     private readonly aiService: AiService,
     private readonly toolsService: ToolsService,
+    private readonly execution: AssistantExecutionService,
   ) {}
 
   async run(
@@ -31,11 +34,34 @@ export class AssistantAgentLoop {
       iteration += 1
     ) {
       signal?.throwIfAborted();
-      const result = await this.aiService.generate({
-        messages,
-        tools: [...this.toolsService.getDefinitions()],
-        signal,
+      await this.execution.transition(run.id, {
+        expectedStatuses: ['running'],
+        status: 'running',
+        phase: 'reasoning',
+        eventType: 'agent.reasoning',
+        checkpointState: { iteration },
       });
+      const modelStep = await this.execution.startStep(run.id, 'model', {
+        iteration,
+        messageCount: messages.length,
+      });
+      let result: AiGenerateResult;
+      try {
+        result = await this.aiService.generate({
+          messages,
+          tools: [...this.toolsService.getDefinitions()],
+          signal,
+        });
+        await this.execution.completeStep(modelStep.id, {
+          decision: this.toDecision(result),
+          provider: result.provider,
+          model: result.model,
+          usage: result.usage,
+        });
+      } catch (error) {
+        await this.execution.failStep(modelStep.id, error);
+        throw error;
+      }
       inputTokens += result.usage?.inputTokens ?? 0;
       outputTokens += result.usage?.outputTokens ?? 0;
 
@@ -68,6 +94,18 @@ export class AssistantAgentLoop {
     signal?: AbortSignal,
   ): Promise<AiMessage> {
     let payload: unknown;
+    await this.execution.transition(run.id, {
+      expectedStatuses: ['running'],
+      status: 'running',
+      phase: 'executing',
+      eventType: 'agent.executing',
+      checkpointState: { toolCallId: toolCall.id, toolName: toolCall.name },
+    });
+    const step = await this.execution.startStep(run.id, 'tool', {
+      toolCallId: toolCall.id,
+      name: toolCall.name,
+      arguments: toolCall.arguments,
+    });
 
     try {
       if (!this.toolsService.supports(toolCall.name)) {
@@ -91,12 +129,14 @@ export class AssistantAgentLoop {
         },
       );
       payload = { success: true, result };
+      await this.execution.completeStep(step.id, payload);
     } catch (error) {
       signal?.throwIfAborted();
       payload = {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown tool error',
       };
+      await this.execution.failStep(step.id, error);
     }
 
     return {
@@ -104,5 +144,11 @@ export class AssistantAgentLoop {
       toolCallId: toolCall.id,
       content: JSON.stringify(payload),
     };
+  }
+
+  private toDecision(result: AiGenerateResult): AssistantAgentDecision {
+    return result.toolCalls?.length
+      ? { kind: 'tool', calls: result.toolCalls }
+      : { kind: 'complete', content: result.content };
   }
 }

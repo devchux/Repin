@@ -2,6 +2,7 @@ import type { AiService } from '../../ai/ai.service';
 import type { ToolsService } from '../../tools/tools.service';
 import { AssistantAgentLoop } from './assistant-agent-loop.service';
 import type { AssistantRun } from '../entities/run.entity';
+import type { AssistantExecutionService } from './assistant-execution.service';
 
 const run = {
   id: 'run-1',
@@ -10,6 +11,15 @@ const run = {
 } as AssistantRun;
 
 describe('AssistantAgentLoop', () => {
+  const execution = {
+    transition: jest.fn().mockResolvedValue(undefined),
+    startStep: jest.fn().mockResolvedValue({ id: 'step-1' }),
+    completeStep: jest.fn().mockResolvedValue(undefined),
+    failStep: jest.fn().mockResolvedValue(undefined),
+  } as unknown as AssistantExecutionService;
+
+  beforeEach(() => jest.clearAllMocks());
+
   it('executes tool calls and returns the final model response', async () => {
     const aiService = {
       generate: jest
@@ -53,7 +63,7 @@ describe('AssistantAgentLoop', () => {
         },
       ]),
     } as unknown as ToolsService;
-    const loop = new AssistantAgentLoop(aiService, toolsService);
+    const loop = new AssistantAgentLoop(aiService, toolsService, execution);
 
     const result = await loop.run(run, [
       { role: 'user', content: 'List tabs' },
@@ -109,10 +119,11 @@ describe('AssistantAgentLoop', () => {
       execute: jest.fn(),
     } as unknown as ToolsService;
 
-    const result = await new AssistantAgentLoop(aiService, toolsService).run(
-      run,
-      [],
-    );
+    const result = await new AssistantAgentLoop(
+      aiService,
+      toolsService,
+      execution,
+    ).run(run, []);
 
     expect(result.content).toBe('I cannot do that.');
     expect(aiService.generate).toHaveBeenLastCalledWith(
