@@ -56,6 +56,12 @@ export class BrowserToolApproval {
   @Column()
   actionFingerprint: string;
 
+  @Column()
+  effect: string;
+
+  @Column({ type: 'text' })
+  reason: string;
+
   @Column({ default: 'pending' })
   status: BrowserToolApprovalStatus;
 

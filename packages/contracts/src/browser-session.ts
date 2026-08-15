@@ -8,6 +8,7 @@ export interface BrowserCommandEnvelope {
     readonly runId: string;
     readonly name: string;
     readonly input: Readonly<Record<string, unknown>>;
+    readonly cacheResult?: boolean;
   };
 }
 

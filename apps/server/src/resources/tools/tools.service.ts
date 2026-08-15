@@ -45,6 +45,7 @@ import type {
   BrowserToolResult,
 } from './types/browser-tool.types';
 import { getBrowserToolDescriptor } from './policy/browser-tool-descriptors';
+import { BrowserActionPolicyService } from './policy/browser-action-policy.service';
 
 @Injectable()
 export class ToolsService {
@@ -53,6 +54,7 @@ export class ToolsService {
     @Inject(BROWSER_TOOL_EXECUTOR)
     private readonly browserExecutor?: BrowserToolExecutor,
     private readonly approvals?: BrowserToolApprovalService,
+    private readonly actionPolicy?: BrowserActionPolicyService,
   ) {}
 
   getDefinitions(): readonly AiTool[] {
@@ -78,11 +80,15 @@ export class ToolsService {
         `${call.name} requires a documentRevision from a current observation`,
       );
     }
+    const policy = this.actionPolicy
+      ? await this.actionPolicy.evaluate(call, context, executor)
+      : undefined;
     await this.approvals?.authorize(
       context.userId,
       context.runId,
       call.name,
       call.arguments,
+      policy,
     );
 
     switch (call.name) {

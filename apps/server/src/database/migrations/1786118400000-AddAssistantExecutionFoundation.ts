@@ -8,7 +8,10 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
       `ALTER TYPE "public"."assistant_runs_status_enum" ADD VALUE IF NOT EXISTS 'awaiting_approval' AFTER 'running'`,
     );
     await queryRunner.query(
-      `CREATE TYPE "public"."assistant_runs_phase_enum" AS ENUM('queued', 'initializing', 'reasoning', 'executing', 'awaiting_approval', 'finalizing', 'terminal')`,
+      `ALTER TYPE "public"."assistant_runs_status_enum" ADD VALUE IF NOT EXISTS 'suspended' AFTER 'awaiting_approval'`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."assistant_runs_phase_enum" AS ENUM('queued', 'initializing', 'reasoning', 'executing', 'awaiting_approval', 'suspended', 'finalizing', 'terminal')`,
     );
     await queryRunner.query(
       `ALTER TABLE "assistant_runs" ADD "phase" "public"."assistant_runs_phase_enum" NOT NULL DEFAULT 'queued'`,
@@ -27,6 +30,9 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
     );
     await queryRunner.query(
       `ALTER TABLE "assistant_runs" ADD "maxToolCalls" integer NOT NULL DEFAULT 30`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assistant_runs" ADD "queueJobId" character varying`,
     );
     await queryRunner.query(
       `CREATE TYPE "public"."assistant_run_steps_type_enum" AS ENUM('model', 'tool', 'verification')`,
@@ -53,7 +59,7 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
       `CREATE UNIQUE INDEX "IDX_assistant_run_checkpoints_run_version" ON "assistant_run_checkpoints" ("runId", "version")`,
     );
     await queryRunner.query(
-      `CREATE TABLE "browser_tool_approvals" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "runId" uuid NOT NULL, "userId" integer NOT NULL, "toolName" character varying NOT NULL, "arguments" jsonb NOT NULL, "actionFingerprint" character varying NOT NULL, "status" character varying NOT NULL DEFAULT 'pending', "expiresAt" TIMESTAMP NOT NULL, "decidedAt" TIMESTAMP, "consumedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_browser_tool_approvals_id" PRIMARY KEY ("id"), CONSTRAINT "FK_browser_tool_approvals_run" FOREIGN KEY ("runId") REFERENCES "assistant_runs"("id") ON DELETE CASCADE, CONSTRAINT "FK_browser_tool_approvals_user" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE)`,
+      `CREATE TABLE "browser_tool_approvals" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "runId" uuid NOT NULL, "userId" integer NOT NULL, "toolName" character varying NOT NULL, "arguments" jsonb NOT NULL, "actionFingerprint" character varying NOT NULL, "effect" character varying NOT NULL, "reason" text NOT NULL, "status" character varying NOT NULL DEFAULT 'pending', "expiresAt" TIMESTAMP NOT NULL, "decidedAt" TIMESTAMP, "consumedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_browser_tool_approvals_id" PRIMARY KEY ("id"), CONSTRAINT "FK_browser_tool_approvals_run" FOREIGN KEY ("runId") REFERENCES "assistant_runs"("id") ON DELETE CASCADE, CONSTRAINT "FK_browser_tool_approvals_user" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE)`,
     );
     await queryRunner.query(
       `CREATE UNIQUE INDEX "IDX_browser_tool_approvals_run_action" ON "browser_tool_approvals" ("runId", "actionFingerprint") WHERE "status" IN ('pending', 'approved')`,
@@ -61,9 +67,13 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
     await queryRunner.query(
       `CREATE INDEX "IDX_browser_tool_approvals_user_status" ON "browser_tool_approvals" ("userId", "status")`,
     );
+    await queryRunner.query(
+      `CREATE TABLE "assistant_run_continuations" ("runId" uuid NOT NULL, "iteration" integer NOT NULL, "messages" jsonb NOT NULL, "pendingToolCalls" jsonb NOT NULL, "idempotencyKey" uuid NOT NULL, "reason" character varying NOT NULL DEFAULT 'prepared', "dispatchState" character varying NOT NULL DEFAULT 'prepared', "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_assistant_run_continuations_run" PRIMARY KEY ("runId"), CONSTRAINT "FK_assistant_run_continuations_run" FOREIGN KEY ("runId") REFERENCES "assistant_runs"("id") ON DELETE CASCADE)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE "assistant_run_continuations"`);
     await queryRunner.query(`DROP TABLE "browser_tool_approvals"`);
     await queryRunner.query(`DROP TABLE "assistant_run_checkpoints"`);
     await queryRunner.query(`DROP TABLE "assistant_run_events"`);
@@ -79,6 +89,9 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
     );
     await queryRunner.query(
       `ALTER TABLE "assistant_runs" DROP COLUMN "maxToolCalls"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assistant_runs" DROP COLUMN "queueJobId"`,
     );
     await queryRunner.query(
       `ALTER TABLE "assistant_runs" DROP COLUMN "maxModelCalls"`,
@@ -101,7 +114,7 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
       `CREATE TYPE "public"."assistant_runs_status_enum" AS ENUM('queued', 'running', 'completed', 'failed', 'cancelled')`,
     );
     await queryRunner.query(
-      `ALTER TABLE "assistant_runs" ALTER COLUMN "status" TYPE "public"."assistant_runs_status_enum" USING (CASE WHEN "status"::text = 'awaiting_approval' THEN 'queued' ELSE "status"::text END)::"public"."assistant_runs_status_enum"`,
+      `ALTER TABLE "assistant_runs" ALTER COLUMN "status" TYPE "public"."assistant_runs_status_enum" USING (CASE WHEN "status"::text IN ('awaiting_approval', 'suspended') THEN 'queued' ELSE "status"::text END)::"public"."assistant_runs_status_enum"`,
     );
     await queryRunner.query(
       `ALTER TABLE "assistant_runs" ALTER COLUMN "status" SET DEFAULT 'queued'`,

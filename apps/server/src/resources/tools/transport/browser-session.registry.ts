@@ -1,7 +1,11 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { BrowserSessionClientMessage } from '@repo/contracts/browser-session';
 import type { BrowserToolExecutionContext } from '../types/browser-tool.types';
 import type { ExtensionBrowserCommand } from '../executors/extension-browser-transport';
+import {
+  BrowserCommandOutcomeUnknownError,
+  BrowserSessionUnavailableError,
+} from '../executors/browser-execution.errors';
 
 interface Connection {
   readonly send: (message: unknown) => void;
@@ -26,14 +30,20 @@ export class BrowserSessionRegistry {
     connection: Connection,
   ): () => void {
     const key = this.sessionKey(userId, sessionId);
-    this.disconnect(userId, sessionId, new Error('Browser session replaced'));
+    this.disconnect(
+      userId,
+      sessionId,
+      new BrowserCommandOutcomeUnknownError('Browser session replaced'),
+    );
     this.connections.set(key, connection);
     return () => {
       if (this.connections.get(key) === connection) {
         this.disconnect(
           userId,
           sessionId,
-          new Error('Browser session disconnected'),
+          new BrowserCommandOutcomeUnknownError(
+            'Browser session disconnected during command execution',
+          ),
         );
       }
     };
@@ -50,7 +60,7 @@ export class BrowserSessionRegistry {
     );
     const connection = this.connections.get(sessionKey);
     if (!connection) {
-      throw new ServiceUnavailableException(
+      throw new BrowserSessionUnavailableError(
         'Browser extension session is not connected',
       );
     }
@@ -67,7 +77,7 @@ export class BrowserSessionRegistry {
         connection.send(this.cancelMessage(command.commandId));
         this.rejectPending(
           command.commandId,
-          new Error('Browser command timed out'),
+          new BrowserCommandOutcomeUnknownError('Browser command timed out'),
         );
       }, timeoutMs);
       const cleanup = () => context.signal?.removeEventListener('abort', abort);

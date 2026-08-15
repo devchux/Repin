@@ -176,7 +176,7 @@ export class AssistantService {
         const pendingTurn = await manager.count(AssistantRun, {
           where: {
             conversationId,
-            status: In(['queued', 'running', 'awaiting_approval']),
+            status: In(['queued', 'running', 'awaiting_approval', 'suspended']),
           },
         });
         if (pendingTurn > 0) {
@@ -336,7 +336,7 @@ export class AssistantService {
     }
     this.assistantProcessor.cancel(run.id);
 
-    const job = await this.assistantQueue.getJob(run.id);
+    const job = await this.assistantQueue.getJob(run.queueJobId ?? run.id);
     const jobState = await job?.getState();
     if (job && (jobState === 'waiting' || jobState === 'delayed')) {
       try {
@@ -403,6 +403,8 @@ export class AssistantService {
         id: approval.id,
         toolName: approval.toolName,
         arguments: approval.arguments,
+        effect: approval.effect,
+        reason: approval.reason,
         expiresAt: approval.expiresAt,
         createdAt: approval.createdAt,
       })),
@@ -429,6 +431,34 @@ export class AssistantService {
     return {
       message: 'Browser action denied',
       data: this.toResponse(failedRun),
+    };
+  }
+
+  async resumeRun(userId: number, runId: string) {
+    const run = await this.findUserRun(userId, runId);
+    if (run.status !== 'suspended') {
+      throw new BadRequestException('Assistant run is not suspended');
+    }
+    const continuation = await this.execution.getContinuation(runId);
+    if (!continuation) {
+      throw new BadRequestException(
+        'Assistant run has no resumable continuation',
+      );
+    }
+    const resumedRun = await this.execution.transition(runId, {
+      expectedStatuses: ['suspended'],
+      status: 'queued',
+      phase: 'queued',
+      eventType: 'browser.resume_requested',
+      checkpointState: {
+        continuation: true,
+        dispatchState: continuation.dispatchState,
+      },
+    });
+    await this.enqueueRun(runId, `resume:${resumedRun.checkpointVersion}`);
+    return {
+      message: 'Assistant run queued for browser resumption',
+      data: this.toResponse(resumedRun),
     };
   }
 
@@ -463,18 +493,21 @@ export class AssistantService {
     return conversation;
   }
 
-  private enqueueRun(runId: string, resumeKey?: string) {
-    return this.assistantQueue.add(
+  private async enqueueRun(runId: string, resumeKey?: string) {
+    const jobId = resumeKey ? `${runId}:${resumeKey}` : runId;
+    const job = await this.assistantQueue.add(
       EXECUTE_ASSISTANT_JOB,
       { runId },
       {
-        jobId: resumeKey ? `${runId}:${resumeKey}` : runId,
+        jobId,
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
         removeOnComplete: 100,
         removeOnFail: 100,
       },
     );
+    await this.runRepository.update(runId, { queueJobId: jobId });
+    return job;
   }
 
   private validateRequest(request: ExecuteAssistantDto): void {

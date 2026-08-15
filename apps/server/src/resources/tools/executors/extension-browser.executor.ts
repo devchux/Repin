@@ -34,6 +34,7 @@ import type {
   BrowserToolName,
   TabTargetInput,
 } from '../types/browser-tool.types';
+import { getBrowserToolDescriptor } from '../policy/browser-tool-descriptors';
 
 @Injectable()
 export class ExtensionBrowserExecutor implements BrowserToolExecutor {
@@ -265,10 +266,11 @@ export class ExtensionBrowserExecutor implements BrowserToolExecutor {
     }
 
     return this.transport.send<TResult>(context, {
-      commandId: randomUUID(),
+      commandId: context.idempotencyKey ?? randomUUID(),
       runId: context.runId,
       name,
       input: input as Readonly<Record<string, unknown>>,
+      cacheResult: getBrowserToolDescriptor(name).sideEffect !== 'none',
     });
   }
 }

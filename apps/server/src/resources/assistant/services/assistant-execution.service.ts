@@ -15,6 +15,8 @@ import { AssistantRunCheckpoint } from '../entities/run-checkpoint.entity';
 import { AssistantRunEvent } from '../entities/run-event.entity';
 import { AssistantRunStep } from '../entities/run-step.entity';
 import { ASSISTANT_REPEATED_ACTION_LIMIT } from '../assistant.constants';
+import { AssistantRunContinuation } from '../entities/run-continuation.entity';
+import type { AiMessage, AiToolCall } from '../../ai/types/provider';
 
 interface TransitionInput {
   readonly expectedStatuses: readonly AssistantRunStatus[];
@@ -39,6 +41,7 @@ const ALLOWED_STATUS_TRANSITIONS: Readonly<
     'cancelled',
   ],
   awaiting_approval: ['queued', 'failed', 'cancelled'],
+  suspended: ['queued', 'failed', 'cancelled'],
   completed: [],
   failed: [],
   cancelled: [],
@@ -130,7 +133,7 @@ export class AssistantExecutionService {
           sequence: Number(maximum) + 1,
           type,
           status: 'running',
-          input,
+          input: type === 'tool' ? this.redactTextFields(input) : input,
         }),
       );
       await this.appendEvent(manager, runId, 'step.started', {
@@ -144,6 +147,66 @@ export class AssistantExecutionService {
 
   async completeStep(stepId: string, output?: unknown): Promise<void> {
     await this.finishStep(stepId, 'completed', output);
+  }
+
+  async saveContinuation(
+    runId: string,
+    iteration: number,
+    messages: readonly AiMessage[],
+    pendingToolCalls: readonly AiToolCall[],
+    idempotencyKey: string,
+  ): Promise<void> {
+    await this.runRepository.manager.transaction(async (manager) => {
+      await this.lockRun(manager, runId);
+      await manager.save(
+        manager.create(AssistantRunContinuation, {
+          runId,
+          iteration,
+          messages,
+          pendingToolCalls,
+          idempotencyKey,
+          reason: 'prepared',
+          dispatchState: 'prepared',
+        }),
+      );
+    });
+  }
+
+  getContinuation(runId: string): Promise<AssistantRunContinuation | null> {
+    return this.runRepository.manager.findOne(AssistantRunContinuation, {
+      where: { runId },
+    });
+  }
+
+  async markContinuation(
+    runId: string,
+    reason: 'approval' | 'browser_unavailable',
+    dispatchState: 'prepared' | 'unknown',
+  ): Promise<void> {
+    await this.runRepository.manager.update(
+      AssistantRunContinuation,
+      { runId },
+      { reason, dispatchState },
+    );
+  }
+
+  async clearContinuation(runId: string): Promise<void> {
+    await this.runRepository.manager.delete(AssistantRunContinuation, {
+      runId,
+    });
+  }
+
+  async redactSensitiveToolText(runId: string): Promise<void> {
+    await this.runRepository.manager.transaction(async (manager) => {
+      await this.lockRun(manager, runId);
+      const steps = await manager.find(AssistantRunStep, { where: { runId } });
+      for (const step of steps) {
+        step.input = this.redactTextFields(step.input);
+        step.output = this.redactTextFields(step.output);
+      }
+      await manager.save(steps);
+      await manager.delete(AssistantRunContinuation, { runId });
+    });
   }
 
   async failStep(stepId: string, error: unknown): Promise<void> {
@@ -170,7 +233,8 @@ export class AssistantExecutionService {
         throw new ConflictException('Assistant step is not running');
       }
       step.status = status;
-      step.output = output;
+      step.output =
+        step.type === 'model' ? this.redactTextFields(output) : output;
       step.error = error;
       step.completedAt = new Date();
       await manager.save(step);
@@ -206,7 +270,7 @@ export class AssistantExecutionService {
       take: ASSISTANT_REPEATED_ACTION_LIMIT - 1,
     });
     if (recent.length < ASSISTANT_REPEATED_ACTION_LIMIT - 1) return;
-    const signature = this.actionSignature(input);
+    const signature = this.actionSignature(this.redactTextFields(input));
     if (
       recent.every((step) => this.actionSignature(step.input) === signature)
     ) {
@@ -235,6 +299,21 @@ export class AssistantExecutionService {
         .join(',')}}`;
     }
     return JSON.stringify(value);
+  }
+
+  private redactTextFields(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.redactTextFields(item));
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+          key,
+          key === 'text' ? '[REDACTED]' : this.redactTextFields(item),
+        ]),
+      );
+    }
+    return value;
   }
 
   private async appendEvent(

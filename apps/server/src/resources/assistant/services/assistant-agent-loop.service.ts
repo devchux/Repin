@@ -13,6 +13,11 @@ import { AssistantExecutionService } from './assistant-execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { getBrowserToolDescriptor } from '../../tools/policy/browser-tool-descriptors';
 import type { BrowserToolResult } from '../../tools/types/browser-tool.types';
+import { randomUUID } from 'node:crypto';
+import {
+  BrowserCommandOutcomeUnknownError,
+  BrowserSessionUnavailableError,
+} from '../../tools/executors/browser-execution.errors';
 
 @Injectable()
 export class AssistantAgentLoop {
@@ -27,12 +32,50 @@ export class AssistantAgentLoop {
     initialMessages: AiMessage[],
     signal?: AbortSignal,
   ): Promise<AiGenerateResult> {
-    const messages = [...initialMessages];
+    let messages = [...initialMessages];
     let inputTokens = 0;
     let outputTokens = 0;
+    let initialIteration = 0;
+
+    const continuation = await this.execution.getContinuation(run.id);
+    if (continuation) {
+      messages = continuation.messages as AiMessage[];
+      initialIteration = continuation.iteration;
+      const pendingToolCalls = continuation.pendingToolCalls as AiToolCall[];
+      if (
+        continuation.dispatchState === 'unknown' &&
+        run.browserExecutionTarget === 'managed'
+      ) {
+        messages.push(
+          ...pendingToolCalls.map((toolCall, index) => ({
+            role: 'tool' as const,
+            toolCallId: toolCall.id,
+            content: JSON.stringify({
+              success: false,
+              outcomeUnknown: index === 0,
+              cancelled: index > 0,
+              error:
+                index === 0
+                  ? 'The previous browser action may have completed. Observe and reconcile before taking another action.'
+                  : 'Cancelled because a previous action has an unknown outcome.',
+            }),
+          })),
+        );
+        await this.execution.clearContinuation(run.id);
+      } else {
+        await this.executeToolBatch(
+          run,
+          messages,
+          pendingToolCalls,
+          continuation.iteration,
+          signal,
+          continuation.idempotencyKey,
+        );
+      }
+    }
 
     for (
-      let iteration = 0;
+      let iteration = initialIteration;
       iteration < ASSISTANT_MAX_AGENT_ITERATIONS;
       iteration += 1
     ) {
@@ -81,9 +124,13 @@ export class AssistantAgentLoop {
         toolCalls: result.toolCalls,
       });
 
-      for (const toolCall of result.toolCalls) {
-        messages.push(await this.executeTool(run, toolCall, signal));
-      }
+      await this.executeToolBatch(
+        run,
+        messages,
+        result.toolCalls,
+        iteration,
+        signal,
+      );
     }
 
     throw new Error(
@@ -94,6 +141,7 @@ export class AssistantAgentLoop {
   private async executeTool(
     run: AssistantRun,
     toolCall: AiToolCall,
+    idempotencyKey: string,
     signal?: AbortSignal,
   ): Promise<AiMessage> {
     let payload: unknown;
@@ -128,6 +176,7 @@ export class AssistantAgentLoop {
           runId: run.id,
           browserSessionId: run.browserSessionId,
           executorKind: run.browserExecutionTarget,
+          idempotencyKey,
           signal,
         },
       );
@@ -136,7 +185,27 @@ export class AssistantAgentLoop {
       payload = { success: true, result, verification };
     } catch (error) {
       await this.execution.failStep(step.id, error);
-      if (error instanceof BrowserToolApprovalRequiredError) throw error;
+      if (error instanceof BrowserToolApprovalRequiredError) {
+        if (error.approval.effect === 'sensitive_input') {
+          await this.execution.redactSensitiveToolText(run.id);
+        } else {
+          await this.execution.markContinuation(run.id, 'approval', 'prepared');
+        }
+        throw error;
+      }
+      if (
+        error instanceof BrowserSessionUnavailableError ||
+        error instanceof BrowserCommandOutcomeUnknownError
+      ) {
+        await this.execution.markContinuation(
+          run.id,
+          'browser_unavailable',
+          error instanceof BrowserCommandOutcomeUnknownError
+            ? 'unknown'
+            : 'prepared',
+        );
+        throw error;
+      }
       signal?.throwIfAborted();
       payload = {
         success: false,
@@ -149,6 +218,31 @@ export class AssistantAgentLoop {
       toolCallId: toolCall.id,
       content: JSON.stringify(payload),
     };
+  }
+
+  private async executeToolBatch(
+    run: AssistantRun,
+    messages: AiMessage[],
+    toolCalls: readonly AiToolCall[],
+    iteration: number,
+    signal?: AbortSignal,
+    firstIdempotencyKey?: string,
+  ): Promise<void> {
+    for (let index = 0; index < toolCalls.length; index += 1) {
+      const idempotencyKey =
+        index === 0 && firstIdempotencyKey ? firstIdempotencyKey : randomUUID();
+      await this.execution.saveContinuation(
+        run.id,
+        iteration,
+        messages,
+        toolCalls.slice(index),
+        idempotencyKey,
+      );
+      messages.push(
+        await this.executeTool(run, toolCalls[index], idempotencyKey, signal),
+      );
+      await this.execution.clearContinuation(run.id);
+    }
   }
 
   private toDecision(result: AiGenerateResult): AssistantAgentDecision {

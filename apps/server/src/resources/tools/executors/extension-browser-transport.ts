@@ -12,6 +12,7 @@ export interface ExtensionBrowserCommand {
   readonly runId: string;
   readonly name: BrowserToolName;
   readonly input: Readonly<Record<string, unknown>>;
+  readonly cacheResult?: boolean;
 }
 
 /**

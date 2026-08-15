@@ -26,6 +26,10 @@ import {
   AssistantLoopDetectedError,
 } from '../services/assistant-execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
+import {
+  BrowserCommandOutcomeUnknownError,
+  BrowserSessionUnavailableError,
+} from '../../tools/executors/browser-execution.errors';
 
 interface AssistantJobData {
   runId: string;
@@ -84,6 +88,7 @@ export class AssistantProcessor extends WorkerHost {
               0,
               startedAt.getTime() - run.createdAt.getTime(),
             ),
+            queueJobId: null,
             error: null,
           },
         );
@@ -185,6 +190,25 @@ export class AssistantProcessor extends WorkerHost {
             expiresAt: error.approval.expiresAt.toISOString(),
           },
           checkpointState: { approvalId: error.approval.id },
+        });
+        return;
+      }
+
+      if (
+        (error instanceof BrowserSessionUnavailableError ||
+          error instanceof BrowserCommandOutcomeUnknownError) &&
+        currentRun?.status !== 'cancelled'
+      ) {
+        await this.execution.transition(run.id, {
+          expectedStatuses: ['running'],
+          status: 'suspended',
+          phase: 'suspended',
+          eventType: 'browser.suspended',
+          eventData: {
+            reason: error.message,
+            outcomeUnknown: error instanceof BrowserCommandOutcomeUnknownError,
+          },
+          checkpointState: { continuation: true },
         });
         return;
       }

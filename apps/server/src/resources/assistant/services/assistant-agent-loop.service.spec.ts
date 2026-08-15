@@ -16,6 +16,10 @@ describe('AssistantAgentLoop', () => {
     startStep: jest.fn().mockResolvedValue({ id: 'step-1' }),
     completeStep: jest.fn().mockResolvedValue(undefined),
     failStep: jest.fn().mockResolvedValue(undefined),
+    getContinuation: jest.fn().mockResolvedValue(null),
+    saveContinuation: jest.fn().mockResolvedValue(undefined),
+    markContinuation: jest.fn().mockResolvedValue(undefined),
+    clearContinuation: jest.fn().mockResolvedValue(undefined),
   } as unknown as AssistantExecutionService;
 
   beforeEach(() => jest.clearAllMocks());
@@ -134,6 +138,62 @@ describe('AssistantAgentLoop', () => {
             content: expect.stringContaining('Unsupported browser tool'),
           }),
         ]),
+      }),
+    );
+  });
+
+  it('resumes the exact pending tool call with its idempotency key', async () => {
+    jest.spyOn(execution, 'getContinuation').mockResolvedValueOnce({
+      runId: run.id,
+      iteration: 1,
+      messages: [
+        { role: 'user', content: 'List tabs' },
+        {
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            {
+              id: 'call-resume',
+              name: 'browser_list_tabs',
+              arguments: {},
+            },
+          ],
+        },
+      ],
+      pendingToolCalls: [
+        {
+          id: 'call-resume',
+          name: 'browser_list_tabs',
+          arguments: {},
+        },
+      ],
+      idempotencyKey: '9d06cd75-e508-4d25-8a0d-a018863c2188',
+      dispatchState: 'prepared',
+    } as never);
+    const aiService = {
+      generate: jest.fn().mockResolvedValue({
+        provider: 'test',
+        model: 'model',
+        content: 'Resumed successfully.',
+      }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+      supports: jest.fn().mockReturnValue(true),
+      execute: jest.fn().mockResolvedValue([]),
+    } as unknown as ToolsService;
+
+    const result = await new AssistantAgentLoop(
+      aiService,
+      toolsService,
+      execution,
+    ).run(run, []);
+
+    expect(result.content).toBe('Resumed successfully.');
+    expect(toolsService.execute).toHaveBeenCalledWith(
+      { name: 'browser_list_tabs', arguments: {} },
+      expect.objectContaining({
+        idempotencyKey: '9d06cd75-e508-4d25-8a0d-a018863c2188',
       }),
     );
   });

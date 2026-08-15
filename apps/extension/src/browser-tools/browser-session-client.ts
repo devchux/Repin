@@ -7,6 +7,8 @@ import { executeBrowserCommand } from "./browser-command-router";
 
 const SERVER_URL_KEY = "repinServerUrl";
 const SESSION_ID_KEY = "repinBrowserSessionId";
+const COMMAND_RESULTS_KEY = "repinBrowserCommandResults";
+const MAX_CACHED_COMMAND_RESULTS = 100;
 
 export const startBrowserSession = async (): Promise<void> => {
   const stored = await browser.storage.local.get([
@@ -61,7 +63,20 @@ export const startBrowserSession = async (): Promise<void> => {
     const controller = new AbortController();
     running.set(message.payload.commandId, controller);
     try {
+      const cached = message.payload.cacheResult
+        ? await readCachedResult(message.payload.commandId)
+        : undefined;
+      if (cached !== undefined) {
+        send(socket, {
+          protocolVersion: 1,
+          type: "browser.command.result",
+          payload: { commandId: message.payload.commandId, result: cached },
+        });
+        return;
+      }
       const result = await executeBrowserCommand(message.payload);
+      if (message.payload.cacheResult)
+        await cacheResult(message.payload.commandId, result);
       send(socket, {
         protocolVersion: 1,
         type: "browser.command.result",
@@ -89,3 +104,23 @@ export const startBrowserSession = async (): Promise<void> => {
 
 const send = (socket: WebSocket, message: BrowserSessionClientMessage) =>
   socket.send(JSON.stringify(message));
+
+const readCachedResult = async (commandId: string): Promise<unknown> => {
+  const stored = await browser.storage.local.get(COMMAND_RESULTS_KEY);
+  const entries =
+    (stored[COMMAND_RESULTS_KEY] as Record<string, unknown> | undefined) ?? {};
+  return entries[commandId];
+};
+
+const cacheResult = async (commandId: string, result: unknown) => {
+  const stored = await browser.storage.local.get(COMMAND_RESULTS_KEY);
+  const entries = Object.entries(
+    (stored[COMMAND_RESULTS_KEY] as Record<string, unknown> | undefined) ?? {},
+  );
+  entries.push([commandId, result]);
+  await browser.storage.local.set({
+    [COMMAND_RESULTS_KEY]: Object.fromEntries(
+      entries.slice(-MAX_CACHED_COMMAND_RESULTS),
+    ),
+  });
+};

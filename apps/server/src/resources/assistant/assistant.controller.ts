@@ -55,6 +55,14 @@ export class AssistantController {
     return this.assistantService.cancelRun(user.id, runId);
   }
 
+  @Post('runs/:id/resume')
+  resumeRun(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) runId: string,
+  ) {
+    return this.assistantService.resumeRun(user.id, runId);
+  }
+
   @Post('runs/:id/approvals/:approvalId/approve')
   approveAction(
     @CurrentUser() user: AuthUser,

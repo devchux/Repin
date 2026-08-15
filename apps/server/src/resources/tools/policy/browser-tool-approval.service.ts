@@ -9,6 +9,7 @@ import { MoreThan, Repository } from 'typeorm';
 import { BrowserToolApproval } from './browser-tool-approval.entity';
 import { getBrowserToolDescriptor } from './browser-tool-descriptors';
 import type { BrowserToolName } from '../types/browser-tool.types';
+import type { BrowserActionPolicyDecision } from './browser-action-policy.service';
 
 export const APPROVAL_REQUIRED_BROWSER_TOOLS = [
   'browser_upload_files',
@@ -40,8 +41,12 @@ export class BrowserToolApprovalService {
     runId: string,
     toolName: BrowserToolName,
     argumentsValue: Readonly<Record<string, unknown>>,
+    policy?: BrowserActionPolicyDecision,
   ): Promise<void> {
-    if (!getBrowserToolDescriptor(toolName).requiresApproval) return;
+    const requiresApproval =
+      policy?.requiresApproval ??
+      getBrowserToolDescriptor(toolName).requiresApproval;
+    if (!requiresApproval) return;
 
     const actionFingerprint = this.fingerprint(toolName, argumentsValue);
     const now = new Date();
@@ -70,8 +75,10 @@ export class BrowserToolApprovalService {
         userId,
         runId,
         toolName,
-        arguments: argumentsValue,
+        arguments: policy?.displayArguments ?? argumentsValue,
         actionFingerprint,
+        effect: policy?.effect ?? 'consequential',
+        reason: policy?.reason ?? `${toolName} requires approval`,
         status: 'pending',
         expiresAt: new Date(now.getTime() + 15 * 60_000),
       }),

@@ -18,6 +18,7 @@ import { AssistantRunStep } from './entities/run-step.entity';
 import { AssistantRunEvent } from './entities/run-event.entity';
 import { AssistantRunCheckpoint } from './entities/run-checkpoint.entity';
 import { AssistantExecutionService } from './services/assistant-execution.service';
+import { AssistantRunContinuation } from './entities/run-continuation.entity';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AssistantExecutionService } from './services/assistant-execution.servic
       AssistantRunStep,
       AssistantRunEvent,
       AssistantRunCheckpoint,
+      AssistantRunContinuation,
     ]),
     BullModule.forRootAsync({
       inject: [ConfigService],

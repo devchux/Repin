@@ -16,6 +16,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -30,6 +31,7 @@ import { AssistantRunCheckpoint } from './run-checkpoint.entity';
 import { AssistantRunEvent } from './run-event.entity';
 import { AssistantRunStep } from './run-step.entity';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
+import { AssistantRunContinuation } from './run-continuation.entity';
 
 @Entity('assistant_runs')
 @Index(['userId', 'createdAt'])
@@ -126,6 +128,9 @@ export class AssistantRun {
   @Column({ type: 'integer', nullable: true })
   queueWaitMs?: number;
 
+  @Column({ nullable: true })
+  queueJobId?: string;
+
   @Column({ type: 'timestamp', nullable: true })
   completedAt?: Date;
 
@@ -146,4 +151,7 @@ export class AssistantRun {
 
   @OneToMany(() => BrowserToolApproval, (approval) => approval.run)
   approvals: BrowserToolApproval[];
+
+  @OneToOne(() => AssistantRunContinuation, (continuation) => continuation.run)
+  continuation?: AssistantRunContinuation;
 }

@@ -14,6 +14,7 @@ import { PlaywrightBrowserExecutor } from './executors/playwright-browser.execut
 import { PlaywrightBrowserSessionRegistry } from './executors/playwright-browser-session.registry';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BrowserToolApproval } from './policy/browser-tool-approval.entity';
+import { BrowserActionPolicyService } from './policy/browser-action-policy.service';
 
 @Module({
   imports: [AuthModule, TypeOrmModule.forFeature([BrowserToolApproval])],
@@ -21,6 +22,7 @@ import { BrowserToolApproval } from './policy/browser-tool-approval.entity';
   providers: [
     BrowserSessionRegistry,
     BrowserToolApprovalService,
+    BrowserActionPolicyService,
     BrowserSessionGateway,
     WebSocketExtensionBrowserTransport,
     {

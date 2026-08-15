@@ -83,3 +83,28 @@ instructions:
   captures fresh navigation state when a tab remains available, or records the
   executor acknowledgement when no inspectable tab is returned. Verification
   failures are returned to the model instead of silently claiming success.
+
+## Safety and resumability
+
+Static tool risk is supplemented by contextual policy. Before ordinary clicks,
+double-clicks, fills, or typing, the harness resolves the revision-bound target
+element and classifies its accessible name, text, type, and autocomplete
+metadata. Financial, communication, destructive, authentication, and sensitive
+input targets require approval even when the underlying tool is normally
+allowed. Sensitive input is redacted from approval payloads and durable step
+records; those actions are rediscovered after approval rather than persisting
+secret text in a continuation.
+
+Before dispatch, the loop stores a single run continuation containing the model
+messages, pending tool-call batch, iteration, and stable idempotency key. An
+approval resumes this exact cursor instead of asking the model to reconstruct
+the action. Browser disconnection or command timeout moves the run to
+`suspended` and releases the worker. The user can reconnect the browser and
+request resume with `POST /assistant/runs/:id/resume`.
+
+Extension side effects use the continuation idempotency key as their command ID.
+The extension persists a bounded cache of completed side-effect results before
+acknowledgement, so retrying the same command returns its prior result. Managed
+browser commands cannot promise executor-level deduplication; an unknown
+managed outcome is therefore reported back to the model for observation and
+reconciliation rather than replayed blindly.

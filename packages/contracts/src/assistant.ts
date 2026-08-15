@@ -24,6 +24,7 @@ export const ASSISTANT_RUN_STATUSES = [
   "queued",
   "running",
   "awaiting_approval",
+  "suspended",
   "completed",
   "failed",
   "cancelled",
@@ -37,6 +38,7 @@ export const ASSISTANT_RUN_PHASES = [
   "reasoning",
   "executing",
   "awaiting_approval",
+  "suspended",
   "finalizing",
   "terminal",
 ] as const;
@@ -111,6 +113,8 @@ export interface BrowserActionApproval {
   readonly id: string;
   readonly toolName: string;
   readonly arguments: Readonly<Record<string, unknown>>;
+  readonly effect: string;
+  readonly reason: string;
   readonly expiresAt: string;
   readonly createdAt: string;
 }

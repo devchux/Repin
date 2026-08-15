@@ -8,6 +8,7 @@ import { AssistantRun } from '../entities/run.entity';
 import type { AssistantExecutionService } from '../services/assistant-execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
+import { BrowserSessionUnavailableError } from '../../tools/executors/browser-execution.errors';
 
 describe('AssistantProcessor', () => {
   const run: AssistantRun = {
@@ -187,6 +188,34 @@ describe('AssistantProcessor', () => {
         phase: 'awaiting_approval',
         eventType: 'approval.requested',
         checkpointState: { approvalId: approval.id },
+      }),
+    );
+  });
+
+  it('suspends instead of retrying when the browser disconnects', async () => {
+    jest
+      .spyOn(runRepository, 'findOne')
+      .mockResolvedValueOnce(run)
+      .mockResolvedValueOnce({ ...run, status: 'running' })
+      .mockResolvedValueOnce({ ...run, status: 'running' });
+    jest
+      .spyOn(agentLoop, 'run')
+      .mockRejectedValue(new BrowserSessionUnavailableError());
+    const job = {
+      id: 'job-1',
+      name: 'execute-assistant',
+      data: { runId: run.id },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+    } as Job<{ runId: string }>;
+
+    await expect(processor.process(job)).resolves.toBeUndefined();
+    expect(execution.transition).toHaveBeenCalledWith(
+      run.id,
+      expect.objectContaining({
+        status: 'suspended',
+        phase: 'suspended',
+        eventType: 'browser.suspended',
       }),
     );
   });
