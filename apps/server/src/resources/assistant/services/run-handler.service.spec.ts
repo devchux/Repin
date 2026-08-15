@@ -2,14 +2,14 @@ import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import type { Repository } from 'typeorm';
 import { LoopService } from '../../agent/services/loop.service';
-import { AssistantRunHandler } from './assistant-run-handler.service';
+import { RunHandler } from './run-handler.service';
 import { Run } from '../../agent/entities/run.entity';
 import type { ExecutionService } from '../../agent/services/execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 import { BrowserSessionUnavailableError } from '../../tools/executors/browser-execution.errors';
 
-describe('AssistantRunHandler', () => {
+describe('RunHandler', () => {
   const run: Run = {
     id: '9d06cd75-e508-4d25-8a0d-a018863c2186',
     userId: 1,
@@ -41,11 +41,7 @@ describe('AssistantRunHandler', () => {
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as ExecutionService;
-  const processor = new AssistantRunHandler(
-    runRepository,
-    agentLoop,
-    execution,
-  );
+  const processor = new RunHandler(runRepository, agentLoop, execution);
 
   beforeEach(() => {
     jest.clearAllMocks();

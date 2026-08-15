@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
-import type { AssistantRunHandler } from './services/assistant-run-handler.service';
+import type { RunHandler } from './services/run-handler.service';
 import { AssistantService } from './services/assistant.service';
 import { Run } from '../agent/entities/run.entity';
 import type { ExecutionService } from '../agent/services/execution.service';
@@ -43,7 +43,7 @@ describe('AssistantService', () => {
   } as unknown as Queue;
   const runHandler = {
     cancel: jest.fn(),
-  } as unknown as AssistantRunHandler;
+  } as unknown as RunHandler;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as ExecutionService;

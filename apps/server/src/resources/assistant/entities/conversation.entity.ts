@@ -10,17 +10,14 @@ import {
   OneToMany,
   UpdateDateColumn,
 } from 'typeorm';
-import type {
-  AssistantOptionsDto,
-  AssistantPageContextDto,
-} from '../dto/execute-assistant.dto';
+import type { OptionsDto, PageContextDto } from '../dto/execute.dto';
 import { User } from '../../user/entities/user.entity';
-import { AssistantConversationMessage } from './conversation-message.entity';
+import { ConversationMessage } from './conversation-message.entity';
 import { Run } from '../../agent/entities/run.entity';
 
 @Entity('assistant_conversations')
 @Index(['userId', 'updatedAt'])
-export class AssistantConversation {
+export class Conversation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -37,10 +34,10 @@ export class AssistantConversation {
   initialCapability: AiAssistantCapability;
 
   @Column({ type: 'jsonb' })
-  context: AssistantPageContextDto;
+  context: PageContextDto;
 
   @Column({ type: 'jsonb', nullable: true })
-  options?: AssistantOptionsDto;
+  options?: OptionsDto;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -51,9 +48,6 @@ export class AssistantConversation {
   @OneToMany(() => Run, (run) => run.conversation)
   runs: Run[];
 
-  @OneToMany(
-    () => AssistantConversationMessage,
-    (message) => message.conversation,
-  )
-  messages: AssistantConversationMessage[];
+  @OneToMany(() => ConversationMessage, (message) => message.conversation)
+  messages: ConversationMessage[];
 }

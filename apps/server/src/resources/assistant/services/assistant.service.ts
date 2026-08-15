@@ -29,16 +29,16 @@ import {
   timer,
 } from 'rxjs';
 import {
-  ASSISTANT_BACKGROUND_QUEUE,
-  ASSISTANT_INTERACTIVE_QUEUE,
-  ASSISTANT_MAX_QUEUED_RUNS_PER_USER,
-  EXECUTE_ASSISTANT_JOB,
-} from '../assistant.constants';
-import { AssistantRunHandler } from './assistant-run-handler.service';
-import { ExecuteAssistantDto } from '../dto/execute-assistant.dto';
+  BACKGROUND_QUEUE,
+  INTERACTIVE_QUEUE,
+  MAX_QUEUED_RUNS_PER_USER,
+  EXECUTE_JOB,
+} from '../constants';
+import { RunHandler } from './run-handler.service';
+import { ExecuteDto } from '../dto/execute.dto';
 import { Run } from '../../agent/entities/run.entity';
-import { AssistantConversation } from '../entities/conversation.entity';
-import { AssistantConversationMessage } from '../entities/conversation-message.entity';
+import { Conversation } from '../entities/conversation.entity';
+import { ConversationMessage } from '../entities/conversation-message.entity';
 import { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
 import { ExecutionService } from '../../agent/services/execution.service';
 import { BrowserToolApprovalService } from '../../tools/policy/browser-tool-approval.service';
@@ -48,16 +48,16 @@ export class AssistantService {
   constructor(
     @InjectRepository(Run)
     private readonly runRepository: Repository<Run>,
-    @InjectQueue(ASSISTANT_INTERACTIVE_QUEUE)
+    @InjectQueue(INTERACTIVE_QUEUE)
     private readonly shortQueue: Queue,
-    @InjectQueue(ASSISTANT_BACKGROUND_QUEUE)
+    @InjectQueue(BACKGROUND_QUEUE)
     private readonly longQueue: Queue,
-    private readonly runHandler: AssistantRunHandler,
+    private readonly runHandler: RunHandler,
     private readonly execution: ExecutionService,
     private readonly approvals: BrowserToolApprovalService,
   ) {}
 
-  async createRun(userId: number, request: ExecuteAssistantDto) {
+  async createRun(userId: number, request: ExecuteDto) {
     this.validateRequest(request);
 
     const run = await this.runRepository.manager.transaction(
@@ -67,15 +67,15 @@ export class AssistantService {
           where: { userId, status: 'queued' },
         });
 
-        if (queuedRuns >= ASSISTANT_MAX_QUEUED_RUNS_PER_USER) {
+        if (queuedRuns >= MAX_QUEUED_RUNS_PER_USER) {
           throw new ConflictException(
-            `A user can have at most ${ASSISTANT_MAX_QUEUED_RUNS_PER_USER} queued assistant runs`,
+            `A user can have at most ${MAX_QUEUED_RUNS_PER_USER} queued assistant runs`,
           );
         }
 
         const conversation = await manager.save(
-          AssistantConversation,
-          manager.create(AssistantConversation, {
+          Conversation,
+          manager.create(Conversation, {
             userId,
             initialCapability: request.capability,
             context: request.context,
@@ -101,8 +101,8 @@ export class AssistantService {
 
         if (request.input?.trim()) {
           await manager.save(
-            AssistantConversationMessage,
-            manager.create(AssistantConversationMessage, {
+            ConversationMessage,
+            manager.create(ConversationMessage, {
               conversationId: conversation.id,
               runId: run.id,
               role: 'user',
@@ -138,7 +138,7 @@ export class AssistantService {
       conversationId,
     );
     const messages = await this.runRepository.manager.find(
-      AssistantConversationMessage,
+      ConversationMessage,
       {
         where: { conversationId },
         order: { createdAt: 'ASC' },
@@ -173,7 +173,7 @@ export class AssistantService {
     const run = await this.runRepository.manager.transaction(
       async (manager) => {
         await manager.query('SELECT pg_advisory_xact_lock($1)', [userId]);
-        const conversation = await manager.findOne(AssistantConversation, {
+        const conversation = await manager.findOne(Conversation, {
           where: { id: conversationId, userId },
         });
 
@@ -196,9 +196,9 @@ export class AssistantService {
         const queuedRuns = await manager.count(Run, {
           where: { userId, status: 'queued' },
         });
-        if (queuedRuns >= ASSISTANT_MAX_QUEUED_RUNS_PER_USER) {
+        if (queuedRuns >= MAX_QUEUED_RUNS_PER_USER) {
           throw new ConflictException(
-            `A user can have at most ${ASSISTANT_MAX_QUEUED_RUNS_PER_USER} queued assistant runs`,
+            `A user can have at most ${MAX_QUEUED_RUNS_PER_USER} queued assistant runs`,
           );
         }
 
@@ -222,15 +222,15 @@ export class AssistantService {
           }),
         );
         await manager.save(
-          AssistantConversationMessage,
-          manager.create(AssistantConversationMessage, {
+          ConversationMessage,
+          manager.create(ConversationMessage, {
             conversationId,
             runId: newRun.id,
             role: 'user',
             content,
           }),
         );
-        await manager.update(AssistantConversation, conversationId, {
+        await manager.update(Conversation, conversationId, {
           updatedAt: new Date(),
         });
 
@@ -499,9 +499,9 @@ export class AssistantService {
   private async findUserConversation(
     userId: number,
     conversationId: string,
-  ): Promise<AssistantConversation> {
+  ): Promise<Conversation> {
     const conversation = await this.runRepository.manager.findOne(
-      AssistantConversation,
+      Conversation,
       { where: { id: conversationId, userId } },
     );
 
@@ -519,7 +519,7 @@ export class AssistantService {
   ) {
     const jobId = resumeKey ? `${runId}:${resumeKey}` : runId;
     const job = await this.queueFor(lane).add(
-      EXECUTE_ASSISTANT_JOB,
+      EXECUTE_JOB,
       { runId },
       {
         jobId,
@@ -553,7 +553,7 @@ export class AssistantService {
       : 'short';
   }
 
-  private validateRequest(request: ExecuteAssistantDto): void {
+  private validateRequest(request: ExecuteDto): void {
     if (!request.context.selectedText && !request.context.pageContent) {
       throw new BadRequestException(
         'Selected text or page content is required',

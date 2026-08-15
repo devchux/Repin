@@ -7,7 +7,7 @@ import type {
 import { AiService } from '../../ai/ai.service';
 import { ToolsService } from '../../tools/tools.service';
 import type { Run } from '../entities/run.entity';
-import { AGENT_MAX_ITERATIONS } from '../agent.constants';
+import { MAX_ITERATIONS } from '../constants';
 import type { AssistantAgentDecision } from '@repo/contracts/assistant';
 import { ExecutionService } from './execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
@@ -76,7 +76,7 @@ export class LoopService {
 
     for (
       let iteration = initialIteration;
-      iteration < AGENT_MAX_ITERATIONS;
+      iteration < MAX_ITERATIONS;
       iteration += 1
     ) {
       signal?.throwIfAborted();
@@ -134,7 +134,7 @@ export class LoopService {
     }
 
     throw new Error(
-      `Agent exceeded the ${AGENT_MAX_ITERATIONS}-iteration tool limit`,
+      `Agent exceeded the ${MAX_ITERATIONS}-iteration tool limit`,
     );
   }
 

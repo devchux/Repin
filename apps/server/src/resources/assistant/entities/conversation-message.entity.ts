@@ -7,28 +7,26 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { AssistantConversation } from './conversation.entity';
+import { Conversation } from './conversation.entity';
 import { Run } from '../../agent/entities/run.entity';
 
-export type AssistantMessageRole = 'user' | 'assistant';
+export type ConversationMessageRole = 'user' | 'assistant';
 
 @Entity('assistant_conversation_messages')
 @Index(['conversationId', 'createdAt'])
 @Index(['runId', 'role'], { unique: true })
-export class AssistantConversationMessage {
+export class ConversationMessage {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   conversationId: string;
 
-  @ManyToOne(
-    () => AssistantConversation,
-    (conversation) => conversation.messages,
-    { onDelete: 'CASCADE' },
-  )
+  @ManyToOne(() => Conversation, (conversation) => conversation.messages, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'conversationId' })
-  conversation: AssistantConversation;
+  conversation: Conversation;
 
   @Column({ type: 'uuid', nullable: true })
   runId?: string;
@@ -41,7 +39,7 @@ export class AssistantConversationMessage {
   run?: Run;
 
   @Column()
-  role: AssistantMessageRole;
+  role: ConversationMessageRole;
 
   @Column({ type: 'text' })
   content: string;

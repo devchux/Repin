@@ -22,12 +22,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type {
-  AssistantOptionsDto,
-  AssistantPageContextDto,
-} from '../../assistant/dto/execute-assistant.dto';
+  OptionsDto,
+  PageContextDto,
+} from '../../assistant/dto/execute.dto';
 import { User } from '../../user/entities/user.entity';
-import { AssistantConversation } from '../../assistant/entities/conversation.entity';
-import { AssistantConversationMessage } from '../../assistant/entities/conversation-message.entity';
+import { Conversation } from '../../assistant/entities/conversation.entity';
+import { ConversationMessage } from '../../assistant/entities/conversation-message.entity';
 import { RunCheckpoint } from './run-checkpoint.entity';
 import { RunEvent } from './run-event.entity';
 import { RunStep } from './run-step.entity';
@@ -53,12 +53,12 @@ export class Run {
   @Column({ type: 'uuid', nullable: true })
   conversationId?: string;
 
-  @ManyToOne(() => AssistantConversation, (conversation) => conversation.runs, {
+  @ManyToOne(() => Conversation, (conversation) => conversation.runs, {
     nullable: true,
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'conversationId' })
-  conversation?: AssistantConversation;
+  conversation?: Conversation;
 
   @Column({ nullable: true })
   browserSessionId?: string;
@@ -94,13 +94,13 @@ export class Run {
   maxToolCalls: number;
 
   @Column({ type: 'jsonb' })
-  context: AssistantPageContextDto;
+  context: PageContextDto;
 
   @Column({ type: 'text', nullable: true })
   input?: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  options?: AssistantOptionsDto;
+  options?: OptionsDto;
 
   @Column({ type: 'text', nullable: true })
   result?: string;
@@ -141,8 +141,8 @@ export class Run {
   @Column({ type: 'timestamp', nullable: true })
   cancelledAt?: Date;
 
-  @OneToMany(() => AssistantConversationMessage, (message) => message.run)
-  messages: AssistantConversationMessage[];
+  @OneToMany(() => ConversationMessage, (message) => message.run)
+  messages: ConversationMessage[];
 
   @OneToMany(() => RunStep, (step) => step.run)
   steps: RunStep[];

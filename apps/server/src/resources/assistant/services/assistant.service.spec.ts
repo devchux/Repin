@@ -2,10 +2,10 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
-import type { AssistantRunHandler } from './assistant-run-handler.service';
+import type { RunHandler } from './run-handler.service';
 import { AssistantService } from './assistant.service';
 import { Run } from '../../agent/entities/run.entity';
-import { AssistantConversation } from '../entities/conversation.entity';
+import { Conversation } from '../entities/conversation.entity';
 import type { ExecutionService } from '../../agent/services/execution.service';
 import type { BrowserToolApprovalService } from '../../tools/policy/browser-tool-approval.service';
 
@@ -53,7 +53,7 @@ describe('AssistantService', () => {
   } as unknown as Queue;
   const runHandler = {
     cancel: jest.fn(),
-  } as unknown as AssistantRunHandler;
+  } as unknown as RunHandler;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as ExecutionService;
@@ -135,7 +135,7 @@ describe('AssistantService', () => {
     );
     expect(shortQueue.add).not.toHaveBeenCalled();
     expect(manager.create).toHaveBeenCalledWith(
-      AssistantConversation,
+      Conversation,
       expect.not.objectContaining({
         browserSessionId: expect.anything(),
         browserExecutionTarget: expect.anything(),
@@ -180,7 +180,7 @@ describe('AssistantService', () => {
   });
 
   it('queues a follow-up turn in the existing conversation', async () => {
-    const conversation: AssistantConversation = {
+    const conversation: Conversation = {
       id: run.conversationId,
       userId: 1,
       initialCapability: 'explain',

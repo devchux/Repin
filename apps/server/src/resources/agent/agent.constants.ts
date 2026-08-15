@@ -1,4 +1,0 @@
-export const AGENT_MAX_ITERATIONS = 10;
-export const AGENT_MAX_MODEL_CALLS = 12;
-export const AGENT_MAX_TOOL_CALLS = 30;
-export const AGENT_REPEATED_ACTION_LIMIT = 3;

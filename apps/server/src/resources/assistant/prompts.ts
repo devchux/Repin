@@ -1,8 +1,8 @@
 import type { AiAssistantCapability } from '@repo/contracts/assistant';
 import type { AiMessage } from '../ai/types/provider';
-import type { ExecuteAssistantDto } from './dto/execute-assistant.dto';
-import type { AssistantConversation } from './entities/conversation.entity';
-import type { AssistantConversationMessage } from './entities/conversation-message.entity';
+import type { ExecuteDto } from './dto/execute.dto';
+import type { Conversation } from './entities/conversation.entity';
+import type { ConversationMessage } from './entities/conversation-message.entity';
 
 const instructions: Record<AiAssistantCapability, string> = {
   summarize:
@@ -14,9 +14,7 @@ const instructions: Record<AiAssistantCapability, string> = {
   chat: 'Answer the user using only relevant browsing context. Clearly say when the context does not support an answer.',
 };
 
-export const createAssistantMessages = (
-  request: ExecuteAssistantDto,
-): AiMessage[] => {
+export const createAssistantMessages = (request: ExecuteDto): AiMessage[] => {
   const context = request.context.selectedText || request.context.pageContent;
   const targetLanguage = request.options?.targetLanguage;
   const userInput = request.input?.trim();
@@ -48,8 +46,8 @@ export const createAssistantMessages = (
 };
 
 export const createConversationMessages = (
-  conversation: AssistantConversation,
-  history: AssistantConversationMessage[],
+  conversation: Conversation,
+  history: ConversationMessage[],
 ): AiMessage[] => {
   const context =
     conversation.context.selectedText || conversation.context.pageContent;

@@ -11,7 +11,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from 'src/shared/types';
 import { AssistantService } from './services/assistant.service';
-import { ExecuteAssistantDto } from './dto/execute-assistant.dto';
+import { ExecuteDto } from './dto/execute.dto';
 import { SkipTimeout } from 'src/shared/decorators/skip-timeout.decorator';
 import { SkipResponseTransform } from 'src/shared/decorators/skip-response-transform.decorator';
 import { CreateConversationMessageDto } from './dto/create-conversation-message.dto';
@@ -22,10 +22,7 @@ export class AssistantController {
   constructor(private readonly assistantService: AssistantService) {}
 
   @Post('runs')
-  createRun(
-    @CurrentUser() user: AuthUser,
-    @Body() request: ExecuteAssistantDto,
-  ) {
+  createRun(@CurrentUser() user: AuthUser, @Body() request: ExecuteDto) {
     return this.assistantService.createRun(user.id, request);
   }
 

@@ -11,26 +11,26 @@ import type { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
 import type { Configuration } from 'src/shared/types';
 import {
-  ASSISTANT_INTERACTIVE_QUEUE,
-  ASSISTANT_WORKER_CONCURRENCY,
-  ASSISTANT_WORKER_MAX_CONCURRENCY,
-} from '../assistant.constants';
-import { AssistantShortProcessor } from '../processors/assistant-short.processor';
+  INTERACTIVE_QUEUE,
+  WORKER_CONCURRENCY,
+  WORKER_MAX_CONCURRENCY,
+} from '../constants';
+import { ShortProcessor } from '../processors/short.processor';
 import { Run } from '../../agent/entities/run.entity';
 
 @Injectable()
-export class AssistantQueueScaler
+export class QueueScaler
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
-  private readonly logger = new Logger(AssistantQueueScaler.name);
+  private readonly logger = new Logger(QueueScaler.name);
   private interval?: NodeJS.Timeout;
 
   constructor(
-    @InjectQueue(ASSISTANT_INTERACTIVE_QUEUE)
+    @InjectQueue(INTERACTIVE_QUEUE)
     private readonly assistantQueue: Queue,
     @InjectRepository(Run)
     private readonly runRepository: Repository<Run>,
-    private readonly assistantShortProcessor: AssistantShortProcessor,
+    private readonly shortProcessor: ShortProcessor,
     private readonly configService: ConfigService<Configuration>,
   ) {}
 
@@ -82,13 +82,11 @@ export class AssistantQueueScaler
       );
       const targetConcurrency =
         depth >= depthThreshold || averageWaitMs >= waitThreshold
-          ? ASSISTANT_WORKER_MAX_CONCURRENCY
-          : ASSISTANT_WORKER_CONCURRENCY;
+          ? WORKER_MAX_CONCURRENCY
+          : WORKER_CONCURRENCY;
 
-      if (
-        this.assistantShortProcessor.worker.concurrency !== targetConcurrency
-      ) {
-        this.assistantShortProcessor.worker.concurrency = targetConcurrency;
+      if (this.shortProcessor.worker.concurrency !== targetConcurrency) {
+        this.shortProcessor.worker.concurrency = targetConcurrency;
         this.logger.log(
           `Assistant worker concurrency changed to ${targetConcurrency} (depth: ${depth}, average wait: ${Math.round(averageWaitMs)}ms)`,
         );

@@ -1,6 +1,6 @@
 import { Base } from 'src/shared/entities/base.entity';
 import { Column, Entity, OneToMany } from 'typeorm';
-import { AssistantConversation } from '../../assistant/entities/conversation.entity';
+import { Conversation } from '../../assistant/entities/conversation.entity';
 import { Run } from '../../agent/entities/run.entity';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 
@@ -18,8 +18,8 @@ export class User extends Base {
   @Column({ default: false })
   isSuper?: boolean;
 
-  @OneToMany(() => AssistantConversation, (conversation) => conversation.user)
-  assistantConversations: AssistantConversation[];
+  @OneToMany(() => Conversation, (conversation) => conversation.user)
+  assistantConversations: Conversation[];
 
   @OneToMany(() => Run, (run) => run.user)
   assistantRuns: Run[];

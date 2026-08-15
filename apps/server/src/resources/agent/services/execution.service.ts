@@ -14,7 +14,7 @@ import { Run } from '../entities/run.entity';
 import { RunCheckpoint } from '../entities/run-checkpoint.entity';
 import { RunEvent } from '../entities/run-event.entity';
 import { RunStep } from '../entities/run-step.entity';
-import { AGENT_REPEATED_ACTION_LIMIT } from '../agent.constants';
+import { REPEATED_ACTION_LIMIT } from '../constants';
 import { RunContinuation } from '../entities/run-continuation.entity';
 import type { AiMessage, AiToolCall } from '../../ai/types/provider';
 
@@ -108,12 +108,12 @@ export class ExecutionService {
       const run = await this.lockRun(manager, runId);
       if (type === 'model') {
         if (run.modelCallCount >= run.maxModelCalls) {
-          throw new AssistantBudgetExceededError('model calls');
+          throw new BudgetExceededError('model calls');
         }
         run.modelCallCount += 1;
       } else if (type === 'tool') {
         if (run.toolCallCount >= run.maxToolCalls) {
-          throw new AssistantBudgetExceededError('tool calls');
+          throw new BudgetExceededError('tool calls');
         }
         await this.assertToolProgress(manager, runId, input);
         run.toolCallCount += 1;
@@ -261,14 +261,14 @@ export class ExecutionService {
     const recent = await manager.find(RunStep, {
       where: { runId, type: 'tool' },
       order: { sequence: 'DESC' },
-      take: AGENT_REPEATED_ACTION_LIMIT - 1,
+      take: REPEATED_ACTION_LIMIT - 1,
     });
-    if (recent.length < AGENT_REPEATED_ACTION_LIMIT - 1) return;
+    if (recent.length < REPEATED_ACTION_LIMIT - 1) return;
     const signature = this.actionSignature(this.redactTextFields(input));
     if (
       recent.every((step) => this.actionSignature(step.input) === signature)
     ) {
-      throw new AssistantLoopDetectedError();
+      throw new LoopDetectedError();
     }
   }
 
@@ -332,16 +332,16 @@ export class ExecutionService {
   }
 }
 
-export class AssistantBudgetExceededError extends Error {
+export class BudgetExceededError extends Error {
   constructor(resource: string) {
     super(`Assistant run exhausted its ${resource} budget`);
-    this.name = 'AssistantBudgetExceededError';
+    this.name = 'BudgetExceededError';
   }
 }
 
-export class AssistantLoopDetectedError extends Error {
+export class LoopDetectedError extends Error {
   constructor() {
     super('Assistant repeated the same browser action without progress');
-    this.name = 'AssistantLoopDetectedError';
+    this.name = 'LoopDetectedError';
   }
 }

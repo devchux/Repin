@@ -2,11 +2,11 @@ import type { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
 import type { Configuration } from 'src/shared/types';
-import { AssistantQueueScaler } from './assistant-queue-scaler.service';
-import type { AssistantShortProcessor } from '../processors/assistant-short.processor';
+import { QueueScaler } from './queue-scaler.service';
+import type { ShortProcessor } from '../processors/short.processor';
 import type { Run } from '../../agent/entities/run.entity';
 
-describe('AssistantQueueScaler', () => {
+describe('QueueScaler', () => {
   const queue = {
     getWaitingCount: jest.fn(),
     getDelayedCount: jest.fn(),
@@ -21,7 +21,7 @@ describe('AssistantQueueScaler', () => {
     createQueryBuilder: jest.fn(),
   } as unknown as Repository<Run>;
   const worker = { concurrency: 5 };
-  const processor = { worker } as unknown as AssistantShortProcessor;
+  const processor = { worker } as unknown as ShortProcessor;
   const config = {
     get: jest.fn((key: string) => {
       const values: Record<string, number> = {
@@ -34,12 +34,7 @@ describe('AssistantQueueScaler', () => {
       return values[key];
     }),
   } as unknown as ConfigService<Configuration>;
-  const scaler = new AssistantQueueScaler(
-    queue,
-    runRepository,
-    processor,
-    config,
-  );
+  const scaler = new QueueScaler(queue, runRepository, processor, config);
 
   beforeEach(() => {
     jest.clearAllMocks();

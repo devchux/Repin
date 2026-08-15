@@ -14,7 +14,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-export class AssistantPageContextDto {
+export class PageContextDto {
   @IsUrl({ require_tld: false })
   @MaxLength(2048)
   url: string;
@@ -35,7 +35,7 @@ export class AssistantPageContextDto {
   pageContent?: string;
 }
 
-export class AssistantOptionsDto {
+export class OptionsDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
@@ -43,13 +43,13 @@ export class AssistantOptionsDto {
   targetLanguage?: string;
 }
 
-export class ExecuteAssistantDto {
+export class ExecuteDto {
   @IsIn(AI_ASSISTANT_CAPABILITIES)
   capability: AiAssistantCapability;
 
   @ValidateNested()
-  @Type(() => AssistantPageContextDto)
-  context: AssistantPageContextDto;
+  @Type(() => PageContextDto)
+  context: PageContextDto;
 
   @IsOptional()
   @IsString()
@@ -58,8 +58,8 @@ export class ExecuteAssistantDto {
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => AssistantOptionsDto)
-  options?: AssistantOptionsDto;
+  @Type(() => OptionsDto)
+  options?: OptionsDto;
 
   @IsOptional()
   @IsString()

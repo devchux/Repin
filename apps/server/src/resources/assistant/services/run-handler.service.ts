@@ -8,20 +8,20 @@ import { LoopService } from '../../agent/services/loop.service';
 import {
   createAssistantMessages,
   createConversationMessages,
-} from '../assistant.prompts';
+} from '../prompts';
 import {
-  ASSISTANT_MAX_ACTIVE_LONG_RUNS_PER_USER,
-  ASSISTANT_MAX_ACTIVE_SHORT_RUNS_PER_USER,
-  ASSISTANT_USER_SLOT_RETRY_DELAY,
-  EXECUTE_ASSISTANT_JOB,
-} from '../assistant.constants';
+  MAX_ACTIVE_LONG_RUNS_PER_USER,
+  MAX_ACTIVE_SHORT_RUNS_PER_USER,
+  USER_SLOT_RETRY_DELAY,
+  EXECUTE_JOB,
+} from '../constants';
 import { Run } from '../../agent/entities/run.entity';
-import { AssistantConversation } from '../entities/conversation.entity';
-import { AssistantConversationMessage } from '../entities/conversation-message.entity';
+import { Conversation } from '../entities/conversation.entity';
+import { ConversationMessage } from '../entities/conversation-message.entity';
 import {
-  AssistantBudgetExceededError,
+  BudgetExceededError,
   ExecutionService,
-  AssistantLoopDetectedError,
+  LoopDetectedError,
 } from '../../agent/services/execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import {
@@ -34,7 +34,7 @@ interface AssistantJobData {
 }
 
 @Injectable()
-export class AssistantRunHandler {
+export class RunHandler {
   private readonly activeRuns = new Map<string, AbortController>();
 
   constructor(
@@ -49,7 +49,7 @@ export class AssistantRunHandler {
     lane: AssistantExecutionLane,
     token?: string,
   ): Promise<void> {
-    if (job.name !== EXECUTE_ASSISTANT_JOB) {
+    if (job.name !== EXECUTE_JOB) {
       throw new Error(`Unsupported assistant job: ${job.name}`);
     }
 
@@ -81,8 +81,8 @@ export class AssistantRunHandler {
 
         const maximumActiveRuns =
           lane === 'long'
-            ? ASSISTANT_MAX_ACTIVE_LONG_RUNS_PER_USER
-            : ASSISTANT_MAX_ACTIVE_SHORT_RUNS_PER_USER;
+            ? MAX_ACTIVE_LONG_RUNS_PER_USER
+            : MAX_ACTIVE_SHORT_RUNS_PER_USER;
         if (activeRuns >= maximumActiveRuns) {
           return false;
         }
@@ -108,10 +108,7 @@ export class AssistantRunHandler {
     );
 
     if (!started) {
-      await job.moveToDelayed(
-        Date.now() + ASSISTANT_USER_SLOT_RETRY_DELAY,
-        token,
-      );
+      await job.moveToDelayed(Date.now() + USER_SLOT_RETRY_DELAY, token);
       throw new DelayedError();
     }
 
@@ -166,15 +163,15 @@ export class AssistantRunHandler {
       await this.runRepository.manager.transaction(async (manager) => {
         if (run.conversationId) {
           await manager.save(
-            AssistantConversationMessage,
-            manager.create(AssistantConversationMessage, {
+            ConversationMessage,
+            manager.create(ConversationMessage, {
               conversationId: run.conversationId,
               runId: run.id,
               role: 'assistant',
               content: result.content,
             }),
           );
-          await manager.update(AssistantConversation, run.conversationId, {
+          await manager.update(Conversation, run.conversationId, {
             updatedAt: new Date(),
           });
         }
@@ -225,8 +222,8 @@ export class AssistantRunHandler {
 
       if (currentRun?.status !== 'cancelled') {
         const finalAttempt =
-          error instanceof AssistantBudgetExceededError ||
-          error instanceof AssistantLoopDetectedError ||
+          error instanceof BudgetExceededError ||
+          error instanceof LoopDetectedError ||
           job.attemptsMade + 1 >= (job.opts.attempts || 1);
         await this.execution.transition(run.id, {
           expectedStatuses: ['running'],
@@ -259,21 +256,18 @@ export class AssistantRunHandler {
     }
 
     const conversation = await this.runRepository.manager.findOne(
-      AssistantConversation,
+      Conversation,
       { where: { id: run.conversationId, userId: run.userId } },
     );
     if (!conversation) {
       throw new Error('Assistant conversation not found');
     }
 
-    const history = await this.runRepository.manager.find(
-      AssistantConversationMessage,
-      {
-        where: { conversationId: conversation.id },
-        order: { createdAt: 'DESC' },
-        take: 20,
-      },
-    );
+    const history = await this.runRepository.manager.find(ConversationMessage, {
+      where: { conversationId: conversation.id },
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
     const hasPreviousAssistantResponse = history.some(
       (message) => message.role === 'assistant',
     );
