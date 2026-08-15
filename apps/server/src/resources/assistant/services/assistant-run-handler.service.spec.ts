@@ -2,19 +2,19 @@ import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import type { Repository } from 'typeorm';
 import { LoopService } from '../../agent/services/loop.service';
-import { AiService } from '../../ai/ai.service';
-import { AssistantProcessor } from './assistant.processor';
+import { AssistantRunHandler } from './assistant-run-handler.service';
 import { Run } from '../../agent/entities/run.entity';
 import type { ExecutionService } from '../../agent/services/execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 import { BrowserSessionUnavailableError } from '../../tools/executors/browser-execution.errors';
 
-describe('AssistantProcessor', () => {
+describe('AssistantRunHandler', () => {
   const run: Run = {
     id: '9d06cd75-e508-4d25-8a0d-a018863c2186',
     userId: 1,
     capability: 'summarize',
+    executionLane: 'short',
     status: 'queued',
     context: {
       url: 'https://example.com',
@@ -38,16 +38,12 @@ describe('AssistantProcessor', () => {
   const agentLoop = {
     run: jest.fn(),
   } as unknown as LoopService;
-  const aiService = {
-    generate: jest.fn(),
-  } as unknown as AiService;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as ExecutionService;
-  const processor = new AssistantProcessor(
+  const processor = new AssistantRunHandler(
     runRepository,
     agentLoop,
-    aiService,
     execution,
   );
 
@@ -79,7 +75,7 @@ describe('AssistantProcessor', () => {
       opts: { attempts: 3 },
     } as Job<{ runId: string }>;
 
-    await processor.process(job);
+    await processor.process(job, 'short');
 
     expect(execution.transition).toHaveBeenCalledWith(
       run.id,
@@ -116,15 +112,14 @@ describe('AssistantProcessor', () => {
       moveToDelayed,
     } as unknown as Job<{ runId: string }>;
 
-    await expect(processor.process(job, 'worker-token')).rejects.toBeInstanceOf(
-      DelayedError,
-    );
+    await expect(
+      processor.process(job, 'short', 'worker-token'),
+    ).rejects.toBeInstanceOf(DelayedError);
     expect(moveToDelayed).toHaveBeenCalledWith(
       expect.any(Number),
       'worker-token',
     );
     expect(agentLoop.run).not.toHaveBeenCalled();
-    expect(aiService.generate).not.toHaveBeenCalled();
   });
 
   it('uses the agent loop for chat runs', async () => {
@@ -146,14 +141,13 @@ describe('AssistantProcessor', () => {
       opts: { attempts: 3 },
     } as Job<{ runId: string }>;
 
-    await processor.process(job);
+    await processor.process(job, 'short');
 
     expect(agentLoop.run).toHaveBeenCalledWith(
       chatRun,
       expect.any(Array),
       expect.any(AbortSignal),
     );
-    expect(aiService.generate).not.toHaveBeenCalled();
   });
 
   it('durably suspends a run when an action requires approval', async () => {
@@ -179,7 +173,7 @@ describe('AssistantProcessor', () => {
       opts: { attempts: 3 },
     } as Job<{ runId: string }>;
 
-    await expect(processor.process(job)).resolves.toBeUndefined();
+    await expect(processor.process(job, 'short')).resolves.toBeUndefined();
 
     expect(execution.transition).toHaveBeenCalledWith(
       run.id,
@@ -209,7 +203,7 @@ describe('AssistantProcessor', () => {
       opts: { attempts: 3 },
     } as Job<{ runId: string }>;
 
-    await expect(processor.process(job)).resolves.toBeUndefined();
+    await expect(processor.process(job, 'short')).resolves.toBeUndefined();
     expect(execution.transition).toHaveBeenCalledWith(
       run.id,
       expect.objectContaining({

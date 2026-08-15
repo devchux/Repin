@@ -7,6 +7,7 @@ import type {
   AiAssistantCapability,
   AssistantRunPhase,
   AssistantRunStatus,
+  AssistantExecutionLane,
 } from '@repo/contracts/assistant';
 import {
   Column,
@@ -76,6 +77,9 @@ export class Run {
 
   @Column({ type: 'integer', default: 0 })
   checkpointVersion: number;
+
+  @Column({ default: 'short' })
+  executionLane: AssistantExecutionLane;
 
   @Column({ type: 'integer', default: 0 })
   modelCallCount: number;

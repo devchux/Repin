@@ -29,8 +29,11 @@ The provider-neutral harness lives in `src/resources/agent`:
   checkpoints.
 
 `src/resources/assistant` is an adapter over that harness. It owns assistant
-conversations, capability prompts, HTTP endpoints, interactive queue dispatch,
-and projecting completed run output into conversation messages. Tools and AI
+conversations, capability prompts, HTTP endpoints, queue-lane dispatch, and
+projecting completed run output into conversation messages. Short work and
+long browser work have separate BullMQ workers, but both delegate to one shared
+run handler so lifecycle, approvals, retry, cancellation, and resumption cannot
+diverge. Tools and AI
 providers remain independent resources consumed by `AgentModule`. Existing
 table names and `/assistant` routes are retained for compatibility.
 

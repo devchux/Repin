@@ -9,6 +9,10 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Queue } from 'bullmq';
 import { In, Repository } from 'typeorm';
+import type {
+  AssistantCapability,
+  AssistantExecutionLane,
+} from '@repo/contracts/assistant';
 import type { MessageEvent } from '@nestjs/common';
 import {
   distinctUntilChanged,
@@ -25,11 +29,12 @@ import {
   timer,
 } from 'rxjs';
 import {
+  ASSISTANT_BACKGROUND_QUEUE,
   ASSISTANT_INTERACTIVE_QUEUE,
   ASSISTANT_MAX_QUEUED_RUNS_PER_USER,
   EXECUTE_ASSISTANT_JOB,
 } from '../assistant.constants';
-import { AssistantProcessor } from '../processors/assistant.processor';
+import { AssistantRunHandler } from './assistant-run-handler.service';
 import { ExecuteAssistantDto } from '../dto/execute-assistant.dto';
 import { Run } from '../../agent/entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
@@ -44,8 +49,10 @@ export class AssistantService {
     @InjectRepository(Run)
     private readonly runRepository: Repository<Run>,
     @InjectQueue(ASSISTANT_INTERACTIVE_QUEUE)
-    private readonly assistantQueue: Queue,
-    private readonly assistantProcessor: AssistantProcessor,
+    private readonly shortQueue: Queue,
+    @InjectQueue(ASSISTANT_BACKGROUND_QUEUE)
+    private readonly longQueue: Queue,
+    private readonly runHandler: AssistantRunHandler,
     private readonly execution: ExecutionService,
     private readonly approvals: BrowserToolApprovalService,
   ) {}
@@ -87,6 +94,7 @@ export class AssistantService {
             browserSessionId: request.browserSessionId,
             browserExecutionTarget:
               request.browserExecutionTarget ?? 'extension',
+            executionLane: this.resolveExecutionLane(request),
             status: 'queued',
           }),
         );
@@ -108,7 +116,7 @@ export class AssistantService {
     );
 
     try {
-      await this.enqueueRun(run.id);
+      await this.enqueueRun(run.id, run.executionLane);
     } catch {
       await this.runRepository.update(run.id, {
         status: 'failed',
@@ -206,6 +214,10 @@ export class AssistantService {
             browserSessionId: request.browserSessionId,
             browserExecutionTarget:
               request.browserExecutionTarget ?? 'extension',
+            executionLane: this.resolveExecutionLane({
+              ...request,
+              capability: 'chat',
+            }),
             status: 'queued',
           }),
         );
@@ -227,7 +239,7 @@ export class AssistantService {
     );
 
     try {
-      await this.enqueueRun(run.id);
+      await this.enqueueRun(run.id, run.executionLane);
     } catch {
       await this.runRepository.update(run.id, {
         status: 'failed',
@@ -334,9 +346,11 @@ export class AssistantService {
         `A ${currentRun.status} assistant run cannot be cancelled`,
       );
     }
-    this.assistantProcessor.cancel(run.id);
+    this.runHandler.cancel(run.id);
 
-    const job = await this.assistantQueue.getJob(run.queueJobId ?? run.id);
+    const job = await this.queueFor(run.executionLane).getJob(
+      run.queueJobId ?? run.id,
+    );
     const jobState = await job?.getState();
     if (job && (jobState === 'waiting' || jobState === 'delayed')) {
       try {
@@ -372,7 +386,11 @@ export class AssistantService {
       patch: { error: null },
     });
     try {
-      await this.enqueueRun(runId, `approval:${approvalId}`);
+      await this.enqueueRun(
+        runId,
+        resumedRun.executionLane,
+        `approval:${approvalId}`,
+      );
     } catch {
       await this.execution.transition(runId, {
         expectedStatuses: ['queued'],
@@ -455,7 +473,11 @@ export class AssistantService {
         dispatchState: continuation.dispatchState,
       },
     });
-    await this.enqueueRun(runId, `resume:${resumedRun.checkpointVersion}`);
+    await this.enqueueRun(
+      runId,
+      resumedRun.executionLane,
+      `resume:${resumedRun.checkpointVersion}`,
+    );
     return {
       message: 'Assistant run queued for browser resumption',
       data: this.toResponse(resumedRun),
@@ -490,9 +512,13 @@ export class AssistantService {
     return conversation;
   }
 
-  private async enqueueRun(runId: string, resumeKey?: string) {
+  private async enqueueRun(
+    runId: string,
+    lane: AssistantExecutionLane,
+    resumeKey?: string,
+  ) {
     const jobId = resumeKey ? `${runId}:${resumeKey}` : runId;
-    const job = await this.assistantQueue.add(
+    const job = await this.queueFor(lane).add(
       EXECUTE_ASSISTANT_JOB,
       { runId },
       {
@@ -505,6 +531,26 @@ export class AssistantService {
     );
     await this.runRepository.update(runId, { queueJobId: jobId });
     return job;
+  }
+
+  private queueFor(lane: AssistantExecutionLane): Queue {
+    return lane === 'long' ? this.longQueue : this.shortQueue;
+  }
+
+  private resolveExecutionLane(request: {
+    executionLane?: AssistantExecutionLane;
+    capability?: AssistantCapability;
+    browserSessionId?: string;
+    browserExecutionTarget?: 'extension' | 'managed';
+  }): AssistantExecutionLane {
+    if (request.executionLane) {
+      return request.executionLane;
+    }
+
+    return request.browserExecutionTarget === 'managed' ||
+      (request.capability === 'chat' && Boolean(request.browserSessionId))
+      ? 'long'
+      : 'short';
   }
 
   private validateRequest(request: ExecuteAssistantDto): void {
@@ -539,6 +585,7 @@ export class AssistantService {
       id: run.id,
       conversationId: run.conversationId,
       capability: run.capability,
+      executionLane: run.executionLane,
       status: run.status,
       phase: run.phase,
       result: run.result,

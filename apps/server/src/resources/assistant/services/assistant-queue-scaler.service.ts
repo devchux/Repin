@@ -15,7 +15,7 @@ import {
   ASSISTANT_WORKER_CONCURRENCY,
   ASSISTANT_WORKER_MAX_CONCURRENCY,
 } from '../assistant.constants';
-import { AssistantProcessor } from '../processors/assistant.processor';
+import { AssistantShortProcessor } from '../processors/assistant-short.processor';
 import { Run } from '../../agent/entities/run.entity';
 
 @Injectable()
@@ -30,7 +30,7 @@ export class AssistantQueueScaler
     private readonly assistantQueue: Queue,
     @InjectRepository(Run)
     private readonly runRepository: Repository<Run>,
-    private readonly assistantProcessor: AssistantProcessor,
+    private readonly assistantShortProcessor: AssistantShortProcessor,
     private readonly configService: ConfigService<Configuration>,
   ) {}
 
@@ -85,8 +85,10 @@ export class AssistantQueueScaler
           ? ASSISTANT_WORKER_MAX_CONCURRENCY
           : ASSISTANT_WORKER_CONCURRENCY;
 
-      if (this.assistantProcessor.worker.concurrency !== targetConcurrency) {
-        this.assistantProcessor.worker.concurrency = targetConcurrency;
+      if (
+        this.assistantShortProcessor.worker.concurrency !== targetConcurrency
+      ) {
+        this.assistantShortProcessor.worker.concurrency = targetConcurrency;
         this.logger.log(
           `Assistant worker concurrency changed to ${targetConcurrency} (depth: ${depth}, average wait: ${Math.round(averageWaitMs)}ms)`,
         );

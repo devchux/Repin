@@ -3,7 +3,7 @@ import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
 import type { Configuration } from 'src/shared/types';
 import { AssistantQueueScaler } from './assistant-queue-scaler.service';
-import type { AssistantProcessor } from '../processors/assistant.processor';
+import type { AssistantShortProcessor } from '../processors/assistant-short.processor';
 import type { Run } from '../../agent/entities/run.entity';
 
 describe('AssistantQueueScaler', () => {
@@ -21,7 +21,7 @@ describe('AssistantQueueScaler', () => {
     createQueryBuilder: jest.fn(),
   } as unknown as Repository<Run>;
   const worker = { concurrency: 5 };
-  const processor = { worker } as unknown as AssistantProcessor;
+  const processor = { worker } as unknown as AssistantShortProcessor;
   const config = {
     get: jest.fn((key: string) => {
       const values: Record<string, number> = {

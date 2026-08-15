@@ -5,9 +5,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import type { Configuration } from 'src/shared/types';
 import { ToolsModule } from '../tools/tools.module';
 import { AgentModule } from '../agent/agent.module';
-import { ASSISTANT_INTERACTIVE_QUEUE } from './assistant.constants';
+import {
+  ASSISTANT_BACKGROUND_QUEUE,
+  ASSISTANT_INTERACTIVE_QUEUE,
+} from './assistant.constants';
 import { AssistantController } from './assistant.controller';
-import { AssistantProcessor } from './processors/assistant.processor';
+import { AssistantShortProcessor } from './processors/assistant-short.processor';
+import { AssistantLongProcessor } from './processors/assistant-long.processor';
+import { AssistantRunHandler } from './services/assistant-run-handler.service';
 import { AssistantQueueScaler } from './services/assistant-queue-scaler.service';
 import { AssistantService } from './services/assistant.service';
 import { AssistantConversation } from './entities/conversation.entity';
@@ -39,9 +44,18 @@ import { AssistantConversationMessage } from './entities/conversation-message.en
         };
       },
     }),
-    BullModule.registerQueue({ name: ASSISTANT_INTERACTIVE_QUEUE }),
+    BullModule.registerQueue(
+      { name: ASSISTANT_INTERACTIVE_QUEUE },
+      { name: ASSISTANT_BACKGROUND_QUEUE },
+    ),
   ],
   controllers: [AssistantController],
-  providers: [AssistantService, AssistantProcessor, AssistantQueueScaler],
+  providers: [
+    AssistantService,
+    AssistantRunHandler,
+    AssistantShortProcessor,
+    AssistantLongProcessor,
+    AssistantQueueScaler,
+  ],
 })
 export class AssistantModule {}

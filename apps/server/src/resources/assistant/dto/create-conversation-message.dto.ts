@@ -5,6 +5,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+import { ASSISTANT_EXECUTION_LANES } from '@repo/contracts/assistant';
 
 export class CreateConversationMessageDto {
   @IsString()
@@ -21,4 +22,8 @@ export class CreateConversationMessageDto {
   @IsOptional()
   @IsIn(['extension', 'managed'])
   browserExecutionTarget?: 'extension' | 'managed';
+
+  @IsOptional()
+  @IsIn(ASSISTANT_EXECUTION_LANES)
+  executionLane?: 'short' | 'long';
 }

@@ -1,20 +1,18 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import { Repository } from 'typeorm';
+import type { AssistantExecutionLane } from '@repo/contracts/assistant';
 import { LoopService } from '../../agent/services/loop.service';
-import { AiService } from '../../ai/ai.service';
 import {
   createAssistantMessages,
   createConversationMessages,
 } from '../assistant.prompts';
 import {
-  ASSISTANT_INTERACTIVE_QUEUE,
-  ASSISTANT_MAX_ACTIVE_RUNS_PER_USER,
+  ASSISTANT_MAX_ACTIVE_LONG_RUNS_PER_USER,
+  ASSISTANT_MAX_ACTIVE_SHORT_RUNS_PER_USER,
   ASSISTANT_USER_SLOT_RETRY_DELAY,
-  ASSISTANT_WORKER_CONCURRENCY,
   EXECUTE_ASSISTANT_JOB,
 } from '../assistant.constants';
 import { Run } from '../../agent/entities/run.entity';
@@ -36,23 +34,21 @@ interface AssistantJobData {
 }
 
 @Injectable()
-@Processor(ASSISTANT_INTERACTIVE_QUEUE, {
-  concurrency: ASSISTANT_WORKER_CONCURRENCY,
-})
-export class AssistantProcessor extends WorkerHost {
+export class AssistantRunHandler {
   private readonly activeRuns = new Map<string, AbortController>();
 
   constructor(
     @InjectRepository(Run)
     private readonly runRepository: Repository<Run>,
     private readonly agentLoop: LoopService,
-    private readonly aiService: AiService,
     private readonly execution: ExecutionService,
-  ) {
-    super();
-  }
+  ) {}
 
-  async process(job: Job<AssistantJobData>, token?: string): Promise<void> {
+  async process(
+    job: Job<AssistantJobData>,
+    lane: AssistantExecutionLane,
+    token?: string,
+  ): Promise<void> {
     if (job.name !== EXECUTE_ASSISTANT_JOB) {
       throw new Error(`Unsupported assistant job: ${job.name}`);
     }
@@ -65,15 +61,29 @@ export class AssistantProcessor extends WorkerHost {
       return;
     }
 
+    if (run.executionLane !== lane) {
+      throw new Error(
+        `Assistant run ${run.id} belongs to the ${run.executionLane} lane, not ${lane}`,
+      );
+    }
+
     const startedAt = new Date();
     const started = await this.runRepository.manager.transaction(
       async (manager) => {
         await manager.query('SELECT pg_advisory_xact_lock($1)', [run.userId]);
         const activeRuns = await manager.count(Run, {
-          where: { userId: run.userId, status: 'running' },
+          where: {
+            userId: run.userId,
+            status: 'running',
+            executionLane: lane,
+          },
         });
 
-        if (activeRuns >= ASSISTANT_MAX_ACTIVE_RUNS_PER_USER) {
+        const maximumActiveRuns =
+          lane === 'long'
+            ? ASSISTANT_MAX_ACTIVE_LONG_RUNS_PER_USER
+            : ASSISTANT_MAX_ACTIVE_SHORT_RUNS_PER_USER;
+        if (activeRuns >= maximumActiveRuns) {
           return false;
         }
 

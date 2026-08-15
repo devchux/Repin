@@ -32,6 +32,9 @@ export const ASSISTANT_RUN_STATUSES = [
 
 export type AssistantRunStatus = (typeof ASSISTANT_RUN_STATUSES)[number];
 
+export const ASSISTANT_EXECUTION_LANES = ["short", "long"] as const;
+export type AssistantExecutionLane = (typeof ASSISTANT_EXECUTION_LANES)[number];
+
 export const ASSISTANT_RUN_PHASES = [
   "queued",
   "initializing",
@@ -73,6 +76,7 @@ export interface CreateAssistantRunRequest {
   readonly options?: AssistantRunOptions;
   readonly browserSessionId?: string;
   readonly browserExecutionTarget?: "extension" | "managed";
+  readonly executionLane?: AssistantExecutionLane;
 }
 
 export interface AssistantRunOptions {
@@ -85,6 +89,7 @@ export interface AssistantRun {
   readonly capability: AiAssistantCapability;
   readonly status: AssistantRunStatus;
   readonly phase: AssistantRunPhase;
+  readonly executionLane: AssistantExecutionLane;
   readonly result?: string;
   readonly error?: string;
   readonly provider?: string;
@@ -147,4 +152,5 @@ export interface CreateConversationMessageRequest {
   readonly content: string;
   readonly browserSessionId?: string;
   readonly browserExecutionTarget?: "extension" | "managed";
+  readonly executionLane?: AssistantExecutionLane;
 }

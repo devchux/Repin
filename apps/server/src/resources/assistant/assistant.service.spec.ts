@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
-import { AssistantProcessor } from './processors/assistant.processor';
+import type { AssistantRunHandler } from './services/assistant-run-handler.service';
 import { AssistantService } from './services/assistant.service';
 import { Run } from '../agent/entities/run.entity';
 import type { ExecutionService } from '../agent/services/execution.service';
@@ -13,6 +13,7 @@ describe('AssistantService', () => {
     id: '9d06cd75-e508-4d25-8a0d-a018863c2186',
     userId: 1,
     capability: 'summarize',
+    executionLane: 'short',
     status: 'queued',
     context: {
       url: 'https://example.com/article',
@@ -40,9 +41,9 @@ describe('AssistantService', () => {
     add: jest.fn(),
     getJob: jest.fn(),
   } as unknown as Queue;
-  const processor = {
+  const runHandler = {
     cancel: jest.fn(),
-  } as unknown as AssistantProcessor;
+  } as unknown as AssistantRunHandler;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as ExecutionService;
@@ -53,7 +54,8 @@ describe('AssistantService', () => {
   const service = new AssistantService(
     runRepository,
     queue,
-    processor,
+    queue,
+    runHandler,
     execution,
     approvals,
   );
@@ -144,7 +146,7 @@ describe('AssistantService', () => {
     await expect(service.cancelRun(1, run.id)).resolves.toMatchObject({
       data: { id: run.id, status: 'cancelled' },
     });
-    expect(processor.cancel).toHaveBeenCalledWith(run.id);
+    expect(runHandler.cancel).toHaveBeenCalledWith(run.id);
     expect(remove).toHaveBeenCalled();
   });
 });

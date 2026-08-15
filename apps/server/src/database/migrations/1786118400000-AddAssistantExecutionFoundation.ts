@@ -35,6 +35,9 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
       `ALTER TABLE "assistant_runs" ADD "queueJobId" character varying`,
     );
     await queryRunner.query(
+      `ALTER TABLE "assistant_runs" ADD "executionLane" character varying NOT NULL DEFAULT 'short'`,
+    );
+    await queryRunner.query(
       `CREATE TYPE "public"."assistant_run_steps_type_enum" AS ENUM('model', 'tool', 'verification')`,
     );
     await queryRunner.query(
@@ -92,6 +95,9 @@ export class AddAssistantExecutionFoundation1786118400000 implements MigrationIn
     );
     await queryRunner.query(
       `ALTER TABLE "assistant_runs" DROP COLUMN "queueJobId"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assistant_runs" DROP COLUMN "executionLane"`,
     );
     await queryRunner.query(
       `ALTER TABLE "assistant_runs" DROP COLUMN "maxModelCalls"`,

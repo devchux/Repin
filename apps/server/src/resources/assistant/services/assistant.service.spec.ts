@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
-import { AssistantProcessor } from '../processors/assistant.processor';
+import type { AssistantRunHandler } from './assistant-run-handler.service';
 import { AssistantService } from './assistant.service';
 import { Run } from '../../agent/entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
@@ -16,6 +16,7 @@ describe('AssistantService', () => {
     userId: 1,
     conversationId: '3b8f0241-a8a4-4f64-86dd-21ac7db99ea3',
     capability: 'summarize',
+    executionLane: 'short',
     status: 'queued',
     context: {
       url: 'https://example.com/article',
@@ -42,13 +43,17 @@ describe('AssistantService', () => {
     update: jest.fn(),
     findOne: jest.fn(),
   } as unknown as Repository<Run>;
-  const queue = {
+  const shortQueue = {
     add: jest.fn(),
     getJob: jest.fn(),
   } as unknown as Queue;
-  const processor = {
+  const longQueue = {
+    add: jest.fn(),
+    getJob: jest.fn(),
+  } as unknown as Queue;
+  const runHandler = {
     cancel: jest.fn(),
-  } as unknown as AssistantProcessor;
+  } as unknown as AssistantRunHandler;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as ExecutionService;
@@ -58,8 +63,9 @@ describe('AssistantService', () => {
   } as unknown as BrowserToolApprovalService;
   const service = new AssistantService(
     runRepository,
-    queue,
-    processor,
+    shortQueue,
+    longQueue,
+    runHandler,
     execution,
     approvals,
   );
@@ -86,7 +92,7 @@ describe('AssistantService', () => {
   });
 
   it('persists and queues an assistant run', async () => {
-    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+    jest.spyOn(shortQueue, 'add').mockResolvedValue(undefined);
 
     await expect(
       service.createRun(1, {
@@ -97,7 +103,7 @@ describe('AssistantService', () => {
       message: 'Assistant run queued successfully',
       data: { id: run.id, status: 'queued' },
     });
-    expect(queue.add).toHaveBeenCalledWith(
+    expect(shortQueue.add).toHaveBeenCalledWith(
       'execute-assistant',
       { runId: run.id },
       expect.objectContaining({ jobId: run.id, attempts: 3 }),
@@ -105,7 +111,7 @@ describe('AssistantService', () => {
   });
 
   it('persists the selected browser executor on an initial run', async () => {
-    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+    jest.spyOn(longQueue, 'add').mockResolvedValue(undefined);
 
     await service.createRun(1, {
       capability: 'chat',
@@ -119,8 +125,15 @@ describe('AssistantService', () => {
       expect.objectContaining({
         browserSessionId: 'browser-session-1',
         browserExecutionTarget: 'managed',
+        executionLane: 'long',
       }),
     );
+    expect(longQueue.add).toHaveBeenCalledWith(
+      'execute-assistant',
+      { runId: run.id },
+      expect.objectContaining({ jobId: run.id }),
+    );
+    expect(shortQueue.add).not.toHaveBeenCalled();
     expect(manager.create).toHaveBeenCalledWith(
       AssistantConversation,
       expect.not.objectContaining({
@@ -139,7 +152,7 @@ describe('AssistantService', () => {
         context: run.context,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(shortQueue.add).not.toHaveBeenCalled();
   });
 
   it('requires a target language for translation', async () => {
@@ -177,7 +190,7 @@ describe('AssistantService', () => {
     };
     manager.findOne.mockResolvedValue(conversation);
     manager.count.mockResolvedValue(0);
-    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+    jest.spyOn(shortQueue, 'add').mockResolvedValue(undefined);
 
     await expect(
       service.createConversationMessage(1, conversation.id, {
@@ -245,7 +258,7 @@ describe('AssistantService', () => {
       .spyOn(runRepository, 'findOne')
       .mockResolvedValueOnce(run)
       .mockResolvedValueOnce(cancelledRun);
-    jest.spyOn(queue, 'getJob').mockResolvedValue({
+    jest.spyOn(shortQueue, 'getJob').mockResolvedValue({
       getState: jest.fn().mockResolvedValue('waiting'),
       remove,
     } as never);
@@ -253,7 +266,7 @@ describe('AssistantService', () => {
     await expect(service.cancelRun(1, run.id)).resolves.toMatchObject({
       data: { id: run.id, status: 'cancelled' },
     });
-    expect(processor.cancel).toHaveBeenCalledWith(run.id);
+    expect(runHandler.cancel).toHaveBeenCalledWith(run.id);
     expect(remove).toHaveBeenCalled();
   });
 
@@ -273,7 +286,7 @@ describe('AssistantService', () => {
       status: 'queued',
       phase: 'queued',
     });
-    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+    jest.spyOn(shortQueue, 'add').mockResolvedValue(undefined);
 
     await expect(
       service.approveAction(
@@ -284,7 +297,7 @@ describe('AssistantService', () => {
     ).resolves.toMatchObject({
       data: { id: run.id, status: 'queued' },
     });
-    expect(queue.add).toHaveBeenCalledWith(
+    expect(shortQueue.add).toHaveBeenCalledWith(
       'execute-assistant',
       { runId: run.id },
       expect.objectContaining({

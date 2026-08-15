@@ -1,4 +1,7 @@
-import { AI_ASSISTANT_CAPABILITIES } from '@repo/contracts/assistant';
+import {
+  AI_ASSISTANT_CAPABILITIES,
+  ASSISTANT_EXECUTION_LANES,
+} from '@repo/contracts/assistant';
 import type { AiAssistantCapability } from '@repo/contracts/assistant';
 import { Type } from 'class-transformer';
 import {
@@ -67,4 +70,8 @@ export class ExecuteAssistantDto {
   @IsOptional()
   @IsIn(['extension', 'managed'])
   browserExecutionTarget?: 'extension' | 'managed';
+
+  @IsOptional()
+  @IsIn(ASSISTANT_EXECUTION_LANES)
+  executionLane?: 'short' | 'long';
 }

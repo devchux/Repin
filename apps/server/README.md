@@ -28,18 +28,23 @@
 
 ## Assistant queues
 
-Interactive extension requests use the `assistant-interactive` BullMQ queue.
-Future autonomous browser tasks must use the separate
-`browser-agent-background` queue so long-running navigation cannot delay
-summaries, explanations, translations, or chat responses.
+Short requests use the `assistant-interactive` BullMQ queue. Long-running
+browser work uses the separate `assistant-background` queue so autonomous
+navigation cannot delay summaries, explanations, translations, or ordinary
+chat responses. Callers can select `executionLane`; otherwise managed-browser
+runs and browser-backed chat are routed to `long`, and other requests to
+`short`. Approval and suspension resumes retain the run's original lane.
 
 The interactive worker starts with concurrency `5` and can increase local
 concurrency to `10` when queue depth or the recent average queue wait crosses a
-configured threshold. BullMQ's Redis-backed global rate limit remains shared
-across all application replicas.
+configured threshold. The background worker has fixed concurrency `2` so long
+tasks apply backpressure without consuming interactive capacity. BullMQ's
+Redis-backed global rate limit on the interactive lane remains shared across
+all application replicas.
 
-Per user, at most two runs may be `running` and ten may be `queued`. PostgreSQL
-advisory locks enforce those limits across multiple API and worker processes.
+Per user, at most two short runs and one long run may be `running`; at most ten
+runs may be `queued`. PostgreSQL advisory locks enforce those limits across
+multiple API and worker processes.
 
 ```env
 ASSISTANT_RATE_LIMIT_MAX=25
