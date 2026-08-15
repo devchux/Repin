@@ -72,6 +72,7 @@ export interface BrowserToolExecutionContext {
   readonly runId: string;
   readonly browserSessionId: string;
   readonly signal?: AbortSignal;
+  readonly executorKind?: 'extension' | 'managed';
 }
 
 export interface BrowserTab {

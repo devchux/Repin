@@ -36,6 +36,7 @@ export interface CreateAssistantRunRequest {
   readonly input?: string;
   readonly options?: AssistantRunOptions;
   readonly browserSessionId?: string;
+  readonly browserExecutionTarget?: "extension" | "managed";
 }
 
 export interface AssistantRunOptions {
@@ -92,4 +93,5 @@ export interface AssistantConversationMessage {
 export interface CreateConversationMessageRequest {
   readonly content: string;
   readonly browserSessionId?: string;
+  readonly browserExecutionTarget?: "extension" | "managed";
 }

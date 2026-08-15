@@ -10,6 +10,9 @@ import { BrowserSessionRegistry } from './transport/browser-session.registry';
 import { WebSocketExtensionBrowserTransport } from './transport/websocket-extension-browser.transport';
 import { BrowserToolApprovalController } from './policy/browser-tool-approval.controller';
 import { BrowserToolApprovalService } from './policy/browser-tool-approval.service';
+import { BrowserExecutorRouter } from './executors/browser-executor.router';
+import { PlaywrightBrowserExecutor } from './executors/playwright-browser.executor';
+import { PlaywrightBrowserSessionRegistry } from './executors/playwright-browser-session.registry';
 
 @Module({
   imports: [AuthModule],
@@ -24,9 +27,12 @@ import { BrowserToolApprovalService } from './policy/browser-tool-approval.servi
       useExisting: WebSocketExtensionBrowserTransport,
     },
     ExtensionBrowserExecutor,
+    PlaywrightBrowserSessionRegistry,
+    PlaywrightBrowserExecutor,
+    BrowserExecutorRouter,
     {
       provide: BROWSER_TOOL_EXECUTOR,
-      useExisting: ExtensionBrowserExecutor,
+      useExisting: BrowserExecutorRouter,
     },
     ToolsService,
   ],

@@ -89,6 +89,32 @@ describe('AssistantService', () => {
     );
   });
 
+  it('persists the selected browser executor on an initial run', async () => {
+    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+
+    await service.createRun(1, {
+      capability: 'chat',
+      context: run.context,
+      browserSessionId: 'browser-session-1',
+      browserExecutionTarget: 'managed',
+    });
+
+    expect(manager.create).toHaveBeenCalledWith(
+      AssistantRun,
+      expect.objectContaining({
+        browserSessionId: 'browser-session-1',
+        browserExecutionTarget: 'managed',
+      }),
+    );
+    expect(manager.create).toHaveBeenCalledWith(
+      AssistantConversation,
+      expect.not.objectContaining({
+        browserSessionId: expect.anything(),
+        browserExecutionTarget: expect.anything(),
+      }),
+    );
+  });
+
   it('rejects a user with ten queued runs', async () => {
     manager.count.mockResolvedValue(10);
 

@@ -63,4 +63,8 @@ export class ExecuteAssistantDto {
   @IsNotEmpty()
   @MaxLength(200)
   browserSessionId?: string;
+
+  @IsOptional()
+  @IsIn(['extension', 'managed'])
+  browserExecutionTarget?: 'extension' | 'managed';
 }

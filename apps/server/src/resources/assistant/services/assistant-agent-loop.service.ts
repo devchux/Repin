@@ -86,6 +86,7 @@ export class AssistantAgentLoop {
           userId: run.userId,
           runId: run.id,
           browserSessionId: run.browserSessionId,
+          executorKind: run.browserExecutionTarget,
           signal,
         },
       );

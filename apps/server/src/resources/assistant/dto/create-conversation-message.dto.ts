@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateConversationMessageDto {
   @IsString()
@@ -11,4 +17,8 @@ export class CreateConversationMessageDto {
   @IsNotEmpty()
   @MaxLength(200)
   browserSessionId?: string;
+
+  @IsOptional()
+  @IsIn(['extension', 'managed'])
+  browserExecutionTarget?: 'extension' | 'managed';
 }

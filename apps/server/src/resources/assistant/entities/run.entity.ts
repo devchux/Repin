@@ -35,6 +35,9 @@ export class AssistantRun {
   @Column({ nullable: true })
   browserSessionId?: string;
 
+  @Column({ default: 'extension' })
+  browserExecutionTarget: 'extension' | 'managed';
+
   @Column({ type: 'enum', enum: AI_ASSISTANT_CAPABILITIES })
   capability: AiAssistantCapability;
 

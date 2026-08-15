@@ -30,6 +30,7 @@ import {
   readStringArray,
   readTabTarget,
 } from '../../shared/utils/validation';
+import { BrowserToolApprovalService } from './policy/browser-tool-approval.service';
 import {
   BROWSER_TOOL_EXECUTOR,
   BROWSER_TOOL_NAMES,
@@ -50,6 +51,7 @@ export class ToolsService {
     @Optional()
     @Inject(BROWSER_TOOL_EXECUTOR)
     private readonly browserExecutor?: BrowserToolExecutor,
+    private readonly approvals?: BrowserToolApprovalService,
   ) {}
 
   getDefinitions(): readonly AiTool[] {
@@ -66,6 +68,7 @@ export class ToolsService {
   ): Promise<BrowserToolResult> {
     const executor = this.getExecutor();
     this.assertContext(context);
+    this.approvals?.authorize(context.userId, context.runId, call.name);
 
     switch (call.name) {
       case 'browser_navigate':
