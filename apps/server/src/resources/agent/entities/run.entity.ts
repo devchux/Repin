@@ -23,20 +23,20 @@ import {
 import type {
   AssistantOptionsDto,
   AssistantPageContextDto,
-} from '../dto/execute-assistant.dto';
+} from '../../assistant/dto/execute-assistant.dto';
 import { User } from '../../user/entities/user.entity';
-import { AssistantConversation } from './conversation.entity';
-import { AssistantConversationMessage } from './conversation-message.entity';
-import { AssistantRunCheckpoint } from './run-checkpoint.entity';
-import { AssistantRunEvent } from './run-event.entity';
-import { AssistantRunStep } from './run-step.entity';
+import { AssistantConversation } from '../../assistant/entities/conversation.entity';
+import { AssistantConversationMessage } from '../../assistant/entities/conversation-message.entity';
+import { RunCheckpoint } from './run-checkpoint.entity';
+import { RunEvent } from './run-event.entity';
+import { RunStep } from './run-step.entity';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
-import { AssistantRunContinuation } from './run-continuation.entity';
+import { RunContinuation } from './run-continuation.entity';
 
 @Entity('assistant_runs')
 @Index(['userId', 'createdAt'])
 @Index(['status'])
-export class AssistantRun {
+export class Run {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -140,18 +140,18 @@ export class AssistantRun {
   @OneToMany(() => AssistantConversationMessage, (message) => message.run)
   messages: AssistantConversationMessage[];
 
-  @OneToMany(() => AssistantRunStep, (step) => step.run)
-  steps: AssistantRunStep[];
+  @OneToMany(() => RunStep, (step) => step.run)
+  steps: RunStep[];
 
-  @OneToMany(() => AssistantRunEvent, (event) => event.run)
-  events: AssistantRunEvent[];
+  @OneToMany(() => RunEvent, (event) => event.run)
+  events: RunEvent[];
 
-  @OneToMany(() => AssistantRunCheckpoint, (checkpoint) => checkpoint.run)
-  checkpoints: AssistantRunCheckpoint[];
+  @OneToMany(() => RunCheckpoint, (checkpoint) => checkpoint.run)
+  checkpoints: RunCheckpoint[];
 
   @OneToMany(() => BrowserToolApproval, (approval) => approval.run)
   approvals: BrowserToolApproval[];
 
-  @OneToOne(() => AssistantRunContinuation, (continuation) => continuation.run)
-  continuation?: AssistantRunContinuation;
+  @OneToOne(() => RunContinuation, (continuation) => continuation.run)
+  continuation?: RunContinuation;
 }

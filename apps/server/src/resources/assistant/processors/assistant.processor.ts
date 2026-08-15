@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import { Repository } from 'typeorm';
-import { AssistantAgentLoop } from '../services/assistant-agent-loop.service';
+import { LoopService } from '../../agent/services/loop.service';
 import { AiService } from '../../ai/ai.service';
 import {
   createAssistantMessages,
@@ -17,14 +17,14 @@ import {
   ASSISTANT_WORKER_CONCURRENCY,
   EXECUTE_ASSISTANT_JOB,
 } from '../assistant.constants';
-import { AssistantRun } from '../entities/run.entity';
+import { Run } from '../../agent/entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
 import { AssistantConversationMessage } from '../entities/conversation-message.entity';
 import {
   AssistantBudgetExceededError,
-  AssistantExecutionService,
+  ExecutionService,
   AssistantLoopDetectedError,
-} from '../services/assistant-execution.service';
+} from '../../agent/services/execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import {
   BrowserCommandOutcomeUnknownError,
@@ -43,11 +43,11 @@ export class AssistantProcessor extends WorkerHost {
   private readonly activeRuns = new Map<string, AbortController>();
 
   constructor(
-    @InjectRepository(AssistantRun)
-    private readonly runRepository: Repository<AssistantRun>,
-    private readonly agentLoop: AssistantAgentLoop,
+    @InjectRepository(Run)
+    private readonly runRepository: Repository<Run>,
+    private readonly agentLoop: LoopService,
     private readonly aiService: AiService,
-    private readonly execution: AssistantExecutionService,
+    private readonly execution: ExecutionService,
   ) {
     super();
   }
@@ -69,7 +69,7 @@ export class AssistantProcessor extends WorkerHost {
     const started = await this.runRepository.manager.transaction(
       async (manager) => {
         await manager.query('SELECT pg_advisory_xact_lock($1)', [run.userId]);
-        const activeRuns = await manager.count(AssistantRun, {
+        const activeRuns = await manager.count(Run, {
           where: { userId: run.userId, status: 'running' },
         });
 
@@ -78,7 +78,7 @@ export class AssistantProcessor extends WorkerHost {
         }
 
         const startResult = await manager.update(
-          AssistantRun,
+          Run,
           { id: run.id, status: 'queued' },
           {
             status: 'running',
@@ -243,7 +243,7 @@ export class AssistantProcessor extends WorkerHost {
     this.activeRuns.get(runId)?.abort();
   }
 
-  private async createMessages(run: AssistantRun) {
+  private async createMessages(run: Run) {
     if (!run.conversationId) {
       return createAssistantMessages(run);
     }

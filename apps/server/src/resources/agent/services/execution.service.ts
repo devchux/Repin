@@ -10,12 +10,12 @@ import type {
   AssistantStepType,
 } from '@repo/contracts/assistant';
 import { EntityManager, Repository } from 'typeorm';
-import { AssistantRun } from '../entities/run.entity';
-import { AssistantRunCheckpoint } from '../entities/run-checkpoint.entity';
-import { AssistantRunEvent } from '../entities/run-event.entity';
-import { AssistantRunStep } from '../entities/run-step.entity';
-import { ASSISTANT_REPEATED_ACTION_LIMIT } from '../assistant.constants';
-import { AssistantRunContinuation } from '../entities/run-continuation.entity';
+import { Run } from '../entities/run.entity';
+import { RunCheckpoint } from '../entities/run-checkpoint.entity';
+import { RunEvent } from '../entities/run-event.entity';
+import { RunStep } from '../entities/run-step.entity';
+import { AGENT_REPEATED_ACTION_LIMIT } from '../agent.constants';
+import { RunContinuation } from '../entities/run-continuation.entity';
 import type { AiMessage, AiToolCall } from '../../ai/types/provider';
 
 interface TransitionInput {
@@ -25,7 +25,7 @@ interface TransitionInput {
   readonly eventType: string;
   readonly eventData?: Readonly<Record<string, unknown>>;
   readonly checkpointState?: Readonly<Record<string, unknown>>;
-  readonly patch?: Partial<AssistantRun>;
+  readonly patch?: Partial<Run>;
 }
 
 const ALLOWED_STATUS_TRANSITIONS: Readonly<
@@ -48,18 +48,15 @@ const ALLOWED_STATUS_TRANSITIONS: Readonly<
 };
 
 @Injectable()
-export class AssistantExecutionService {
+export class ExecutionService {
   constructor(
-    @InjectRepository(AssistantRun)
-    private readonly runRepository: Repository<AssistantRun>,
+    @InjectRepository(Run)
+    private readonly runRepository: Repository<Run>,
   ) {}
 
-  async transition(
-    runId: string,
-    input: TransitionInput,
-  ): Promise<AssistantRun> {
+  async transition(runId: string, input: TransitionInput): Promise<Run> {
     return this.runRepository.manager.transaction(async (manager) => {
-      const run = await manager.findOne(AssistantRun, {
+      const run = await manager.findOne(Run, {
         where: { id: runId },
         lock: { mode: 'pessimistic_write' },
       });
@@ -90,7 +87,7 @@ export class AssistantExecutionService {
         ...(input.eventData ?? {}),
       });
       await manager.save(
-        manager.create(AssistantRunCheckpoint, {
+        manager.create(RunCheckpoint, {
           runId,
           version: checkpointVersion,
           status: input.status,
@@ -106,7 +103,7 @@ export class AssistantExecutionService {
     runId: string,
     type: AssistantStepType,
     input?: unknown,
-  ): Promise<AssistantRunStep> {
+  ): Promise<RunStep> {
     return this.runRepository.manager.transaction(async (manager) => {
       const run = await this.lockRun(manager, runId);
       if (type === 'model') {
@@ -123,12 +120,12 @@ export class AssistantExecutionService {
       }
       await manager.save(run);
       const { maximum } = (await manager
-        .createQueryBuilder(AssistantRunStep, 'step')
+        .createQueryBuilder(RunStep, 'step')
         .select('COALESCE(MAX(step.sequence), 0)', 'maximum')
         .where('step.runId = :runId', { runId })
         .getRawOne<{ maximum: string }>()) ?? { maximum: '0' };
       const step = await manager.save(
-        manager.create(AssistantRunStep, {
+        manager.create(RunStep, {
           runId,
           sequence: Number(maximum) + 1,
           type,
@@ -159,7 +156,7 @@ export class AssistantExecutionService {
     await this.runRepository.manager.transaction(async (manager) => {
       await this.lockRun(manager, runId);
       await manager.save(
-        manager.create(AssistantRunContinuation, {
+        manager.create(RunContinuation, {
           runId,
           iteration,
           messages,
@@ -172,8 +169,8 @@ export class AssistantExecutionService {
     });
   }
 
-  getContinuation(runId: string): Promise<AssistantRunContinuation | null> {
-    return this.runRepository.manager.findOne(AssistantRunContinuation, {
+  getContinuation(runId: string): Promise<RunContinuation | null> {
+    return this.runRepository.manager.findOne(RunContinuation, {
       where: { runId },
     });
   }
@@ -184,14 +181,14 @@ export class AssistantExecutionService {
     dispatchState: 'prepared' | 'unknown',
   ): Promise<void> {
     await this.runRepository.manager.update(
-      AssistantRunContinuation,
+      RunContinuation,
       { runId },
       { reason, dispatchState },
     );
   }
 
   async clearContinuation(runId: string): Promise<void> {
-    await this.runRepository.manager.delete(AssistantRunContinuation, {
+    await this.runRepository.manager.delete(RunContinuation, {
       runId,
     });
   }
@@ -199,13 +196,13 @@ export class AssistantExecutionService {
   async redactSensitiveToolText(runId: string): Promise<void> {
     await this.runRepository.manager.transaction(async (manager) => {
       await this.lockRun(manager, runId);
-      const steps = await manager.find(AssistantRunStep, { where: { runId } });
+      const steps = await manager.find(RunStep, { where: { runId } });
       for (const step of steps) {
         step.input = this.redactTextFields(step.input);
         step.output = this.redactTextFields(step.output);
       }
       await manager.save(steps);
-      await manager.delete(AssistantRunContinuation, { runId });
+      await manager.delete(RunContinuation, { runId });
     });
   }
 
@@ -225,7 +222,7 @@ export class AssistantExecutionService {
     error?: string,
   ): Promise<void> {
     await this.runRepository.manager.transaction(async (manager) => {
-      const step = await manager.findOne(AssistantRunStep, {
+      const step = await manager.findOne(RunStep, {
         where: { id: stepId },
         lock: { mode: 'pessimistic_write' },
       });
@@ -247,11 +244,8 @@ export class AssistantExecutionService {
     });
   }
 
-  private async lockRun(
-    manager: EntityManager,
-    runId: string,
-  ): Promise<AssistantRun> {
-    const run = await manager.findOne(AssistantRun, {
+  private async lockRun(manager: EntityManager, runId: string): Promise<Run> {
+    const run = await manager.findOne(Run, {
       where: { id: runId },
       lock: { mode: 'pessimistic_write' },
     });
@@ -264,12 +258,12 @@ export class AssistantExecutionService {
     runId: string,
     input: unknown,
   ): Promise<void> {
-    const recent = await manager.find(AssistantRunStep, {
+    const recent = await manager.find(RunStep, {
       where: { runId, type: 'tool' },
       order: { sequence: 'DESC' },
-      take: ASSISTANT_REPEATED_ACTION_LIMIT - 1,
+      take: AGENT_REPEATED_ACTION_LIMIT - 1,
     });
-    if (recent.length < ASSISTANT_REPEATED_ACTION_LIMIT - 1) return;
+    if (recent.length < AGENT_REPEATED_ACTION_LIMIT - 1) return;
     const signature = this.actionSignature(this.redactTextFields(input));
     if (
       recent.every((step) => this.actionSignature(step.input) === signature)
@@ -323,12 +317,12 @@ export class AssistantExecutionService {
     data: Readonly<Record<string, unknown>>,
   ): Promise<void> {
     const { maximum } = (await manager
-      .createQueryBuilder(AssistantRunEvent, 'event')
+      .createQueryBuilder(RunEvent, 'event')
       .select('COALESCE(MAX(event.sequence), 0)', 'maximum')
       .where('event.runId = :runId', { runId })
       .getRawOne<{ maximum: string }>()) ?? { maximum: '0' };
     await manager.save(
-      manager.create(AssistantRunEvent, {
+      manager.create(RunEvent, {
         runId,
         sequence: Number(maximum) + 1,
         type,

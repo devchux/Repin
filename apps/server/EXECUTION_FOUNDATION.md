@@ -16,7 +16,23 @@ browser executors remain typed I/O boundaries.
 
 Sequence and checkpoint versions are allocated while holding a pessimistic lock
 on the run. Status changes, their event, and their checkpoint are committed in
-one database transaction by `AssistantExecutionService`.
+one database transaction by `ExecutionService`.
+
+## Resource boundary
+
+The provider-neutral harness lives in `src/resources/agent`:
+
+- `AgentModule` owns the run aggregate and exports the loop and state machine.
+- `LoopService` owns model decisions, tool dispatch, verification, continuation,
+  and reconciliation.
+- `ExecutionService` owns durable transitions, steps, events, budgets, and
+  checkpoints.
+
+`src/resources/assistant` is an adapter over that harness. It owns assistant
+conversations, capability prompts, HTTP endpoints, interactive queue dispatch,
+and projecting completed run output into conversation messages. Tools and AI
+providers remain independent resources consumed by `AgentModule`. Existing
+table names and `/assistant` routes are retained for compatibility.
 
 All foreign keys are also represented as explicit TypeORM relationships. The
 scalar IDs remain available for efficient writes, while bidirectional relations

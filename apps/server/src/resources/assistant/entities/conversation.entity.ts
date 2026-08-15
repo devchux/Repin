@@ -16,7 +16,7 @@ import type {
 } from '../dto/execute-assistant.dto';
 import { User } from '../../user/entities/user.entity';
 import { AssistantConversationMessage } from './conversation-message.entity';
-import { AssistantRun } from './run.entity';
+import { Run } from '../../agent/entities/run.entity';
 
 @Entity('assistant_conversations')
 @Index(['userId', 'updatedAt'])
@@ -48,8 +48,8 @@ export class AssistantConversation {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => AssistantRun, (run) => run.conversation)
-  runs: AssistantRun[];
+  @OneToMany(() => Run, (run) => run.conversation)
+  runs: Run[];
 
   @OneToMany(
     () => AssistantConversationMessage,

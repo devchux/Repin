@@ -4,14 +4,14 @@ import type { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { AssistantProcessor } from '../processors/assistant.processor';
 import { AssistantService } from './assistant.service';
-import { AssistantRun } from '../entities/run.entity';
+import { Run } from '../../agent/entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
-import type { AssistantExecutionService } from './assistant-execution.service';
+import type { ExecutionService } from '../../agent/services/execution.service';
 import type { BrowserToolApprovalService } from '../../tools/policy/browser-tool-approval.service';
 
 describe('AssistantService', () => {
   const now = new Date();
-  const run: AssistantRun = {
+  const run: Run = {
     id: '9d06cd75-e508-4d25-8a0d-a018863c2186',
     userId: 1,
     conversationId: '3b8f0241-a8a4-4f64-86dd-21ac7db99ea3',
@@ -41,7 +41,7 @@ describe('AssistantService', () => {
     save: jest.fn(),
     update: jest.fn(),
     findOne: jest.fn(),
-  } as unknown as Repository<AssistantRun>;
+  } as unknown as Repository<Run>;
   const queue = {
     add: jest.fn(),
     getJob: jest.fn(),
@@ -51,7 +51,7 @@ describe('AssistantService', () => {
   } as unknown as AssistantProcessor;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
-  } as unknown as AssistantExecutionService;
+  } as unknown as ExecutionService;
   const approvals = {
     approve: jest.fn(),
     deny: jest.fn(),
@@ -115,7 +115,7 @@ describe('AssistantService', () => {
     });
 
     expect(manager.create).toHaveBeenCalledWith(
-      AssistantRun,
+      Run,
       expect.objectContaining({
         browserSessionId: 'browser-session-1',
         browserExecutionTarget: 'managed',

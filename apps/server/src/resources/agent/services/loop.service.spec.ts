@@ -1,16 +1,16 @@
 import type { AiService } from '../../ai/ai.service';
 import type { ToolsService } from '../../tools/tools.service';
-import { AssistantAgentLoop } from './assistant-agent-loop.service';
-import type { AssistantRun } from '../entities/run.entity';
-import type { AssistantExecutionService } from './assistant-execution.service';
+import { LoopService } from './loop.service';
+import type { Run } from '../entities/run.entity';
+import type { ExecutionService } from './execution.service';
 
 const run = {
   id: 'run-1',
   userId: 9,
   browserSessionId: 'browser-session-1',
-} as AssistantRun;
+} as Run;
 
-describe('AssistantAgentLoop', () => {
+describe('LoopService', () => {
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
     startStep: jest.fn().mockResolvedValue({ id: 'step-1' }),
@@ -20,7 +20,7 @@ describe('AssistantAgentLoop', () => {
     saveContinuation: jest.fn().mockResolvedValue(undefined),
     markContinuation: jest.fn().mockResolvedValue(undefined),
     clearContinuation: jest.fn().mockResolvedValue(undefined),
-  } as unknown as AssistantExecutionService;
+  } as unknown as ExecutionService;
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -67,7 +67,7 @@ describe('AssistantAgentLoop', () => {
         },
       ]),
     } as unknown as ToolsService;
-    const loop = new AssistantAgentLoop(aiService, toolsService, execution);
+    const loop = new LoopService(aiService, toolsService, execution);
 
     const result = await loop.run(run, [
       { role: 'user', content: 'List tabs' },
@@ -123,7 +123,7 @@ describe('AssistantAgentLoop', () => {
       execute: jest.fn(),
     } as unknown as ToolsService;
 
-    const result = await new AssistantAgentLoop(
+    const result = await new LoopService(
       aiService,
       toolsService,
       execution,
@@ -183,7 +183,7 @@ describe('AssistantAgentLoop', () => {
       execute: jest.fn().mockResolvedValue([]),
     } as unknown as ToolsService;
 
-    const result = await new AssistantAgentLoop(
+    const result = await new LoopService(
       aiService,
       toolsService,
       execution,

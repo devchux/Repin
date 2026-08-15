@@ -6,7 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { AssistantRun } from './run.entity';
+import { Run } from './run.entity';
 
 export type ContinuationReason =
   | 'prepared'
@@ -15,15 +15,15 @@ export type ContinuationReason =
 export type ContinuationDispatchState = 'prepared' | 'unknown';
 
 @Entity('assistant_run_continuations')
-export class AssistantRunContinuation {
+export class RunContinuation {
   @PrimaryColumn({ type: 'uuid' })
   runId: string;
 
-  @OneToOne(() => AssistantRun, (run) => run.continuation, {
+  @OneToOne(() => Run, (run) => run.continuation, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'runId' })
-  run: AssistantRun;
+  run: Run;
 
   @Column({ type: 'integer' })
   iteration: number;

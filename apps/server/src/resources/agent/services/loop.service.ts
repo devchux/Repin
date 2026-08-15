@@ -6,10 +6,10 @@ import type {
 } from '../../ai/types/provider';
 import { AiService } from '../../ai/ai.service';
 import { ToolsService } from '../../tools/tools.service';
-import type { AssistantRun } from '../entities/run.entity';
-import { ASSISTANT_MAX_AGENT_ITERATIONS } from '../assistant.constants';
+import type { Run } from '../entities/run.entity';
+import { AGENT_MAX_ITERATIONS } from '../agent.constants';
 import type { AssistantAgentDecision } from '@repo/contracts/assistant';
-import { AssistantExecutionService } from './assistant-execution.service';
+import { ExecutionService } from './execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { getBrowserToolDescriptor } from '../../tools/policy/browser-tool-descriptors';
 import type { BrowserToolResult } from '../../tools/types/browser-tool.types';
@@ -20,15 +20,15 @@ import {
 } from '../../tools/executors/browser-execution.errors';
 
 @Injectable()
-export class AssistantAgentLoop {
+export class LoopService {
   constructor(
     private readonly aiService: AiService,
     private readonly toolsService: ToolsService,
-    private readonly execution: AssistantExecutionService,
+    private readonly execution: ExecutionService,
   ) {}
 
   async run(
-    run: AssistantRun,
+    run: Run,
     initialMessages: AiMessage[],
     signal?: AbortSignal,
   ): Promise<AiGenerateResult> {
@@ -76,7 +76,7 @@ export class AssistantAgentLoop {
 
     for (
       let iteration = initialIteration;
-      iteration < ASSISTANT_MAX_AGENT_ITERATIONS;
+      iteration < AGENT_MAX_ITERATIONS;
       iteration += 1
     ) {
       signal?.throwIfAborted();
@@ -134,12 +134,12 @@ export class AssistantAgentLoop {
     }
 
     throw new Error(
-      `Assistant exceeded the ${ASSISTANT_MAX_AGENT_ITERATIONS}-iteration tool limit`,
+      `Agent exceeded the ${AGENT_MAX_ITERATIONS}-iteration tool limit`,
     );
   }
 
   private async executeTool(
-    run: AssistantRun,
+    run: Run,
     toolCall: AiToolCall,
     idempotencyKey: string,
     signal?: AbortSignal,
@@ -221,7 +221,7 @@ export class AssistantAgentLoop {
   }
 
   private async executeToolBatch(
-    run: AssistantRun,
+    run: Run,
     messages: AiMessage[],
     toolCalls: readonly AiToolCall[],
     iteration: number,
@@ -252,7 +252,7 @@ export class AssistantAgentLoop {
   }
 
   private async verifyTool(
-    run: AssistantRun,
+    run: Run,
     toolCall: AiToolCall,
     result: BrowserToolResult,
     signal?: AbortSignal,

@@ -3,35 +3,23 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { Configuration } from 'src/shared/types';
-import { AiModule } from '../ai/ai.module';
 import { ToolsModule } from '../tools/tools.module';
+import { AgentModule } from '../agent/agent.module';
 import { ASSISTANT_INTERACTIVE_QUEUE } from './assistant.constants';
 import { AssistantController } from './assistant.controller';
 import { AssistantProcessor } from './processors/assistant.processor';
 import { AssistantQueueScaler } from './services/assistant-queue-scaler.service';
 import { AssistantService } from './services/assistant.service';
-import { AssistantAgentLoop } from './services/assistant-agent-loop.service';
-import { AssistantRun } from './entities/run.entity';
 import { AssistantConversation } from './entities/conversation.entity';
 import { AssistantConversationMessage } from './entities/conversation-message.entity';
-import { AssistantRunStep } from './entities/run-step.entity';
-import { AssistantRunEvent } from './entities/run-event.entity';
-import { AssistantRunCheckpoint } from './entities/run-checkpoint.entity';
-import { AssistantExecutionService } from './services/assistant-execution.service';
-import { AssistantRunContinuation } from './entities/run-continuation.entity';
 
 @Module({
   imports: [
-    AiModule,
+    AgentModule,
     ToolsModule,
     TypeOrmModule.forFeature([
-      AssistantRun,
       AssistantConversation,
       AssistantConversationMessage,
-      AssistantRunStep,
-      AssistantRunEvent,
-      AssistantRunCheckpoint,
-      AssistantRunContinuation,
     ]),
     BullModule.forRootAsync({
       inject: [ConfigService],
@@ -54,12 +42,6 @@ import { AssistantRunContinuation } from './entities/run-continuation.entity';
     BullModule.registerQueue({ name: ASSISTANT_INTERACTIVE_QUEUE }),
   ],
   controllers: [AssistantController],
-  providers: [
-    AssistantService,
-    AssistantAgentLoop,
-    AssistantProcessor,
-    AssistantQueueScaler,
-    AssistantExecutionService,
-  ],
+  providers: [AssistantService, AssistantProcessor, AssistantQueueScaler],
 })
 export class AssistantModule {}

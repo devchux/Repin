@@ -31,22 +31,22 @@ import {
 } from '../assistant.constants';
 import { AssistantProcessor } from '../processors/assistant.processor';
 import { ExecuteAssistantDto } from '../dto/execute-assistant.dto';
-import { AssistantRun } from '../entities/run.entity';
+import { Run } from '../../agent/entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
 import { AssistantConversationMessage } from '../entities/conversation-message.entity';
 import { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
-import { AssistantExecutionService } from './assistant-execution.service';
+import { ExecutionService } from '../../agent/services/execution.service';
 import { BrowserToolApprovalService } from '../../tools/policy/browser-tool-approval.service';
 
 @Injectable()
 export class AssistantService {
   constructor(
-    @InjectRepository(AssistantRun)
-    private readonly runRepository: Repository<AssistantRun>,
+    @InjectRepository(Run)
+    private readonly runRepository: Repository<Run>,
     @InjectQueue(ASSISTANT_INTERACTIVE_QUEUE)
     private readonly assistantQueue: Queue,
     private readonly assistantProcessor: AssistantProcessor,
-    private readonly execution: AssistantExecutionService,
+    private readonly execution: ExecutionService,
     private readonly approvals: BrowserToolApprovalService,
   ) {}
 
@@ -56,7 +56,7 @@ export class AssistantService {
     const run = await this.runRepository.manager.transaction(
       async (manager) => {
         await manager.query('SELECT pg_advisory_xact_lock($1)', [userId]);
-        const queuedRuns = await manager.count(AssistantRun, {
+        const queuedRuns = await manager.count(Run, {
           where: { userId, status: 'queued' },
         });
 
@@ -76,8 +76,8 @@ export class AssistantService {
           }),
         );
         const run = await manager.save(
-          AssistantRun,
-          manager.create(AssistantRun, {
+          Run,
+          manager.create(Run, {
             userId,
             conversationId: conversation.id,
             capability: request.capability,
@@ -173,7 +173,7 @@ export class AssistantService {
           throw new NotFoundException('Assistant conversation not found');
         }
 
-        const pendingTurn = await manager.count(AssistantRun, {
+        const pendingTurn = await manager.count(Run, {
           where: {
             conversationId,
             status: In(['queued', 'running', 'awaiting_approval', 'suspended']),
@@ -185,7 +185,7 @@ export class AssistantService {
           );
         }
 
-        const queuedRuns = await manager.count(AssistantRun, {
+        const queuedRuns = await manager.count(Run, {
           where: { userId, status: 'queued' },
         });
         if (queuedRuns >= ASSISTANT_MAX_QUEUED_RUNS_PER_USER) {
@@ -195,8 +195,8 @@ export class AssistantService {
         }
 
         const newRun = await manager.save(
-          AssistantRun,
-          manager.create(AssistantRun, {
+          Run,
+          manager.create(Run, {
             userId,
             conversationId,
             capability: 'chat',
@@ -462,10 +462,7 @@ export class AssistantService {
     };
   }
 
-  private async findUserRun(
-    userId: number,
-    runId: string,
-  ): Promise<AssistantRun> {
+  private async findUserRun(userId: number, runId: string): Promise<Run> {
     const run = await this.runRepository.findOne({
       where: { id: runId, userId },
     });
@@ -527,7 +524,7 @@ export class AssistantService {
     }
   }
 
-  private isTerminal(run: AssistantRun): boolean {
+  private isTerminal(run: Run): boolean {
     return this.isTerminalStatus(run.status);
   }
 
@@ -537,7 +534,7 @@ export class AssistantService {
     );
   }
 
-  private toResponse(run: AssistantRun) {
+  private toResponse(run: Run) {
     return {
       id: run.id,
       conversationId: run.conversationId,

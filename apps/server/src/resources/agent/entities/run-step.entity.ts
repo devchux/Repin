@@ -15,22 +15,22 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { AssistantRun } from './run.entity';
+import { Run } from './run.entity';
 
 @Entity('assistant_run_steps')
 @Index(['runId', 'sequence'], { unique: true })
-export class AssistantRunStep {
+export class RunStep {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid' })
   runId: string;
 
-  @ManyToOne(() => AssistantRun, (run) => run.steps, {
+  @ManyToOne(() => Run, (run) => run.steps, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'runId' })
-  run: AssistantRun;
+  run: Run;
 
   @Column({ type: 'integer' })
   sequence: number;

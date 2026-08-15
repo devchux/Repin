@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { AssistantConversation } from './conversation.entity';
-import { AssistantRun } from './run.entity';
+import { Run } from '../../agent/entities/run.entity';
 
 export type AssistantMessageRole = 'user' | 'assistant';
 
@@ -33,12 +33,12 @@ export class AssistantConversationMessage {
   @Column({ type: 'uuid', nullable: true })
   runId?: string;
 
-  @ManyToOne(() => AssistantRun, (run) => run.messages, {
+  @ManyToOne(() => Run, (run) => run.messages, {
     nullable: true,
     onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'runId' })
-  run?: AssistantRun;
+  run?: Run;
 
   @Column()
   role: AssistantMessageRole;

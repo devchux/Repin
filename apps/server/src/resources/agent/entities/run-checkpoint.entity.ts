@@ -11,22 +11,22 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { AssistantRun } from './run.entity';
+import { Run } from './run.entity';
 
 @Entity('assistant_run_checkpoints')
 @Index(['runId', 'version'], { unique: true })
-export class AssistantRunCheckpoint {
+export class RunCheckpoint {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid' })
   runId: string;
 
-  @ManyToOne(() => AssistantRun, (run) => run.checkpoints, {
+  @ManyToOne(() => Run, (run) => run.checkpoints, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'runId' })
-  run: AssistantRun;
+  run: Run;
 
   @Column({ type: 'integer' })
   version: number;

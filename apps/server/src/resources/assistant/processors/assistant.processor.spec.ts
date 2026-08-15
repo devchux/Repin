@@ -1,17 +1,17 @@
 import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import type { Repository } from 'typeorm';
-import { AssistantAgentLoop } from '../services/assistant-agent-loop.service';
+import { LoopService } from '../../agent/services/loop.service';
 import { AiService } from '../../ai/ai.service';
 import { AssistantProcessor } from './assistant.processor';
-import { AssistantRun } from '../entities/run.entity';
-import type { AssistantExecutionService } from '../services/assistant-execution.service';
+import { Run } from '../../agent/entities/run.entity';
+import type { ExecutionService } from '../../agent/services/execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 import { BrowserSessionUnavailableError } from '../../tools/executors/browser-execution.errors';
 
 describe('AssistantProcessor', () => {
-  const run: AssistantRun = {
+  const run: Run = {
     id: '9d06cd75-e508-4d25-8a0d-a018863c2186',
     userId: 1,
     capability: 'summarize',
@@ -34,16 +34,16 @@ describe('AssistantProcessor', () => {
     manager,
     findOne: jest.fn(),
     update: jest.fn(),
-  } as unknown as Repository<AssistantRun>;
+  } as unknown as Repository<Run>;
   const agentLoop = {
     run: jest.fn(),
-  } as unknown as AssistantAgentLoop;
+  } as unknown as LoopService;
   const aiService = {
     generate: jest.fn(),
   } as unknown as AiService;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
-  } as unknown as AssistantExecutionService;
+  } as unknown as ExecutionService;
   const processor = new AssistantProcessor(
     runRepository,
     agentLoop,
@@ -97,7 +97,7 @@ describe('AssistantProcessor', () => {
     );
     expect(agentLoop.run).toHaveBeenCalled();
     expect(manager.update).toHaveBeenCalledWith(
-      AssistantRun,
+      Run,
       { id: run.id, status: 'queued' },
       expect.objectContaining({
         status: 'running',

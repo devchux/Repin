@@ -16,7 +16,7 @@ import {
   ASSISTANT_WORKER_MAX_CONCURRENCY,
 } from '../assistant.constants';
 import { AssistantProcessor } from '../processors/assistant.processor';
-import { AssistantRun } from '../entities/run.entity';
+import { Run } from '../../agent/entities/run.entity';
 
 @Injectable()
 export class AssistantQueueScaler
@@ -28,8 +28,8 @@ export class AssistantQueueScaler
   constructor(
     @InjectQueue(ASSISTANT_INTERACTIVE_QUEUE)
     private readonly assistantQueue: Queue,
-    @InjectRepository(AssistantRun)
-    private readonly runRepository: Repository<AssistantRun>,
+    @InjectRepository(Run)
+    private readonly runRepository: Repository<Run>,
     private readonly assistantProcessor: AssistantProcessor,
     private readonly configService: ConfigService<Configuration>,
   ) {}

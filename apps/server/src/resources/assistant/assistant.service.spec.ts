@@ -3,13 +3,13 @@ import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
 import { AssistantProcessor } from './processors/assistant.processor';
 import { AssistantService } from './services/assistant.service';
-import { AssistantRun } from './entities/run.entity';
-import type { AssistantExecutionService } from './services/assistant-execution.service';
+import { Run } from '../agent/entities/run.entity';
+import type { ExecutionService } from '../agent/services/execution.service';
 import type { BrowserToolApprovalService } from '../tools/policy/browser-tool-approval.service';
 
 describe('AssistantService', () => {
   const now = new Date();
-  const run: AssistantRun = {
+  const run: Run = {
     id: '9d06cd75-e508-4d25-8a0d-a018863c2186',
     userId: 1,
     capability: 'summarize',
@@ -35,7 +35,7 @@ describe('AssistantService', () => {
     save: jest.fn(),
     update: jest.fn(),
     findOne: jest.fn(),
-  } as unknown as Repository<AssistantRun>;
+  } as unknown as Repository<Run>;
   const queue = {
     add: jest.fn(),
     getJob: jest.fn(),
@@ -45,7 +45,7 @@ describe('AssistantService', () => {
   } as unknown as AssistantProcessor;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
-  } as unknown as AssistantExecutionService;
+  } as unknown as ExecutionService;
   const approvals = {
     approve: jest.fn(),
     deny: jest.fn(),

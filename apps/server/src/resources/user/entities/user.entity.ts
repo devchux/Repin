@@ -1,7 +1,7 @@
 import { Base } from 'src/shared/entities/base.entity';
 import { Column, Entity, OneToMany } from 'typeorm';
 import { AssistantConversation } from '../../assistant/entities/conversation.entity';
-import { AssistantRun } from '../../assistant/entities/run.entity';
+import { Run } from '../../agent/entities/run.entity';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 
 @Entity()
@@ -21,8 +21,8 @@ export class User extends Base {
   @OneToMany(() => AssistantConversation, (conversation) => conversation.user)
   assistantConversations: AssistantConversation[];
 
-  @OneToMany(() => AssistantRun, (run) => run.user)
-  assistantRuns: AssistantRun[];
+  @OneToMany(() => Run, (run) => run.user)
+  assistantRuns: Run[];
 
   @OneToMany(() => BrowserToolApproval, (approval) => approval.user)
   browserToolApprovals: BrowserToolApproval[];

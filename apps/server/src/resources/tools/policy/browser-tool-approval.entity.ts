@@ -1,4 +1,4 @@
-import { AssistantRun } from '../../assistant/entities/run.entity';
+import { Run } from '../../agent/entities/run.entity';
 import { User } from '../../user/entities/user.entity';
 import {
   Column,
@@ -32,11 +32,11 @@ export class BrowserToolApproval {
   @Column({ type: 'uuid' })
   runId: string;
 
-  @ManyToOne(() => AssistantRun, (run) => run.approvals, {
+  @ManyToOne(() => Run, (run) => run.approvals, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'runId' })
-  run: AssistantRun;
+  run: Run;
 
   @Column()
   userId: number;

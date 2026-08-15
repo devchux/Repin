@@ -7,22 +7,22 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { AssistantRun } from './run.entity';
+import { Run } from './run.entity';
 
 @Entity('assistant_run_events')
 @Index(['runId', 'sequence'], { unique: true })
-export class AssistantRunEvent {
+export class RunEvent {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid' })
   runId: string;
 
-  @ManyToOne(() => AssistantRun, (run) => run.events, {
+  @ManyToOne(() => Run, (run) => run.events, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'runId' })
-  run: AssistantRun;
+  run: Run;
 
   @Column({ type: 'integer' })
   sequence: number;

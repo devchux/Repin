@@ -4,7 +4,7 @@ import type { Repository } from 'typeorm';
 import type { Configuration } from 'src/shared/types';
 import { AssistantQueueScaler } from './assistant-queue-scaler.service';
 import type { AssistantProcessor } from '../processors/assistant.processor';
-import type { AssistantRun } from '../entities/run.entity';
+import type { Run } from '../../agent/entities/run.entity';
 
 describe('AssistantQueueScaler', () => {
   const queue = {
@@ -19,7 +19,7 @@ describe('AssistantQueueScaler', () => {
   };
   const runRepository = {
     createQueryBuilder: jest.fn(),
-  } as unknown as Repository<AssistantRun>;
+  } as unknown as Repository<Run>;
   const worker = { concurrency: 5 };
   const processor = { worker } as unknown as AssistantProcessor;
   const config = {
