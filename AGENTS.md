@@ -10,7 +10,11 @@
 
 # Project Vision
 
-Repin AI is an AI-powered browser assistant designed to help users perform tasks directly within their browser.
+Repin AI is an AI-powered assistant available through both a browser extension
+and a full web application. The extension helps users act in the context of the
+page they are browsing, while the web application provides the same core AI
+capabilities alongside a durable workspace for conversations, activity,
+saved content, and history.
 
 Current capabilities include:
 
@@ -25,6 +29,12 @@ Current capabilities include:
 The long-term vision is far more ambitious.
 
 Repin AI should gradually evolve into a fully autonomous browser agent capable of understanding user intent, interacting with webpages, navigating workflows, automating repetitive browser tasks, and acting as an intelligent digital companion.
+
+The extension and web application are complementary first-class product
+surfaces. Features, conversations, artifacts, preferences, and execution
+history should follow the authenticated user across both clients whenever the
+capability is meaningful in both environments. Do not design core product
+capabilities as extension-only implementations.
 
 Every architectural decision should move the platform closer to this vision.
 
@@ -145,12 +155,21 @@ Heavy processing belongs on the backend whenever practical.
 Responsible for:
 
 - Marketing website
-- User dashboard
+- Full Repin AI application experience
+- AI conversations and assistant interactions
+- Access to the same core capabilities available in the extension
+- Conversation, activity, automation, and execution history
+- Bookmarks, notes, highlights, saved content, and generated artifacts
+- User dashboard and cross-device workspace
 - Account settings
 - Billing
 - Authentication
-- AI history
 - User management
+
+The web application is a first-class product client, not only a marketing or
+administrative dashboard. Core AI workflows should be implemented through
+shared backend capabilities and contracts so they can be used consistently by
+both the web application and browser extension.
 
 Technology
 
@@ -270,7 +289,9 @@ Prompt quality should be measurable.
 
 # Browser Extension Principles
 
-The extension is the user's primary interface.
+The extension is a primary contextual interface for Repin, while the web
+application is the primary persistent workspace. Neither client should become
+the sole owner of shared product workflows or user data.
 
 Keep it fast.
 
@@ -442,6 +463,26 @@ Separate:
 - business logic
 - API calls
 
+## Cross-Client Product Principles
+
+The web application and browser extension should share:
+
+- backend APIs and domain models
+- typed contracts
+- authentication and authorization rules
+- conversations and assistant run history
+- saved user data and preferences
+- reusable UI primitives where platform constraints allow
+
+Business logic and AI orchestration belong in shared backend services rather
+than being duplicated between clients. Client-specific code should focus on
+presentation, local interaction, and platform APIs.
+
+Browser-dependent tools may execute through the extension, but their runs,
+results, approval state, and history should remain visible from the web
+application. Web-originated tasks may request a connected browser session when
+browser interaction is required.
+
 ---
 
 # UI Standards
@@ -601,6 +642,10 @@ AI features should eventually include evaluation tests.
 # Future Architecture
 
 Repin AI should gradually evolve toward an autonomous browser agent.
+
+Users should be able to begin work from either the web application or the
+extension, continue it from the other surface, and review a unified history of
+conversations, actions, artifacts, and agent runs.
 
 Future capabilities may include:
 
