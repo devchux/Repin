@@ -7,6 +7,7 @@ import { AssistantService } from './assistant.service';
 import { AssistantRun } from '../entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
 import type { AssistantExecutionService } from './assistant-execution.service';
+import type { BrowserToolApprovalService } from '../../tools/policy/browser-tool-approval.service';
 
 describe('AssistantService', () => {
   const now = new Date();
@@ -51,11 +52,16 @@ describe('AssistantService', () => {
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as AssistantExecutionService;
+  const approvals = {
+    approve: jest.fn(),
+    deny: jest.fn(),
+  } as unknown as BrowserToolApprovalService;
   const service = new AssistantService(
     runRepository,
     queue,
     processor,
     execution,
+    approvals,
   );
 
   beforeEach(() => {
@@ -249,5 +255,41 @@ describe('AssistantService', () => {
     });
     expect(processor.cancel).toHaveBeenCalledWith(run.id);
     expect(remove).toHaveBeenCalled();
+  });
+
+  it('resumes an awaiting run after an exact action is approved', async () => {
+    const awaitingRun = {
+      ...run,
+      status: 'awaiting_approval' as const,
+      phase: 'awaiting_approval' as const,
+    };
+    jest.spyOn(runRepository, 'findOne').mockResolvedValue(awaitingRun);
+    jest.spyOn(approvals, 'approve').mockResolvedValue({
+      id: '9d06cd75-e508-4d25-8a0d-a018863c2187',
+      actionFingerprint: 'fingerprint-1',
+    } as never);
+    jest.spyOn(execution, 'transition').mockResolvedValue({
+      ...awaitingRun,
+      status: 'queued',
+      phase: 'queued',
+    });
+    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+
+    await expect(
+      service.approveAction(
+        run.userId,
+        run.id,
+        '9d06cd75-e508-4d25-8a0d-a018863c2187',
+      ),
+    ).resolves.toMatchObject({
+      data: { id: run.id, status: 'queued' },
+    });
+    expect(queue.add).toHaveBeenCalledWith(
+      'execute-assistant',
+      { runId: run.id },
+      expect.objectContaining({
+        jobId: `${run.id}:approval:9d06cd75-e508-4d25-8a0d-a018863c2187`,
+      }),
+    );
   });
 });

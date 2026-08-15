@@ -55,6 +55,32 @@ export class AssistantController {
     return this.assistantService.cancelRun(user.id, runId);
   }
 
+  @Post('runs/:id/approvals/:approvalId/approve')
+  approveAction(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) runId: string,
+    @Param('approvalId', ParseUUIDPipe) approvalId: string,
+  ) {
+    return this.assistantService.approveAction(user.id, runId, approvalId);
+  }
+
+  @Get('runs/:id/approvals')
+  findPendingApprovals(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) runId: string,
+  ) {
+    return this.assistantService.findPendingApprovals(user.id, runId);
+  }
+
+  @Post('runs/:id/approvals/:approvalId/deny')
+  denyAction(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) runId: string,
+    @Param('approvalId', ParseUUIDPipe) approvalId: string,
+  ) {
+    return this.assistantService.denyAction(user.id, runId, approvalId);
+  }
+
   @Get('conversations/:id')
   findConversation(
     @CurrentUser() user: AuthUser,

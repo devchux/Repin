@@ -20,7 +20,12 @@ import {
 import { AssistantRun } from '../entities/run.entity';
 import { AssistantConversation } from '../entities/conversation.entity';
 import { AssistantConversationMessage } from '../entities/conversation-message.entity';
-import { AssistantExecutionService } from '../services/assistant-execution.service';
+import {
+  AssistantBudgetExceededError,
+  AssistantExecutionService,
+  AssistantLoopDetectedError,
+} from '../services/assistant-execution.service';
+import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 
 interface AssistantJobData {
   runId: string;
@@ -164,8 +169,31 @@ export class AssistantProcessor extends WorkerHost {
         where: { id: run.id },
       });
 
+      if (
+        error instanceof BrowserToolApprovalRequiredError &&
+        currentRun?.status !== 'cancelled'
+      ) {
+        await this.execution.transition(run.id, {
+          expectedStatuses: ['running'],
+          status: 'awaiting_approval',
+          phase: 'awaiting_approval',
+          eventType: 'approval.requested',
+          eventData: {
+            approvalId: error.approval.id,
+            toolName: error.approval.toolName,
+            arguments: error.approval.arguments,
+            expiresAt: error.approval.expiresAt.toISOString(),
+          },
+          checkpointState: { approvalId: error.approval.id },
+        });
+        return;
+      }
+
       if (currentRun?.status !== 'cancelled') {
-        const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts || 1);
+        const finalAttempt =
+          error instanceof AssistantBudgetExceededError ||
+          error instanceof AssistantLoopDetectedError ||
+          job.attemptsMade + 1 >= (job.opts.attempts || 1);
         await this.execution.transition(run.id, {
           expectedStatuses: ['running'],
           status: finalAttempt ? 'failed' : 'queued',

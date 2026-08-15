@@ -55,9 +55,31 @@ discriminated-union variants when their execution semantics are implemented.
 The next layers should build on these records rather than add parallel run
 models:
 
-1. Durable approval requests and suspended/resumable run statuses.
-2. Observation revisions and explicit verification steps.
-3. Execution budgets, deadlines, and loop detection.
-4. Versioned workflow definitions whose agent nodes create the same steps and
+1. Execution deadlines and cost budgets.
+2. Rich success criteria and domain-specific verification strategies.
+3. Versioned workflow definitions whose agent nodes create the same steps and
    events.
-5. Event streaming and replay APIs shared by the web app and extension.
+4. Event streaming and replay APIs shared by the web app and extension.
+
+## Safe browser loop
+
+The browser loop applies safety before execution rather than relying on model
+instructions:
+
+- Every tool has harness-owned risk, side-effect, approval, observation, and
+  verification metadata.
+- Element actions require a `documentRevision`. Both browser executors reject
+  stale revisions; the extension invalidates revisions on DOM mutation and SPA
+  navigation.
+- Consequential actions create a durable approval containing the exact tool and
+  arguments. Approval is fingerprinted, expires, and is consumed once.
+- A run awaiting approval leaves the worker and enters `awaiting_approval`.
+  Approval returns it to the queue with its existing checkpoints and budgets;
+  denial terminates it explicitly.
+- Model and tool-call budgets survive retries and worker restarts.
+- Three identical consecutive tool actions terminate the run as a detected
+  no-progress loop.
+- Side-effecting actions create a separate verification step. The harness
+  captures fresh navigation state when a tab remains available, or records the
+  executor acknowledgement when no inspectable tab is returned. Verification
+  failures are returned to the model instead of silently claiming success.

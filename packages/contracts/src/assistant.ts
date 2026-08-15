@@ -23,6 +23,7 @@ export type AiAssistantCapability = (typeof AI_ASSISTANT_CAPABILITIES)[number];
 export const ASSISTANT_RUN_STATUSES = [
   "queued",
   "running",
+  "awaiting_approval",
   "completed",
   "failed",
   "cancelled",
@@ -35,13 +36,14 @@ export const ASSISTANT_RUN_PHASES = [
   "initializing",
   "reasoning",
   "executing",
+  "awaiting_approval",
   "finalizing",
   "terminal",
 ] as const;
 
 export type AssistantRunPhase = (typeof ASSISTANT_RUN_PHASES)[number];
 
-export const ASSISTANT_STEP_TYPES = ["model", "tool"] as const;
+export const ASSISTANT_STEP_TYPES = ["model", "tool", "verification"] as const;
 export type AssistantStepType = (typeof ASSISTANT_STEP_TYPES)[number];
 
 export const ASSISTANT_STEP_STATUSES = [
@@ -92,11 +94,25 @@ export interface AssistantRun {
   readonly queueWaitMs?: number;
   readonly completedAt?: string;
   readonly cancelledAt?: string;
+  readonly execution: {
+    readonly modelCalls: number;
+    readonly maxModelCalls: number;
+    readonly toolCalls: number;
+    readonly maxToolCalls: number;
+  };
 }
 
 export interface AssistantRunUsage {
   readonly inputTokens: number;
   readonly outputTokens: number;
+}
+
+export interface BrowserActionApproval {
+  readonly id: string;
+  readonly toolName: string;
+  readonly arguments: Readonly<Record<string, unknown>>;
+  readonly expiresAt: string;
+  readonly createdAt: string;
 }
 
 export type AssistantRunEventType = AssistantRunStatus | "heartbeat";

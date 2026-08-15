@@ -5,6 +5,7 @@ import { AssistantProcessor } from './processors/assistant.processor';
 import { AssistantService } from './services/assistant.service';
 import { AssistantRun } from './entities/run.entity';
 import type { AssistantExecutionService } from './services/assistant-execution.service';
+import type { BrowserToolApprovalService } from '../tools/policy/browser-tool-approval.service';
 
 describe('AssistantService', () => {
   const now = new Date();
@@ -45,11 +46,16 @@ describe('AssistantService', () => {
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
   } as unknown as AssistantExecutionService;
+  const approvals = {
+    approve: jest.fn(),
+    deny: jest.fn(),
+  } as unknown as BrowserToolApprovalService;
   const service = new AssistantService(
     runRepository,
     queue,
     processor,
     execution,
+    approvals,
   );
 
   beforeEach(() => {

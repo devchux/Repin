@@ -84,7 +84,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
     const position = await page.evaluate(() => ({ scrollX, scrollY }));
     return {
       tabId: await this.tabId(context, page),
-      documentRevision: this.revision(page),
+      documentRevision: await this.revision(page),
       url: page.url(),
       title: await page.title(),
       capturedAt: new Date().toISOString(),
@@ -145,7 +145,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
     }));
     return {
       tabId: await this.tabId(context, page),
-      documentRevision: this.revision(page),
+      documentRevision: await this.revision(page),
       url: page.url(),
       title: await page.title(),
       ...metadata,
@@ -158,7 +158,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
     input: TabTargetInput & { ref: string; documentRevision: string },
   ) {
     const page = await this.page(context, input);
-    this.assertRevision(page, input.documentRevision);
+    await this.assertRevision(page, input.documentRevision);
     const locator = page.locator(`[data-repin-agent-ref="${input.ref}"]`);
     const data = await locator.evaluate((node) => {
       const element = node as HTMLElement;
@@ -190,7 +190,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
     });
     return {
       tabId: await this.tabId(context, page),
-      documentRevision: this.revision(page),
+      documentRevision: await this.revision(page),
       ref: input.ref,
       ...data,
       actions: [],
@@ -208,7 +208,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
     }));
     return {
       tabId: await this.tabId(context, page),
-      documentRevision: this.revision(page),
+      documentRevision: await this.revision(page),
       ...selection,
     };
   }
@@ -259,7 +259,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
     );
     return {
       tabId: await this.tabId(context, page),
-      documentRevision: this.revision(page),
+      documentRevision: await this.revision(page),
       forms,
       truncated: forms.length >= (input.maxForms ?? 100),
     };
@@ -460,7 +460,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
         ? page.locator(`[data-repin-agent-ref="${input.ref}"]`)
         : undefined;
     if ('documentRevision' in input && input.documentRevision)
-      this.assertRevision(page, input.documentRevision);
+      await this.assertRevision(page, input.documentRevision);
     switch (command.name) {
       case 'browser_click':
         await locator!.click();
@@ -588,7 +588,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
     return {
       success: true,
       tabId: await this.tabId(context, page),
-      documentRevision: this.revision(page),
+      documentRevision: await this.revision(page),
     };
   }
 
@@ -632,7 +632,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
   ): Promise<BrowserPageState> {
     return { tab: await this.normalizeTab(context, page) };
   }
-  private revision(page: Page): string {
+  private async revision(page: Page): Promise<string> {
     let revision = this.revisions.get(page);
     if (!revision) {
       revision = randomUUID();
@@ -641,10 +641,30 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
         if (frame === page.mainFrame()) this.revisions.set(page, randomUUID());
       });
     }
-    return revision;
+    const domRevision = await page.evaluate(() => {
+      const scope = globalThis as typeof globalThis & {
+        __repinDocumentRevision?: { value: number; observer: MutationObserver };
+      };
+      if (!scope.__repinDocumentRevision) {
+        const state = {
+          value: 0,
+          observer: new MutationObserver(() => {
+            state.value += 1;
+          }),
+        };
+        state.observer.observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+        });
+        scope.__repinDocumentRevision = state;
+      }
+      return scope.__repinDocumentRevision.value;
+    });
+    return `${revision}:${domRevision}:${page.url()}`;
   }
-  private assertRevision(page: Page, revision: string) {
-    if (this.revision(page) !== revision) throw new Error('Snapshot is stale');
+  private async assertRevision(page: Page, revision: string) {
+    if ((await this.revision(page)) !== revision)
+      throw new Error('Snapshot is stale');
   }
   private origin(url: string) {
     try {

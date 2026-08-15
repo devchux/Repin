@@ -10,6 +10,9 @@ import type { AssistantRun } from '../entities/run.entity';
 import { ASSISTANT_MAX_AGENT_ITERATIONS } from '../assistant.constants';
 import type { AssistantAgentDecision } from '@repo/contracts/assistant';
 import { AssistantExecutionService } from './assistant-execution.service';
+import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
+import { getBrowserToolDescriptor } from '../../tools/policy/browser-tool-descriptors';
+import type { BrowserToolResult } from '../../tools/types/browser-tool.types';
 
 @Injectable()
 export class AssistantAgentLoop {
@@ -128,15 +131,17 @@ export class AssistantAgentLoop {
           signal,
         },
       );
-      payload = { success: true, result };
-      await this.execution.completeStep(step.id, payload);
+      await this.execution.completeStep(step.id, { success: true, result });
+      const verification = await this.verifyTool(run, toolCall, result, signal);
+      payload = { success: true, result, verification };
     } catch (error) {
+      await this.execution.failStep(step.id, error);
+      if (error instanceof BrowserToolApprovalRequiredError) throw error;
       signal?.throwIfAborted();
       payload = {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown tool error',
       };
-      await this.execution.failStep(step.id, error);
     }
 
     return {
@@ -150,5 +155,64 @@ export class AssistantAgentLoop {
     return result.toolCalls?.length
       ? { kind: 'tool', calls: result.toolCalls }
       : { kind: 'complete', content: result.content };
+  }
+
+  private async verifyTool(
+    run: AssistantRun,
+    toolCall: AiToolCall,
+    result: BrowserToolResult,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    if (!this.toolsService.supports(toolCall.name)) return undefined;
+    const descriptor = getBrowserToolDescriptor(toolCall.name);
+    if (!descriptor.verifyAfterExecution) return undefined;
+
+    const step = await this.execution.startStep(run.id, 'verification', {
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+    });
+    try {
+      const tabId = this.readResultTabId(result);
+      const evidence = tabId
+        ? await this.toolsService.execute(
+            { name: 'browser_get_navigation_state', arguments: { tabId } },
+            {
+              userId: run.userId,
+              runId: run.id,
+              browserSessionId: run.browserSessionId!,
+              executorKind: run.browserExecutionTarget,
+              signal,
+            },
+          )
+        : { acknowledgedByExecutor: true };
+      const verification = { verified: true, evidence };
+      await this.execution.completeStep(step.id, verification);
+      return verification;
+    } catch (error) {
+      await this.execution.failStep(step.id, error);
+      return {
+        verified: false,
+        error: error instanceof Error ? error.message : 'Verification failed',
+      };
+    }
+  }
+
+  private readResultTabId(result: BrowserToolResult): string | undefined {
+    if (!result || Array.isArray(result) || typeof result !== 'object') {
+      return undefined;
+    }
+    if ('tabId' in result && typeof result.tabId === 'string') {
+      return result.tabId;
+    }
+    if (
+      'tab' in result &&
+      result.tab &&
+      typeof result.tab === 'object' &&
+      'id' in result.tab &&
+      typeof result.tab.id === 'string'
+    ) {
+      return result.tab.id;
+    }
+    return undefined;
   }
 }

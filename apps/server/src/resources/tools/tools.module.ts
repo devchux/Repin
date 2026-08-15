@@ -8,15 +8,16 @@ import { BrowserSessionController } from './transport/browser-session.controller
 import { BrowserSessionGateway } from './transport/browser-session.gateway';
 import { BrowserSessionRegistry } from './transport/browser-session.registry';
 import { WebSocketExtensionBrowserTransport } from './transport/websocket-extension-browser.transport';
-import { BrowserToolApprovalController } from './policy/browser-tool-approval.controller';
 import { BrowserToolApprovalService } from './policy/browser-tool-approval.service';
 import { BrowserExecutorRouter } from './executors/browser-executor.router';
 import { PlaywrightBrowserExecutor } from './executors/playwright-browser.executor';
 import { PlaywrightBrowserSessionRegistry } from './executors/playwright-browser-session.registry';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { BrowserToolApproval } from './policy/browser-tool-approval.entity';
 
 @Module({
-  imports: [AuthModule],
-  controllers: [BrowserSessionController, BrowserToolApprovalController],
+  imports: [AuthModule, TypeOrmModule.forFeature([BrowserToolApproval])],
+  controllers: [BrowserSessionController],
   providers: [
     BrowserSessionRegistry,
     BrowserToolApprovalService,
@@ -36,6 +37,6 @@ import { PlaywrightBrowserSessionRegistry } from './executors/playwright-browser
     },
     ToolsService,
   ],
-  exports: [ToolsService],
+  exports: [ToolsService, BrowserToolApprovalService],
 })
 export class ToolsModule {}

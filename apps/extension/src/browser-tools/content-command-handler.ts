@@ -4,8 +4,31 @@ interface ContentCommand {
   readonly input: Readonly<Record<string, unknown>>;
 }
 
-const documentRevision = crypto.randomUUID();
+let documentRevision = crypto.randomUUID();
 const elements = new Map<string, Element>();
+
+const invalidateDocument = () => {
+  documentRevision = crypto.randomUUID();
+  elements.clear();
+};
+
+new MutationObserver(invalidateDocument).observe(document.documentElement, {
+  childList: true,
+  subtree: true,
+});
+
+const originalPushState = history.pushState.bind(history);
+history.pushState = (data, unused, url) => {
+  originalPushState(data, unused, url);
+  invalidateDocument();
+};
+const originalReplaceState = history.replaceState.bind(history);
+history.replaceState = (data, unused, url) => {
+  originalReplaceState(data, unused, url);
+  invalidateDocument();
+};
+addEventListener("popstate", invalidateDocument);
+addEventListener("hashchange", invalidateDocument);
 
 const refFor = (element: Element, index: number) => {
   const ref = `e${index + 1}`;

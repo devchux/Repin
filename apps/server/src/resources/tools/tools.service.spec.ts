@@ -99,6 +99,19 @@ describe('ToolsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('rejects element actions without a current document revision', async () => {
+    const executor = createExecutor();
+    const service = new ToolsService(executor);
+
+    await expect(
+      service.execute(
+        { name: 'browser_click', arguments: { ref: 'e1' } },
+        context,
+      ),
+    ).rejects.toThrow('requires a documentRevision');
+    expect(executor.interact).not.toHaveBeenCalled();
+  });
+
   it('validates and dispatches page snapshots', async () => {
     const executor = createExecutor();
     executor.getSnapshot.mockResolvedValue({

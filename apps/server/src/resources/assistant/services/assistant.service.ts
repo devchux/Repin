@@ -36,6 +36,7 @@ import { AssistantConversation } from '../entities/conversation.entity';
 import { AssistantConversationMessage } from '../entities/conversation-message.entity';
 import { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
 import { AssistantExecutionService } from './assistant-execution.service';
+import { BrowserToolApprovalService } from '../../tools/policy/browser-tool-approval.service';
 
 @Injectable()
 export class AssistantService {
@@ -46,6 +47,7 @@ export class AssistantService {
     private readonly assistantQueue: Queue,
     private readonly assistantProcessor: AssistantProcessor,
     private readonly execution: AssistantExecutionService,
+    private readonly approvals: BrowserToolApprovalService,
   ) {}
 
   async createRun(userId: number, request: ExecuteAssistantDto) {
@@ -174,7 +176,7 @@ export class AssistantService {
         const pendingTurn = await manager.count(AssistantRun, {
           where: {
             conversationId,
-            status: In(['queued', 'running']),
+            status: In(['queued', 'running', 'awaiting_approval']),
           },
         });
         if (pendingTurn > 0) {
@@ -352,6 +354,84 @@ export class AssistantService {
     };
   }
 
+  async approveAction(userId: number, runId: string, approvalId: string) {
+    const run = await this.findUserRun(userId, runId);
+    if (run.status !== 'awaiting_approval') {
+      throw new BadRequestException('Assistant run is not awaiting approval');
+    }
+    const approval = await this.approvals.approve(userId, runId, approvalId);
+    const resumedRun = await this.execution.transition(runId, {
+      expectedStatuses: ['awaiting_approval'],
+      status: 'queued',
+      phase: 'queued',
+      eventType: 'approval.approved',
+      eventData: { approvalId },
+      checkpointState: {
+        approvedActionFingerprint: approval.actionFingerprint,
+      },
+      patch: { error: null },
+    });
+    try {
+      await this.enqueueRun(runId, `approval:${approvalId}`);
+    } catch {
+      await this.execution.transition(runId, {
+        expectedStatuses: ['queued'],
+        status: 'failed',
+        phase: 'terminal',
+        eventType: 'run.resume_failed',
+        patch: {
+          error: 'Unable to resume approved assistant run',
+          completedAt: new Date(),
+        },
+      });
+      throw new ServiceUnavailableException(
+        'Unable to resume approved assistant run',
+      );
+    }
+    return {
+      message: 'Browser action approved and run resumed',
+      data: this.toResponse(resumedRun),
+    };
+  }
+
+  async findPendingApprovals(userId: number, runId: string) {
+    await this.findUserRun(userId, runId);
+    const approvals = await this.approvals.findPending(userId, runId);
+    return {
+      message: 'Pending browser action approvals found',
+      data: approvals.map((approval) => ({
+        id: approval.id,
+        toolName: approval.toolName,
+        arguments: approval.arguments,
+        expiresAt: approval.expiresAt,
+        createdAt: approval.createdAt,
+      })),
+    };
+  }
+
+  async denyAction(userId: number, runId: string, approvalId: string) {
+    const run = await this.findUserRun(userId, runId);
+    if (run.status !== 'awaiting_approval') {
+      throw new BadRequestException('Assistant run is not awaiting approval');
+    }
+    await this.approvals.deny(userId, runId, approvalId);
+    const failedRun = await this.execution.transition(runId, {
+      expectedStatuses: ['awaiting_approval'],
+      status: 'failed',
+      phase: 'terminal',
+      eventType: 'approval.denied',
+      eventData: { approvalId },
+      patch: {
+        error: 'User denied the proposed browser action',
+        completedAt: new Date(),
+      },
+    });
+    return {
+      message: 'Browser action denied',
+      data: this.toResponse(failedRun),
+    };
+  }
+
   private async findUserRun(
     userId: number,
     runId: string,
@@ -383,12 +463,12 @@ export class AssistantService {
     return conversation;
   }
 
-  private enqueueRun(runId: string) {
+  private enqueueRun(runId: string, resumeKey?: string) {
     return this.assistantQueue.add(
       EXECUTE_ASSISTANT_JOB,
       { runId },
       {
-        jobId: runId,
+        jobId: resumeKey ? `${runId}:${resumeKey}` : runId,
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
         removeOnComplete: 100,
@@ -448,6 +528,12 @@ export class AssistantService {
       queueWaitMs: run.queueWaitMs,
       completedAt: run.completedAt,
       cancelledAt: run.cancelledAt,
+      execution: {
+        modelCalls: run.modelCallCount,
+        maxModelCalls: run.maxModelCalls,
+        toolCalls: run.toolCallCount,
+        maxToolCalls: run.maxToolCalls,
+      },
     };
   }
 }

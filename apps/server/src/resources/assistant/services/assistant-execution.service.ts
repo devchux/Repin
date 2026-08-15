@@ -14,6 +14,7 @@ import { AssistantRun } from '../entities/run.entity';
 import { AssistantRunCheckpoint } from '../entities/run-checkpoint.entity';
 import { AssistantRunEvent } from '../entities/run-event.entity';
 import { AssistantRunStep } from '../entities/run-step.entity';
+import { ASSISTANT_REPEATED_ACTION_LIMIT } from '../assistant.constants';
 
 interface TransitionInput {
   readonly expectedStatuses: readonly AssistantRunStatus[];
@@ -29,7 +30,15 @@ const ALLOWED_STATUS_TRANSITIONS: Readonly<
   Record<AssistantRunStatus, readonly AssistantRunStatus[]>
 > = {
   queued: ['queued', 'running', 'failed', 'cancelled'],
-  running: ['running', 'queued', 'completed', 'failed', 'cancelled'],
+  running: [
+    'running',
+    'queued',
+    'awaiting_approval',
+    'completed',
+    'failed',
+    'cancelled',
+  ],
+  awaiting_approval: ['queued', 'failed', 'cancelled'],
   completed: [],
   failed: [],
   cancelled: [],
@@ -96,7 +105,20 @@ export class AssistantExecutionService {
     input?: unknown,
   ): Promise<AssistantRunStep> {
     return this.runRepository.manager.transaction(async (manager) => {
-      await this.lockRun(manager, runId);
+      const run = await this.lockRun(manager, runId);
+      if (type === 'model') {
+        if (run.modelCallCount >= run.maxModelCalls) {
+          throw new AssistantBudgetExceededError('model calls');
+        }
+        run.modelCallCount += 1;
+      } else if (type === 'tool') {
+        if (run.toolCallCount >= run.maxToolCalls) {
+          throw new AssistantBudgetExceededError('tool calls');
+        }
+        await this.assertToolProgress(manager, runId, input);
+        run.toolCallCount += 1;
+      }
+      await manager.save(run);
       const { maximum } = (await manager
         .createQueryBuilder(AssistantRunStep, 'step')
         .select('COALESCE(MAX(step.sequence), 0)', 'maximum')
@@ -161,12 +183,58 @@ export class AssistantExecutionService {
     });
   }
 
-  private async lockRun(manager: EntityManager, runId: string): Promise<void> {
+  private async lockRun(
+    manager: EntityManager,
+    runId: string,
+  ): Promise<AssistantRun> {
     const run = await manager.findOne(AssistantRun, {
       where: { id: runId },
       lock: { mode: 'pessimistic_write' },
     });
     if (!run) throw new NotFoundException('Assistant run not found');
+    return run;
+  }
+
+  private async assertToolProgress(
+    manager: EntityManager,
+    runId: string,
+    input: unknown,
+  ): Promise<void> {
+    const recent = await manager.find(AssistantRunStep, {
+      where: { runId, type: 'tool' },
+      order: { sequence: 'DESC' },
+      take: ASSISTANT_REPEATED_ACTION_LIMIT - 1,
+    });
+    if (recent.length < ASSISTANT_REPEATED_ACTION_LIMIT - 1) return;
+    const signature = this.actionSignature(input);
+    if (
+      recent.every((step) => this.actionSignature(step.input) === signature)
+    ) {
+      throw new AssistantLoopDetectedError();
+    }
+  }
+
+  private actionSignature(input: unknown): string {
+    if (!input || typeof input !== 'object') return this.stableStringify(input);
+    const action = { ...(input as Record<string, unknown>) };
+    delete action.toolCallId;
+    return this.stableStringify(action);
+  }
+
+  private stableStringify(value: unknown): string {
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => this.stableStringify(item)).join(',')}]`;
+    }
+    if (value && typeof value === 'object') {
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(
+          ([key, item]) =>
+            `${JSON.stringify(key)}:${this.stableStringify(item)}`,
+        )
+        .join(',')}}`;
+    }
+    return JSON.stringify(value);
   }
 
   private async appendEvent(
@@ -188,5 +256,19 @@ export class AssistantExecutionService {
         data,
       }),
     );
+  }
+}
+
+export class AssistantBudgetExceededError extends Error {
+  constructor(resource: string) {
+    super(`Assistant run exhausted its ${resource} budget`);
+    this.name = 'AssistantBudgetExceededError';
+  }
+}
+
+export class AssistantLoopDetectedError extends Error {
+  constructor() {
+    super('Assistant repeated the same browser action without progress');
+    this.name = 'AssistantLoopDetectedError';
   }
 }

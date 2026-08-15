@@ -44,6 +44,7 @@ import type {
   BrowserToolName,
   BrowserToolResult,
 } from './types/browser-tool.types';
+import { getBrowserToolDescriptor } from './policy/browser-tool-descriptors';
 
 @Injectable()
 export class ToolsService {
@@ -68,7 +69,21 @@ export class ToolsService {
   ): Promise<BrowserToolResult> {
     const executor = this.getExecutor();
     this.assertContext(context);
-    this.approvals?.authorize(context.userId, context.runId, call.name);
+    const descriptor = getBrowserToolDescriptor(call.name);
+    if (
+      descriptor.requiresDocumentRevision &&
+      typeof call.arguments.documentRevision !== 'string'
+    ) {
+      throw new BadRequestException(
+        `${call.name} requires a documentRevision from a current observation`,
+      );
+    }
+    await this.approvals?.authorize(
+      context.userId,
+      context.runId,
+      call.name,
+      call.arguments,
+    );
 
     switch (call.name) {
       case 'browser_navigate':

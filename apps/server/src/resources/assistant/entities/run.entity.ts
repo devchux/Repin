@@ -29,6 +29,7 @@ import { AssistantConversationMessage } from './conversation-message.entity';
 import { AssistantRunCheckpoint } from './run-checkpoint.entity';
 import { AssistantRunEvent } from './run-event.entity';
 import { AssistantRunStep } from './run-step.entity';
+import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 
 @Entity('assistant_runs')
 @Index(['userId', 'createdAt'])
@@ -73,6 +74,18 @@ export class AssistantRun {
 
   @Column({ type: 'integer', default: 0 })
   checkpointVersion: number;
+
+  @Column({ type: 'integer', default: 0 })
+  modelCallCount: number;
+
+  @Column({ type: 'integer', default: 0 })
+  toolCallCount: number;
+
+  @Column({ type: 'integer', default: 12 })
+  maxModelCalls: number;
+
+  @Column({ type: 'integer', default: 30 })
+  maxToolCalls: number;
 
   @Column({ type: 'jsonb' })
   context: AssistantPageContextDto;
@@ -130,4 +143,7 @@ export class AssistantRun {
 
   @OneToMany(() => AssistantRunCheckpoint, (checkpoint) => checkpoint.run)
   checkpoints: AssistantRunCheckpoint[];
+
+  @OneToMany(() => BrowserToolApproval, (approval) => approval.run)
+  approvals: BrowserToolApproval[];
 }

@@ -6,6 +6,8 @@ import { AiService } from '../../ai/ai.service';
 import { AssistantProcessor } from './assistant.processor';
 import { AssistantRun } from '../entities/run.entity';
 import type { AssistantExecutionService } from '../services/assistant-execution.service';
+import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
+import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 
 describe('AssistantProcessor', () => {
   const run: AssistantRun = {
@@ -151,5 +153,41 @@ describe('AssistantProcessor', () => {
       expect.any(AbortSignal),
     );
     expect(aiService.generate).not.toHaveBeenCalled();
+  });
+
+  it('durably suspends a run when an action requires approval', async () => {
+    const approval = {
+      id: 'approval-1',
+      toolName: 'browser_submit_form',
+      arguments: { ref: 'form-1', documentRevision: 'revision-1' },
+      expiresAt: new Date(Date.now() + 60_000),
+    } as BrowserToolApproval;
+    jest
+      .spyOn(runRepository, 'findOne')
+      .mockResolvedValueOnce(run)
+      .mockResolvedValueOnce({ ...run, status: 'running' })
+      .mockResolvedValueOnce({ ...run, status: 'running' });
+    jest
+      .spyOn(agentLoop, 'run')
+      .mockRejectedValue(new BrowserToolApprovalRequiredError(approval));
+    const job = {
+      id: 'job-1',
+      name: 'execute-assistant',
+      data: { runId: run.id },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+    } as Job<{ runId: string }>;
+
+    await expect(processor.process(job)).resolves.toBeUndefined();
+
+    expect(execution.transition).toHaveBeenCalledWith(
+      run.id,
+      expect.objectContaining({
+        status: 'awaiting_approval',
+        phase: 'awaiting_approval',
+        eventType: 'approval.requested',
+        checkpointState: { approvalId: approval.id },
+      }),
+    );
   });
 });
