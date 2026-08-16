@@ -7,10 +7,13 @@ execution boundary but does not execute assistant runs or workflows itself.
 POST /api/tasks
         |
         v
-SelectionService
-   |          |                |
-   v          v                v
-assistant   existing workflow  generate workflow
+DispatchService
+   |          |
+   v          v
+Selector   Planner
+   |          |
+   v          v
+assistant   workflow
 ```
 
 The selector compares a request only with the authenticated user's latest
@@ -19,6 +22,11 @@ decision must identify an exact candidate, classify the task as multi-stage,
 and have at least `0.75` confidence. Otherwise the request safely remains a
 direct assistant run. A deterministic lexical fallback is used if the provider
 is unavailable.
+
+`DispatchService` owns the choice and starts the selected execution boundary.
+`SelectorService` only matches existing definitions, while `PlannerService`
+only produces bounded generated-definition candidates. Neither selection nor
+planning starts work directly.
 
 When a task is confidently multi-stage but no existing definition matches, the
 task resource asks the provider for a bounded linear plan of two to eight agent

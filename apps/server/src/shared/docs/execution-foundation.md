@@ -33,7 +33,9 @@ conversations, capability prompts, HTTP endpoints, queue-lane dispatch, and
 projecting completed run output into conversation messages. Short work and
 long browser work have separate BullMQ workers, but both delegate to one shared
 run handler so lifecycle, approvals, retry, cancellation, and resumption cannot
-diverge. Tools and AI
+diverge. Within that resource, `RunService`, `ConversationService`, and
+`ApprovalService` own their respective lifecycles. `AssistantService` is a thin
+compatibility facade for cross-resource callers. Tools and AI
 providers remain independent resources consumed by `AgentModule`. Existing
 table names and `/assistant` routes are retained for compatibility.
 

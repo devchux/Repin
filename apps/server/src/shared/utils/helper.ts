@@ -77,3 +77,7 @@ export const isHashMatch = (expectedHash: string, actualHash: string) => {
 
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 };
+
+export const getWordsList = (value: string): string[] => {
+  return value.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+};

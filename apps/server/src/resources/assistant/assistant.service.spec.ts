@@ -3,6 +3,9 @@ import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
 import type { RunHandler } from './services/run-handler.service';
 import { AssistantService } from './services/assistant.service';
+import { RunService } from './services/run.service';
+import { ConversationService } from './services/conversation.service';
+import { ApprovalService } from './services/approval.service';
 import { Run } from '../agent/entities/run.entity';
 import type { ExecutionService } from '../agent/services/execution.service';
 import type { BrowserToolApprovalService } from '../tools/policy/browser-tool-approval.service';
@@ -51,13 +54,22 @@ describe('AssistantService', () => {
     approve: jest.fn(),
     deny: jest.fn(),
   } as unknown as BrowserToolApprovalService;
-  const service = new AssistantService(
+  const runService = new RunService(
     runRepository,
     queue,
     queue,
     runHandler,
     execution,
-    approvals,
+  );
+  const conversationService = new ConversationService(
+    runRepository,
+    runService,
+  );
+  const approvalService = new ApprovalService(runService, execution, approvals);
+  const service = new AssistantService(
+    runService,
+    conversationService,
+    approvalService,
   );
 
   beforeEach(() => {

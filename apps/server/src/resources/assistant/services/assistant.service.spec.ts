@@ -4,6 +4,9 @@ import type { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import type { RunHandler } from './run-handler.service';
 import { AssistantService } from './assistant.service';
+import { RunService } from './run.service';
+import { ConversationService } from './conversation.service';
+import { ApprovalService } from './approval.service';
 import { Run } from '../../agent/entities/run.entity';
 import { Conversation } from '../entities/conversation.entity';
 import type { ExecutionService } from '../../agent/services/execution.service';
@@ -61,13 +64,22 @@ describe('AssistantService', () => {
     approve: jest.fn(),
     deny: jest.fn(),
   } as unknown as BrowserToolApprovalService;
-  const service = new AssistantService(
+  const runService = new RunService(
     runRepository,
     shortQueue,
     longQueue,
     runHandler,
     execution,
-    approvals,
+  );
+  const conversationService = new ConversationService(
+    runRepository,
+    runService,
+  );
+  const approvalService = new ApprovalService(runService, execution, approvals);
+  const service = new AssistantService(
+    runService,
+    conversationService,
+    approvalService,
   );
 
   beforeEach(() => {

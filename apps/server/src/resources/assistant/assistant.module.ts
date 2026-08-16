@@ -12,6 +12,9 @@ import { LongProcessor } from './processors/long.processor';
 import { RunHandler } from './services/run-handler.service';
 import { QueueScaler } from './services/queue-scaler.service';
 import { AssistantService } from './services/assistant.service';
+import { RunService } from './services/run.service';
+import { ConversationService } from './services/conversation.service';
+import { ApprovalService } from './services/approval.service';
 import { Conversation } from './entities/conversation.entity';
 import { ConversationMessage } from './entities/conversation-message.entity';
 
@@ -46,6 +49,9 @@ import { ConversationMessage } from './entities/conversation-message.entity';
   controllers: [AssistantController],
   providers: [
     AssistantService,
+    RunService,
+    ConversationService,
+    ApprovalService,
     RunHandler,
     ShortProcessor,
     LongProcessor,
