@@ -41,4 +41,4 @@ fan-out, and nested workflow—should extend this resource. They must continue t
 use the agent harness for agent execution rather than introducing another loop.
 
 Automatic assistant-versus-workflow routing is owned by the separate `task`
-resource and documented in `TASK_ROUTING.md`.
+resource and documented in `task-routing.md`.
