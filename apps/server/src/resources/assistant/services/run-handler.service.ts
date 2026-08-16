@@ -6,9 +6,9 @@ import { Repository } from 'typeorm';
 import type { AssistantExecutionLane } from '@repo/contracts/assistant';
 import { LoopService } from '../../agent/services/loop.service';
 import {
-  createAssistantMessages,
-  createConversationMessages,
-} from '../prompts';
+  buildAssistantPrompt,
+  buildConversationPrompt,
+} from '../../../shared/ai/prompts';
 import {
   MAX_ACTIVE_LONG_RUNS_PER_USER,
   MAX_ACTIVE_SHORT_RUNS_PER_USER,
@@ -252,7 +252,7 @@ export class RunHandler {
 
   private async createMessages(run: Run) {
     if (!run.conversationId) {
-      return createAssistantMessages(run);
+      return buildAssistantPrompt(run);
     }
 
     const conversation = await this.runRepository.manager.findOne(
@@ -273,7 +273,7 @@ export class RunHandler {
     );
 
     return hasPreviousAssistantResponse
-      ? createConversationMessages(conversation, history.reverse())
-      : createAssistantMessages(run);
+      ? buildConversationPrompt(conversation, history.reverse())
+      : buildAssistantPrompt(run);
   }
 }
