@@ -28,6 +28,9 @@ describe('SelectionService', () => {
     }),
   } as unknown as AssistantService;
   const workflows = {
+    createGeneratedDefinition: jest.fn().mockResolvedValue({
+      data: { id: 'generated-definition-1' },
+    }),
     start: jest.fn().mockResolvedValue({
       message: 'Workflow started successfully',
       data: { id: 'workflow-1', status: 'queued' },
@@ -86,5 +89,39 @@ describe('SelectionService', () => {
     ).resolves.toMatchObject({ data: { kind: 'run', id: 'run-1' } });
     expect(assistant.createRun).toHaveBeenCalled();
     expect(workflows.start).not.toHaveBeenCalled();
+  });
+
+  it('generates and starts a workflow when no definition exists', async () => {
+    jest.spyOn(definitions, 'find').mockResolvedValue([]);
+    jest.spyOn(ai, 'generate').mockResolvedValue({
+      provider: 'test',
+      model: 'test',
+      content: JSON.stringify({
+        requiresWorkflow: true,
+        reason: 'The task requires research and comparison',
+        name: 'Laptop research',
+        description: 'Research laptops and compare the results',
+        stages: [
+          { instruction: 'Research suitable laptops' },
+          { instruction: 'Compare the researched laptops' },
+        ],
+      }),
+    });
+
+    await expect(selection.dispatch(1, request)).resolves.toMatchObject({
+      data: { kind: 'workflow', id: 'workflow-1' },
+    });
+    expect(workflows.createGeneratedDefinition).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        name: 'Laptop research',
+        graph: expect.objectContaining({ startNodeId: 'stage-1' }),
+      }),
+    );
+    expect(workflows.start).toHaveBeenCalledWith(
+      1,
+      'generated-definition-1',
+      expect.anything(),
+    );
   });
 });

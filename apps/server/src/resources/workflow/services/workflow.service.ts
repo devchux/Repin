@@ -30,7 +30,11 @@ export class WorkflowService {
     private readonly assistant: AssistantService,
   ) {}
 
-  async createDefinition(userId: number, request: CreateDefinitionDto) {
+  async createDefinition(
+    userId: number,
+    request: CreateDefinitionDto,
+    source: Definition['source'] = 'manual',
+  ) {
     this.validator.validate(request.graph);
     const definition = await this.definitionRepository.manager.transaction(
       async (manager) => {
@@ -47,6 +51,7 @@ export class WorkflowService {
             name: request.name,
             description: request.description,
             activation: request.activation,
+            source,
             version: (latest?.version ?? 0) + 1,
             graph: request.graph,
           }),
@@ -57,6 +62,10 @@ export class WorkflowService {
       message: 'Workflow definition created successfully',
       data: definition,
     };
+  }
+
+  createGeneratedDefinition(userId: number, request: CreateDefinitionDto) {
+    return this.createDefinition(userId, request, 'generated');
   }
 
   async start(userId: number, definitionId: string, request: StartDto) {

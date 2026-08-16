@@ -42,6 +42,16 @@ export class DefinitionValidator {
         );
       }
       if (
+        node.type === 'agent' &&
+        node.instruction !== undefined &&
+        (typeof node.instruction !== 'string' ||
+          node.instruction.length > 2_000)
+      ) {
+        throw new BadRequestException(
+          `Agent node ${node.id} has an invalid instruction`,
+        );
+      }
+      if (
         node.type === 'condition' &&
         (!node.inputKey || !['exists', 'equals'].includes(node.operator))
       ) {

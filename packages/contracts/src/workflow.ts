@@ -31,6 +31,7 @@ export type WorkflowNode =
       readonly capability: AiAssistantCapability;
       readonly context: PageContext;
       readonly input?: string;
+      readonly instruction?: string;
       readonly contextSource?: "definition" | "task";
       readonly inputSource?: "definition" | "task";
       readonly options?: AssistantRunOptions;
@@ -71,6 +72,8 @@ export interface WorkflowActivation {
   readonly description: string;
   readonly examples: readonly string[];
 }
+
+export type WorkflowDefinitionSource = "manual" | "generated";
 
 export interface StartWorkflowRequest {
   readonly input?: Readonly<Record<string, unknown>>;

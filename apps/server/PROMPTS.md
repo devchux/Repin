@@ -9,6 +9,7 @@ Each prompt family has an explicit identifier in `PROMPT_VERSIONS`:
 - `assistant.v1`
 - `conversation.v1`
 - `workflow-selection.v1`
+- `workflow-generation.v1`
 
 Prompt builders preserve trust boundaries by placing webpage content, user
 requests, and workflow candidates in user messages while system messages define

@@ -85,10 +85,7 @@ export class RuntimeService {
               node.contextSource === 'task' && task?.context
                 ? task.context
                 : node.context,
-            input:
-              node.inputSource === 'task' && task?.input
-                ? task.input
-                : node.input,
+            input: this.nodeInput(node, task?.input, instance.output),
             options: node.options,
             browserSessionId: node.browserSessionId,
             browserExecutionTarget: node.browserExecutionTarget,
@@ -235,6 +232,30 @@ export class RuntimeService {
       context?: Run['context'];
       input?: string;
     };
+  }
+
+  private nodeInput(
+    node: Extract<WorkflowNode, { type: 'agent' }>,
+    taskInput?: string,
+    workflowOutput?: Record<string, unknown>,
+  ) {
+    const input =
+      node.inputSource === 'task' && taskInput ? taskInput : node.input;
+    const previousOutput =
+      workflowOutput && Object.keys(workflowOutput).length
+        ? JSON.stringify(workflowOutput).slice(0, 20_000)
+        : undefined;
+    return (
+      [
+        node.instruction,
+        input,
+        previousOutput
+          ? `<previous_workflow_output>${previousOutput}</previous_workflow_output>`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join('\n\n') || undefined
+    );
   }
 
   private async fail(instance: Instance, error: string) {

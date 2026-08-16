@@ -7,12 +7,22 @@ import { buildWorkflowSelectionPrompt } from '../../../shared/ai/prompts';
 import { DispatchDto } from '../dto/dispatch.dto';
 import { Definition } from '../../workflow/entities/definition.entity';
 import { WorkflowService } from '../../workflow/services/workflow.service';
+import { buildWorkflowGenerationPrompt } from '../../../shared/ai/prompts';
+import { createHash } from 'node:crypto';
 
 interface SelectionDecision {
   workflowDefinitionId?: string | null;
   confidence: number;
   requiresMultipleSteps: boolean;
   reason: string;
+}
+
+interface GenerationDecision {
+  requiresWorkflow: boolean;
+  reason: string;
+  name: string;
+  description: string;
+  stages: { instruction: string }[];
 }
 
 @Injectable()
@@ -42,8 +52,12 @@ export class SelectionService {
     }
 
     const candidates = await this.findCandidates(userId);
-    if (candidates.length === 0 || !request.input?.trim()) {
+    if (!request.input?.trim()) {
       return this.startAssistant(userId, request, 'no_workflow_candidate');
+    }
+
+    if (candidates.length === 0) {
+      return this.generateOrStartAssistant(userId, request);
     }
 
     const decision = await this.select(request, candidates);
@@ -55,6 +69,13 @@ export class SelectionService {
       !decision.requiresMultipleSteps ||
       decision.confidence < 0.75
     ) {
+      if (
+        !selected &&
+        decision.requiresMultipleSteps &&
+        decision.confidence >= 0.75
+      ) {
+        return this.generateOrStartAssistant(userId, request);
+      }
       return this.startAssistant(userId, request, decision.reason);
     }
     return this.startWorkflow(userId, selected.id, request, decision.reason);
@@ -165,6 +186,146 @@ export class SelectionService {
 
   private words(value: string): string[] {
     return value.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  }
+
+  private async generateOrStartAssistant(userId: number, request: DispatchDto) {
+    const plan = await this.generate(request);
+    if (!plan?.requiresWorkflow || plan.stages.length < 2) {
+      return this.startAssistant(
+        userId,
+        request,
+        plan?.reason ?? 'workflow_generation_unavailable',
+      );
+    }
+
+    try {
+      const definition = await this.workflows.createGeneratedDefinition(
+        userId,
+        {
+          key: this.generatedKey(plan.name, request.input!),
+          name: plan.name,
+          description: plan.description,
+          activation: {
+            description: plan.description,
+            examples: [request.input!],
+          },
+          graph: {
+            startNodeId: 'stage-1',
+            nodes: [
+              ...plan.stages.map((stage, index) => ({
+                id: `stage-${index + 1}`,
+                type: 'agent' as const,
+                capability: 'chat' as const,
+                context: request.context,
+                instruction: stage.instruction,
+                contextSource: 'task' as const,
+                inputSource: 'task' as const,
+                browserSessionId: request.browserSessionId,
+                browserExecutionTarget: request.browserExecutionTarget,
+                executionLane: 'long' as const,
+              })),
+              { id: 'done', type: 'end' as const },
+            ],
+            edges: plan.stages.map((_, index) => ({
+              from: `stage-${index + 1}`,
+              to:
+                index === plan.stages.length - 1
+                  ? 'done'
+                  : `stage-${index + 2}`,
+            })),
+          },
+        },
+      );
+      return this.startWorkflow(
+        userId,
+        definition.data.id,
+        request,
+        `generated:${plan.reason}`,
+      );
+    } catch {
+      return this.startAssistant(
+        userId,
+        request,
+        'workflow_generation_invalid',
+      );
+    }
+  }
+
+  private async generate(
+    request: DispatchDto,
+  ): Promise<GenerationDecision | undefined> {
+    try {
+      const result = await this.ai.generate({
+        messages: buildWorkflowGenerationPrompt({
+          capability: request.capability,
+          objective: request.input!,
+          pageTitle: request.context.title,
+          pageUrl: request.context.url,
+        }),
+        responseSchema: {
+          type: 'object',
+          additionalProperties: false,
+          required: [
+            'requiresWorkflow',
+            'reason',
+            'name',
+            'description',
+            'stages',
+          ],
+          properties: {
+            requiresWorkflow: { type: 'boolean' },
+            reason: { type: 'string' },
+            name: { type: 'string' },
+            description: { type: 'string' },
+            stages: {
+              type: 'array',
+              minItems: 0,
+              maxItems: 8,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['instruction'],
+                properties: { instruction: { type: 'string' } },
+              },
+            },
+          },
+        },
+      });
+      const plan = JSON.parse(result.content) as GenerationDecision;
+      if (
+        typeof plan.requiresWorkflow !== 'boolean' ||
+        typeof plan.reason !== 'string' ||
+        typeof plan.name !== 'string' ||
+        typeof plan.description !== 'string' ||
+        !Array.isArray(plan.stages) ||
+        plan.stages.length > 8 ||
+        plan.stages.some(
+          (stage) =>
+            typeof stage.instruction !== 'string' ||
+            !stage.instruction.trim() ||
+            stage.instruction.length > 2_000,
+        )
+      ) {
+        return undefined;
+      }
+      return plan;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private generatedKey(name: string, objective: string): string {
+    const slug =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60) || 'workflow';
+    const digest = createHash('sha256')
+      .update(objective)
+      .digest('hex')
+      .slice(0, 8);
+    return `generated-${slug}-${digest}`;
   }
 
   private async startAssistant(

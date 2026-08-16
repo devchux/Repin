@@ -36,3 +36,10 @@ export interface WorkflowSelectionPromptInput {
     examples?: readonly string[];
   }[];
 }
+
+export interface WorkflowGenerationPromptInput {
+  capability: AiAssistantCapability;
+  objective: string;
+  pageTitle: string;
+  pageUrl: string;
+}

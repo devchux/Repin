@@ -1,5 +1,6 @@
 import type {
   WorkflowActivation,
+  WorkflowDefinitionSource,
   WorkflowGraph,
 } from '@repo/contracts/workflow';
 import {
@@ -41,6 +42,9 @@ export class Definition {
 
   @Column({ type: 'jsonb', nullable: true })
   activation?: WorkflowActivation;
+
+  @Column({ default: 'manual' })
+  source: WorkflowDefinitionSource;
 
   @Column({ type: 'integer' })
   version: number;
