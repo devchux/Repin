@@ -7,7 +7,9 @@
     "./assistant": "./src/assistant.ts",
     "./browser": "./src/browser.ts",
     "./browser-session": "./src/browser-session.ts",
-    "./messages": "./src/messages.ts"
+    "./messages": "./src/messages.ts",
+    "./workflow": "./src/workflow.ts",
+    "./task": "./src/task.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

@@ -51,5 +51,6 @@ import { ConversationMessage } from './entities/conversation-message.entity';
     LongProcessor,
     QueueScaler,
   ],
+  exports: [AssistantService],
 })
 export class AssistantModule {}

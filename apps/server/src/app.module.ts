@@ -9,6 +9,8 @@ import { UserModule } from './resources/user/user.module';
 import { AuthModule } from './resources/auth/auth.module';
 import { CacheModule } from './resources/cache/cache.module';
 import { AssistantModule } from './resources/assistant/assistant.module';
+import { WorkflowModule } from './resources/workflow/workflow.module';
+import { TaskModule } from './resources/task/task.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { AssistantModule } from './resources/assistant/assistant.module';
     AuthModule,
     CacheModule,
     AssistantModule,
+    WorkflowModule,
+    TaskModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -135,6 +135,9 @@ export class Run {
   @Column({ nullable: true })
   queueJobId?: string;
 
+  @Column({ nullable: true, unique: true })
+  idempotencyKey?: string;
+
   @Column({ type: 'timestamp', nullable: true })
   completedAt?: Date;
 

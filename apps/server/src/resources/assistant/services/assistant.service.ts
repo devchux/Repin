@@ -57,12 +57,22 @@ export class AssistantService {
     private readonly approvals: BrowserToolApprovalService,
   ) {}
 
-  async createRun(userId: number, request: ExecuteDto) {
+  async createRun(
+    userId: number,
+    request: ExecuteDto,
+    idempotencyKey?: string,
+  ) {
     this.validateRequest(request);
 
     const run = await this.runRepository.manager.transaction(
       async (manager) => {
         await manager.query('SELECT pg_advisory_xact_lock($1)', [userId]);
+        if (idempotencyKey) {
+          const existing = await manager.findOne(Run, {
+            where: { userId, idempotencyKey },
+          });
+          if (existing) return existing;
+        }
         const queuedRuns = await manager.count(Run, {
           where: { userId, status: 'queued' },
         });
@@ -95,6 +105,7 @@ export class AssistantService {
             browserExecutionTarget:
               request.browserExecutionTarget ?? 'extension',
             executionLane: this.resolveExecutionLane(request),
+            idempotencyKey,
             status: 'queued',
           }),
         );
@@ -116,7 +127,9 @@ export class AssistantService {
     );
 
     try {
-      await this.enqueueRun(run.id, run.executionLane);
+      if (run.status === 'queued') {
+        await this.enqueueRun(run.id, run.executionLane);
+      }
     } catch {
       await this.runRepository.update(run.id, {
         status: 'failed',
