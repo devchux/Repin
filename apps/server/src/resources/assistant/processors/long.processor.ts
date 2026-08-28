@@ -14,6 +14,7 @@ interface AssistantJobData {
 
 @Processor(BACKGROUND_QUEUE, {
   concurrency: BACKGROUND_WORKER_CONCURRENCY,
+  maxStalledCount: 3,
 })
 export class LongProcessor extends WorkerHost {
   constructor(private readonly runHandler: RunHandler) {

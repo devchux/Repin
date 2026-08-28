@@ -14,6 +14,7 @@ interface AssistantJobData {
 
 @Processor(INTERACTIVE_QUEUE, {
   concurrency: WORKER_CONCURRENCY,
+  maxStalledCount: 3,
 })
 export class ShortProcessor extends WorkerHost {
   constructor(private readonly runHandler: RunHandler) {

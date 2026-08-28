@@ -40,6 +40,7 @@ describe('RunHandler', () => {
   } as unknown as LoopService;
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
+    recoverAbandonedRun: jest.fn(),
   } as unknown as ExecutionService;
   const processor = new RunHandler(runRepository, agentLoop, execution);
 
@@ -116,6 +117,35 @@ describe('RunHandler', () => {
       'worker-token',
     );
     expect(agentLoop.run).not.toHaveBeenCalled();
+  });
+
+  it('recovers a running run when BullMQ restarts a stalled job', async () => {
+    const abandonedRun = { ...run, status: 'running' as const };
+    jest
+      .spyOn(runRepository, 'findOne')
+      .mockResolvedValueOnce(abandonedRun)
+      .mockResolvedValueOnce({ ...run, status: 'running' });
+    jest
+      .spyOn(execution, 'recoverAbandonedRun')
+      .mockResolvedValue({ ...run, status: 'queued' });
+    jest.spyOn(agentLoop, 'run').mockResolvedValue({
+      provider: 'groq',
+      model: 'llama-3.1-8b-instant',
+      content: 'Recovered result',
+    });
+    const job = {
+      id: run.id,
+      name: 'execute-assistant',
+      data: { runId: run.id },
+      attemptsStarted: 2,
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+    } as Job<{ runId: string }>;
+
+    await processor.process(job, 'short');
+
+    expect(execution.recoverAbandonedRun).toHaveBeenCalledWith(run.id);
+    expect(agentLoop.run).toHaveBeenCalled();
   });
 
   it('uses the agent loop for chat runs', async () => {

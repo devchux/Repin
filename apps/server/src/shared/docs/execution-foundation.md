@@ -98,6 +98,11 @@ instructions:
   Approval returns it to the queue with its existing checkpoints and budgets;
   denial terminates it explicitly.
 - Model and tool-call budgets survive retries and worker restarts.
+- When BullMQ restarts a job whose worker lost its lock, the harness atomically
+  recovers the persisted `running` run to `queued`, fails any step left open by
+  the dead worker, and appends a `run.recovered` event and checkpoint before
+  claiming the run again. Workers allow three stalled restarts, matching the
+  queue job retry budget.
 - Three identical consecutive tool actions terminate the run as a detected
   no-progress loop.
 - Side-effecting actions create a separate verification step. The harness

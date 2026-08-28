@@ -99,6 +99,50 @@ export class ExecutionService {
     });
   }
 
+  async recoverAbandonedRun(runId: string): Promise<Run> {
+    return this.runRepository.manager.transaction(async (manager) => {
+      const run = await this.lockRun(manager, runId);
+      if (run.status !== 'running') {
+        throw new ConflictException(
+          `Cannot recover assistant run from ${run.status}`,
+        );
+      }
+
+      const recoveredAt = new Date();
+      await manager.update(
+        RunStep,
+        { runId, status: 'running' },
+        {
+          status: 'failed',
+          error: 'Worker stopped before the step completed',
+          completedAt: recoveredAt,
+        },
+      );
+
+      run.status = 'queued';
+      run.phase = 'queued';
+      run.error = null;
+      run.completedAt = null;
+      run.checkpointVersion += 1;
+      await manager.save(run);
+      await this.appendEvent(manager, runId, 'run.recovered', {
+        status: run.status,
+        phase: run.phase,
+        reason: 'worker_stalled',
+      });
+      await manager.save(
+        manager.create(RunCheckpoint, {
+          runId,
+          version: run.checkpointVersion,
+          status: run.status,
+          phase: run.phase,
+          state: { reason: 'worker_stalled' },
+        }),
+      );
+      return run;
+    });
+  }
+
   async startStep(
     runId: string,
     type: AssistantStepType,

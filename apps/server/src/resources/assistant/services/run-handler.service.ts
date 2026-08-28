@@ -53,7 +53,7 @@ export class RunHandler {
       throw new Error(`Unsupported assistant job: ${job.name}`);
     }
 
-    const run = await this.runRepository.findOne({
+    let run = await this.runRepository.findOne({
       where: { id: job.data.runId },
     });
 
@@ -65,6 +65,10 @@ export class RunHandler {
       throw new Error(
         `Assistant run ${run.id} belongs to the ${run.executionLane} lane, not ${lane}`,
       );
+    }
+
+    if (run.status === 'running' && job.attemptsStarted > 1) {
+      run = await this.execution.recoverAbandonedRun(run.id);
     }
 
     const startedAt = new Date();
