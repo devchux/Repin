@@ -43,5 +43,7 @@ export default (): Configuration => ({
     scaleCheckInterval: optionalInt('ASSISTANT_SCALE_CHECK_INTERVAL', 15000),
     scaleDepthThreshold: optionalInt('ASSISTANT_SCALE_DEPTH_THRESHOLD', 20),
     scaleWaitThreshold: optionalInt('ASSISTANT_SCALE_WAIT_THRESHOLD', 5000),
+    shortRunTimeout: optionalInt('ASSISTANT_SHORT_RUN_TIMEOUT', 180000),
+    longRunTimeout: optionalInt('ASSISTANT_LONG_RUN_TIMEOUT', 1800000),
   },
 });

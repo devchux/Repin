@@ -129,6 +129,9 @@ export class Run {
   @Column({ type: 'timestamp', nullable: true })
   startedAt?: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  deadlineAt?: Date;
+
   @Column({ type: 'integer', nullable: true })
   queueWaitMs?: number;
 

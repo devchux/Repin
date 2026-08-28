@@ -266,6 +266,7 @@ export class RunService {
       createdAt: run.createdAt,
       updatedAt: run.updatedAt,
       startedAt: run.startedAt,
+      deadlineAt: run.deadlineAt,
       queueWaitMs: run.queueWaitMs,
       completedAt: run.completedAt,
       cancelledAt: run.cancelledAt,

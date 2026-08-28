@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import { Repository } from 'typeorm';
 import type { AssistantExecutionLane } from '@repo/contracts/assistant';
+import type { Configuration } from '../../../shared/types';
 import { LoopService } from '../../agent/services/loop.service';
 import {
   buildAssistantPrompt,
@@ -33,6 +35,15 @@ interface AssistantJobData {
   runId: string;
 }
 
+export class ExecutionDeadlineExceededError extends Error {
+  constructor(readonly deadlineAt: Date) {
+    super(
+      `Assistant run exceeded its execution deadline at ${deadlineAt.toISOString()}`,
+    );
+    this.name = 'ExecutionDeadlineExceededError';
+  }
+}
+
 @Injectable()
 export class RunHandler {
   private readonly activeRuns = new Map<string, AbortController>();
@@ -42,6 +53,7 @@ export class RunHandler {
     private readonly runRepository: Repository<Run>,
     private readonly agentLoop: LoopService,
     private readonly execution: ExecutionService,
+    private readonly config: ConfigService<Configuration>,
   ) {}
 
   async process(
@@ -71,7 +83,27 @@ export class RunHandler {
       run = await this.execution.recoverAbandonedRun(run.id);
     }
 
-    const startedAt = new Date();
+    const workerStartedAt = new Date();
+    const startedAt = run.startedAt ?? workerStartedAt;
+    const deadlineAt =
+      run.deadlineAt ??
+      new Date(startedAt.getTime() + this.runTimeoutMs(run.executionLane));
+
+    if (deadlineAt <= workerStartedAt) {
+      await this.execution.transition(run.id, {
+        expectedStatuses: ['queued'],
+        status: 'failed',
+        phase: 'terminal',
+        eventType: 'run.deadline_exceeded',
+        eventData: { deadlineAt: deadlineAt.toISOString() },
+        patch: {
+          error: new ExecutionDeadlineExceededError(deadlineAt).message,
+          completedAt: workerStartedAt,
+        },
+      });
+      return;
+    }
+
     const started = await this.runRepository.manager.transaction(
       async (manager) => {
         await manager.query('SELECT pg_advisory_xact_lock($1)', [run.userId]);
@@ -98,10 +130,10 @@ export class RunHandler {
             status: 'running',
             phase: 'initializing',
             startedAt,
-            queueWaitMs: Math.max(
-              0,
-              startedAt.getTime() - run.createdAt.getTime(),
-            ),
+            deadlineAt,
+            queueWaitMs:
+              run.queueWaitMs ??
+              Math.max(0, startedAt.getTime() - run.createdAt.getTime()),
             queueJobId: null,
             error: null,
           },
@@ -136,10 +168,11 @@ export class RunHandler {
         checkpointState: { queueJobId: String(job.id ?? '') },
       });
       const messages = await this.createMessages(run);
-      const result = await this.agentLoop.run(
+      const result = await this.runAgentUntilDeadline(
         run,
         messages,
-        abortController.signal,
+        abortController,
+        deadlineAt,
       );
       const currentRun = await this.runRepository.findOne({
         where: { id: run.id },
@@ -226,6 +259,7 @@ export class RunHandler {
 
       if (currentRun?.status !== 'cancelled') {
         const finalAttempt =
+          error instanceof ExecutionDeadlineExceededError ||
           error instanceof BudgetExceededError ||
           error instanceof LoopDetectedError ||
           job.attemptsMade + 1 >= (job.opts.attempts || 1);
@@ -233,9 +267,17 @@ export class RunHandler {
           expectedStatuses: ['running'],
           status: finalAttempt ? 'failed' : 'queued',
           phase: finalAttempt ? 'terminal' : 'queued',
-          eventType: finalAttempt ? 'run.failed' : 'run.retry_scheduled',
+          eventType:
+            error instanceof ExecutionDeadlineExceededError
+              ? 'run.deadline_exceeded'
+              : finalAttempt
+                ? 'run.failed'
+                : 'run.retry_scheduled',
           eventData: {
             error: error instanceof Error ? error.message : 'Unknown AI error',
+            ...(error instanceof ExecutionDeadlineExceededError
+              ? { deadlineAt: error.deadlineAt.toISOString() }
+              : {}),
           },
           patch: {
             error: error instanceof Error ? error.message : 'Unknown AI error',
@@ -252,6 +294,44 @@ export class RunHandler {
 
   cancel(runId: string): void {
     this.activeRuns.get(runId)?.abort();
+  }
+
+  private runTimeoutMs(lane: AssistantExecutionLane): number {
+    const configured = this.config.get(
+      lane === 'long'
+        ? 'assistantQueue.longRunTimeout'
+        : 'assistantQueue.shortRunTimeout',
+      { infer: true },
+    );
+    if (!configured || configured < 1_000) {
+      throw new Error(`Invalid ${lane} assistant run timeout`);
+    }
+    return configured;
+  }
+
+  private runAgentUntilDeadline(
+    run: Run,
+    messages: Awaited<ReturnType<RunHandler['createMessages']>>,
+    abortController: AbortController,
+    deadlineAt: Date,
+  ) {
+    return new Promise<Awaited<ReturnType<LoopService['run']>>>(
+      (resolve, reject) => {
+        const deadlineError = new ExecutionDeadlineExceededError(deadlineAt);
+        const timer = setTimeout(
+          () => {
+            abortController.abort(deadlineError);
+            reject(deadlineError);
+          },
+          Math.max(0, deadlineAt.getTime() - Date.now()),
+        );
+
+        void this.agentLoop
+          .run(run, messages, abortController.signal)
+          .then(resolve, reject)
+          .finally(() => clearTimeout(timer));
+      },
+    );
   }
 
   private async createMessages(run: Run) {

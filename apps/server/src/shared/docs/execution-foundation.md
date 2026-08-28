@@ -98,6 +98,12 @@ instructions:
   Approval returns it to the queue with its existing checkpoints and budgets;
   denial terminates it explicitly.
 - Model and tool-call budgets survive retries and worker restarts.
+- A wall-clock execution deadline is assigned when a worker first starts a run
+  and survives retries, approval waits, suspension, and resumption. Interactive
+  runs default to 3 minutes (`ASSISTANT_SHORT_RUN_TIMEOUT`); browser/background
+  runs default to 30 minutes (`ASSISTANT_LONG_RUN_TIMEOUT`). Queue wait before
+  the first start does not consume this budget. Expiry aborts in-flight model
+  and tool work and terminates the run without retrying.
 - When BullMQ restarts a job whose worker lost its lock, the harness atomically
   recovers the persisted `running` run to `queued`, fails any step left open by
   the dead worker, and appends a `run.recovered` event and checkpoint before

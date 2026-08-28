@@ -2,12 +2,17 @@ import { DelayedError } from 'bullmq';
 import type { Job } from 'bullmq';
 import type { Repository } from 'typeorm';
 import { LoopService } from '../../agent/services/loop.service';
-import { RunHandler } from './run-handler.service';
+import {
+  ExecutionDeadlineExceededError,
+  RunHandler,
+} from './run-handler.service';
 import { Run } from '../../agent/entities/run.entity';
 import type { ExecutionService } from '../../agent/services/execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 import { BrowserSessionUnavailableError } from '../../tools/executors/browser-execution.errors';
+import type { ConfigService } from '@nestjs/config';
+import type { Configuration } from '../../../shared/types';
 
 describe('RunHandler', () => {
   const run: Run = {
@@ -42,7 +47,12 @@ describe('RunHandler', () => {
     transition: jest.fn().mockResolvedValue(undefined),
     recoverAbandonedRun: jest.fn(),
   } as unknown as ExecutionService;
-  const processor = new RunHandler(runRepository, agentLoop, execution);
+  const config = {
+    get: jest.fn((key: string) =>
+      key.endsWith('longRunTimeout') ? 1_800_000 : 180_000,
+    ),
+  } as unknown as ConfigService<Configuration>;
+  const processor = new RunHandler(runRepository, agentLoop, execution, config);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -236,6 +246,64 @@ describe('RunHandler', () => {
         status: 'suspended',
         phase: 'suspended',
         eventType: 'browser.suspended',
+      }),
+    );
+  });
+
+  it('terminates an expired run without retrying it', async () => {
+    const expiredRun = {
+      ...run,
+      deadlineAt: new Date(Date.now() - 1_000),
+    };
+    jest.spyOn(runRepository, 'findOne').mockResolvedValue(expiredRun);
+    const job = {
+      name: 'execute-assistant',
+      data: { runId: run.id },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+    } as Job<{ runId: string }>;
+
+    await expect(processor.process(job, 'short')).resolves.toBeUndefined();
+
+    expect(execution.transition).toHaveBeenCalledWith(
+      run.id,
+      expect.objectContaining({
+        status: 'failed',
+        eventType: 'run.deadline_exceeded',
+      }),
+    );
+    expect(agentLoop.run).not.toHaveBeenCalled();
+  });
+
+  it('aborts work that reaches its execution deadline', async () => {
+    const deadlineAt = new Date(Date.now() + 20);
+    const deadlineRun = { ...run, deadlineAt };
+    jest
+      .spyOn(runRepository, 'findOne')
+      .mockResolvedValueOnce(deadlineRun)
+      .mockResolvedValueOnce({ ...deadlineRun, status: 'running' })
+      .mockResolvedValueOnce({ ...deadlineRun, status: 'running' });
+    jest.spyOn(agentLoop, 'run').mockImplementation(
+      (_run, _messages, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(signal.reason));
+        }),
+    );
+    const job = {
+      name: 'execute-assistant',
+      data: { runId: run.id },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+    } as Job<{ runId: string }>;
+
+    await expect(processor.process(job, 'short')).rejects.toBeInstanceOf(
+      ExecutionDeadlineExceededError,
+    );
+    expect(execution.transition).toHaveBeenLastCalledWith(
+      run.id,
+      expect.objectContaining({
+        status: 'failed',
+        eventType: 'run.deadline_exceeded',
       }),
     );
   });

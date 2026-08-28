@@ -31,5 +31,7 @@ export type Configuration = {
     scaleCheckInterval: number;
     scaleDepthThreshold: number;
     scaleWaitThreshold: number;
+    shortRunTimeout: number;
+    longRunTimeout: number;
   };
 };
