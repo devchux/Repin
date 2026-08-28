@@ -59,6 +59,36 @@ ASSISTANT_SCALE_WAIT_THRESHOLD=5000
 this metric when increasing worker replicas; the application scaler only
 adjusts concurrency within each running worker process.
 
+## OpenTelemetry
+
+The server supports vendor-neutral traces and metrics through OTLP/HTTP. It is
+disabled by default and starts when `OTEL_ENABLED=true` or when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is configured.
+
+```env
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=repin-server
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_METRIC_EXPORT_INTERVAL=60000
+```
+
+Automatic instrumentation covers inbound HTTP requests and supported database,
+Redis, and network clients. Repin also emits explicit spans for assistant queue
+jobs, agent runs, model generations, and workflow jobs. The custom
+`repin.operation.duration` histogram and `repin.operation.count` counter use
+bounded operational attributes; prompts, tool arguments, page content, and
+model responses are not exported.
+
+Canonical event and attribute definitions live in the shared
+`@repo/observability` package. Node SDK lifecycle and exporter configuration
+remain server infrastructure so importing the shared package cannot add Node
+dependencies to the web application or extension.
+
+Point the OTLP endpoint at an OpenTelemetry Collector to route the same signals
+to Grafana Tempo, Prometheus/Mimir, or another compatible backend. Set
+`OTEL_SDK_DISABLED=true` to force telemetry off in any environment.
+
 ### Run events
 
 Clients can subscribe to a run after creating it:

@@ -49,6 +49,12 @@ Workflow definitions can set an agent node's `contextSource` or `inputSource`
 to `task`, allowing the workflow runtime to inject the original task without
 making the task resource responsible for node execution.
 
+Each generated stage becomes a separate agent node. Under the current workflow
+runtime contract, each agent node creates at most one assistant run and nodes
+execute sequentially. Parallel branches, one-to-many run fan-out, agent
+delegation, and nested workflows are reserved for later multi-agent
+orchestration; see `workflow-runtime.md` for the complete boundary.
+
 ```json
 {
   "key": "product-research",

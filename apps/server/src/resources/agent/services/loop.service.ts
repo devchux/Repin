@@ -18,6 +18,11 @@ import {
   BrowserCommandOutcomeUnknownError,
   BrowserSessionUnavailableError,
 } from '../../tools/executors/browser-execution.errors';
+import {
+  AgentTelemetryEvents,
+  TelemetryAttributes,
+  traceOperation,
+} from '@repo/observability';
 
 @Injectable()
 export class LoopService {
@@ -28,6 +33,24 @@ export class LoopService {
   ) {}
 
   async run(
+    run: Run,
+    initialMessages: AiMessage[],
+    signal?: AbortSignal,
+  ): Promise<AiGenerateResult> {
+    return traceOperation(
+      AgentTelemetryEvents.run,
+      {
+        [TelemetryAttributes.run.id]: run.id,
+        [TelemetryAttributes.run.capability]: run.capability,
+        [TelemetryAttributes.run.executionLane]: run.executionLane,
+        [TelemetryAttributes.browser.executionTarget]:
+          run.browserExecutionTarget ?? 'unknown',
+      },
+      () => this.executeLoop(run, initialMessages, signal),
+    );
+  }
+
+  private async executeLoop(
     run: Run,
     initialMessages: AiMessage[],
     signal?: AbortSignal,

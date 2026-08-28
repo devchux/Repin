@@ -5,6 +5,11 @@ import type {
   AiGenerateResult,
   AiProvider,
 } from './types/provider';
+import {
+  AiTelemetryEvents,
+  TelemetryAttributes,
+  traceOperation,
+} from '@repo/observability';
 
 @Injectable()
 export class AiService {
@@ -15,7 +20,19 @@ export class AiService {
   ) {}
 
   generate(options: AiGenerateOptions): Promise<AiGenerateResult> {
-    return this.getProvider().generate(options);
+    const provider = this.getProvider();
+    return traceOperation(
+      AiTelemetryEvents.generation,
+      {
+        [TelemetryAttributes.ai.operationName]: 'generate_content',
+        [TelemetryAttributes.ai.messageCount]: options.messages.length,
+        [TelemetryAttributes.ai.toolCount]: options.tools?.length ?? 0,
+      },
+      async () => {
+        const result = await provider.generate(options);
+        return result;
+      },
+    );
   }
 
   stream(options: AiGenerateOptions): AsyncIterable<string> {

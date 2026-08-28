@@ -4,6 +4,11 @@ export type Configuration = {
   redis: string;
   corsOrigin: string;
   enableSwagger: boolean;
+  telemetry: {
+    serviceName: string;
+    enabled: boolean;
+    metricExportInterval: number;
+  };
   auth: {
     accessTokenSecret: string;
     refreshTokenSecret: string;

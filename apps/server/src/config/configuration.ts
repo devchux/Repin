@@ -10,6 +10,17 @@ export default (): Configuration => ({
   redis: required('REDIS_URL'),
   corsOrigin: required('CORS_ORIGIN'),
   enableSwagger: process.env.ENABLE_SWAGGER === 'true',
+  telemetry: {
+    serviceName: process.env.OTEL_SERVICE_NAME || 'repin-server',
+    enabled:
+      process.env.OTEL_SDK_DISABLED !== 'true' &&
+      (process.env.OTEL_ENABLED === 'true' ||
+        Boolean(process.env.OTEL_EXPORTER_OTLP_ENDPOINT)),
+    metricExportInterval:
+      Number(process.env.OTEL_METRIC_EXPORT_INTERVAL) > 0
+        ? Number(process.env.OTEL_METRIC_EXPORT_INTERVAL)
+        : 60_000,
+  },
   auth: {
     accessTokenSecret: required('ACCESS_TOKEN_SECRET'),
     refreshTokenSecret: required('REFRESH_TOKEN_SECRET'),

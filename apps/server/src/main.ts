@@ -1,3 +1,4 @@
+import { shutdownTelemetry } from './shared/telemetry/node';
 import { NestFactory } from '@nestjs/core';
 import { Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -67,5 +68,12 @@ async function bootstrap() {
   app
     .get(BrowserSessionGateway)
     .attach(app.getHttpServer() as import('node:http').Server);
+
+  const shutdown = async () => {
+    await app.close();
+    await shutdownTelemetry();
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 }
-bootstrap();
+void bootstrap();
