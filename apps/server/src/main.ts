@@ -1,4 +1,6 @@
+import { shutdownTelemetry } from './shared/telemetry/node';
 import { NestFactory } from '@nestjs/core';
+import { Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -7,6 +9,7 @@ import { TransformInterceptor } from './shared/interceptors/response.interceptor
 import { TimeoutInterceptor } from './shared/interceptors/error.interceptor';
 import cookieParser from 'cookie-parser';
 import { AUTH_COOKIE_NAME } from './config/constants';
+import { BrowserSessionGateway } from './resources/tools/transport/browser-session.gateway';
 
 const COOKIE_AUTH_SECURITY_NAME = 'cookie';
 
@@ -16,8 +19,8 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.useGlobalInterceptors(
-    new TransformInterceptor(),
-    new TimeoutInterceptor(),
+    new TransformInterceptor(app.get(Reflector)),
+    new TimeoutInterceptor(app.get(Reflector)),
   );
 
   app.setGlobalPrefix('api');
@@ -62,5 +65,15 @@ async function bootstrap() {
   await app.listen(port, () => {
     Logger.log(`App is currently running on port - ${port}`);
   });
+  app
+    .get(BrowserSessionGateway)
+    .attach(app.getHttpServer() as import('node:http').Server);
+
+  const shutdown = async () => {
+    await app.close();
+    await shutdownTelemetry();
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 }
-bootstrap();
+void bootstrap();

@@ -1,0 +1,363 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DelayedError } from 'bullmq';
+import type { Job } from 'bullmq';
+import { Repository } from 'typeorm';
+import type { AssistantExecutionLane } from '@repo/contracts/assistant';
+import type { Configuration } from '../../../shared/types';
+import { LoopService } from '../../agent/services/loop.service';
+import {
+  buildAssistantPrompt,
+  buildConversationPrompt,
+} from '../../../shared/ai/prompts';
+import {
+  MAX_ACTIVE_LONG_RUNS_PER_USER,
+  MAX_ACTIVE_SHORT_RUNS_PER_USER,
+  USER_SLOT_RETRY_DELAY,
+  EXECUTE_JOB,
+} from '../constants';
+import { Run } from '../../agent/entities/run.entity';
+import { Conversation } from '../entities/conversation.entity';
+import { ConversationMessage } from '../entities/conversation-message.entity';
+import {
+  BudgetExceededError,
+  ExecutionService,
+  LoopDetectedError,
+} from '../../agent/services/execution.service';
+import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
+import {
+  BrowserCommandOutcomeUnknownError,
+  BrowserSessionUnavailableError,
+} from '../../tools/executors/browser-execution.errors';
+
+interface AssistantJobData {
+  runId: string;
+}
+
+export class ExecutionDeadlineExceededError extends Error {
+  constructor(readonly deadlineAt: Date) {
+    super(
+      `Assistant run exceeded its execution deadline at ${deadlineAt.toISOString()}`,
+    );
+    this.name = 'ExecutionDeadlineExceededError';
+  }
+}
+
+@Injectable()
+export class RunHandler {
+  private readonly activeRuns = new Map<string, AbortController>();
+
+  constructor(
+    @InjectRepository(Run)
+    private readonly runRepository: Repository<Run>,
+    private readonly agentLoop: LoopService,
+    private readonly execution: ExecutionService,
+    private readonly config: ConfigService<Configuration>,
+  ) {}
+
+  async process(
+    job: Job<AssistantJobData>,
+    lane: AssistantExecutionLane,
+    token?: string,
+  ): Promise<void> {
+    if (job.name !== EXECUTE_JOB) {
+      throw new Error(`Unsupported assistant job: ${job.name}`);
+    }
+
+    let run = await this.runRepository.findOne({
+      where: { id: job.data.runId },
+    });
+
+    if (!run || run.status === 'cancelled') {
+      return;
+    }
+
+    if (run.executionLane !== lane) {
+      throw new Error(
+        `Assistant run ${run.id} belongs to the ${run.executionLane} lane, not ${lane}`,
+      );
+    }
+
+    if (run.status === 'running' && job.attemptsStarted > 1) {
+      run = await this.execution.recoverAbandonedRun(run.id);
+    }
+
+    const workerStartedAt = new Date();
+    const startedAt = run.startedAt ?? workerStartedAt;
+    const deadlineAt =
+      run.deadlineAt ??
+      new Date(startedAt.getTime() + this.runTimeoutMs(run.executionLane));
+
+    if (deadlineAt <= workerStartedAt) {
+      await this.execution.transition(run.id, {
+        expectedStatuses: ['queued'],
+        status: 'failed',
+        phase: 'terminal',
+        eventType: 'run.deadline_exceeded',
+        eventData: { deadlineAt: deadlineAt.toISOString() },
+        patch: {
+          error: new ExecutionDeadlineExceededError(deadlineAt).message,
+          completedAt: workerStartedAt,
+        },
+      });
+      return;
+    }
+
+    const started = await this.runRepository.manager.transaction(
+      async (manager) => {
+        await manager.query('SELECT pg_advisory_xact_lock($1)', [run.userId]);
+        const activeRuns = await manager.count(Run, {
+          where: {
+            userId: run.userId,
+            status: 'running',
+            executionLane: lane,
+          },
+        });
+
+        const maximumActiveRuns =
+          lane === 'long'
+            ? MAX_ACTIVE_LONG_RUNS_PER_USER
+            : MAX_ACTIVE_SHORT_RUNS_PER_USER;
+        if (activeRuns >= maximumActiveRuns) {
+          return false;
+        }
+
+        const startResult = await manager.update(
+          Run,
+          { id: run.id, status: 'queued' },
+          {
+            status: 'running',
+            phase: 'initializing',
+            startedAt,
+            deadlineAt,
+            queueWaitMs:
+              run.queueWaitMs ??
+              Math.max(0, startedAt.getTime() - run.createdAt.getTime()),
+            queueJobId: null,
+            error: null,
+          },
+        );
+
+        return startResult.affected !== 0;
+      },
+    );
+
+    if (!started) {
+      await job.moveToDelayed(Date.now() + USER_SLOT_RETRY_DELAY, token);
+      throw new DelayedError();
+    }
+
+    const abortController = new AbortController();
+    this.activeRuns.set(run.id, abortController);
+
+    const currentRun = await this.runRepository.findOne({
+      where: { id: run.id },
+    });
+    if (currentRun?.status === 'cancelled') {
+      this.activeRuns.delete(run.id);
+      return;
+    }
+
+    try {
+      await this.execution.transition(run.id, {
+        expectedStatuses: ['running'],
+        status: 'running',
+        phase: 'reasoning',
+        eventType: 'run.started',
+        checkpointState: { queueJobId: String(job.id ?? '') },
+      });
+      const messages = await this.createMessages(run);
+      const result = await this.runAgentUntilDeadline(
+        run,
+        messages,
+        abortController,
+        deadlineAt,
+      );
+      const currentRun = await this.runRepository.findOne({
+        where: { id: run.id },
+      });
+
+      if (currentRun?.status === 'cancelled') {
+        return;
+      }
+
+      await this.execution.transition(run.id, {
+        expectedStatuses: ['running'],
+        status: 'completed',
+        phase: 'terminal',
+        eventType: 'run.completed',
+        checkpointState: { result: result.content },
+        patch: {
+          result: result.content,
+          provider: result.provider,
+          model: result.model,
+          inputTokens: result.usage?.inputTokens,
+          outputTokens: result.usage?.outputTokens,
+          completedAt: new Date(),
+        },
+      });
+      await this.runRepository.manager.transaction(async (manager) => {
+        if (run.conversationId) {
+          await manager.save(
+            ConversationMessage,
+            manager.create(ConversationMessage, {
+              conversationId: run.conversationId,
+              runId: run.id,
+              role: 'assistant',
+              content: result.content,
+            }),
+          );
+          await manager.update(Conversation, run.conversationId, {
+            updatedAt: new Date(),
+          });
+        }
+      });
+    } catch (error) {
+      const currentRun = await this.runRepository.findOne({
+        where: { id: run.id },
+      });
+
+      if (
+        error instanceof BrowserToolApprovalRequiredError &&
+        currentRun?.status !== 'cancelled'
+      ) {
+        await this.execution.transition(run.id, {
+          expectedStatuses: ['running'],
+          status: 'awaiting_approval',
+          phase: 'awaiting_approval',
+          eventType: 'approval.requested',
+          eventData: {
+            approvalId: error.approval.id,
+            toolName: error.approval.toolName,
+            arguments: error.approval.arguments,
+            expiresAt: error.approval.expiresAt.toISOString(),
+          },
+          checkpointState: { approvalId: error.approval.id },
+        });
+        return;
+      }
+
+      if (
+        (error instanceof BrowserSessionUnavailableError ||
+          error instanceof BrowserCommandOutcomeUnknownError) &&
+        currentRun?.status !== 'cancelled'
+      ) {
+        await this.execution.transition(run.id, {
+          expectedStatuses: ['running'],
+          status: 'suspended',
+          phase: 'suspended',
+          eventType: 'browser.suspended',
+          eventData: {
+            reason: error.message,
+            outcomeUnknown: error instanceof BrowserCommandOutcomeUnknownError,
+          },
+          checkpointState: { continuation: true },
+        });
+        return;
+      }
+
+      if (currentRun?.status !== 'cancelled') {
+        const finalAttempt =
+          error instanceof ExecutionDeadlineExceededError ||
+          error instanceof BudgetExceededError ||
+          error instanceof LoopDetectedError ||
+          job.attemptsMade + 1 >= (job.opts.attempts || 1);
+        await this.execution.transition(run.id, {
+          expectedStatuses: ['running'],
+          status: finalAttempt ? 'failed' : 'queued',
+          phase: finalAttempt ? 'terminal' : 'queued',
+          eventType:
+            error instanceof ExecutionDeadlineExceededError
+              ? 'run.deadline_exceeded'
+              : finalAttempt
+                ? 'run.failed'
+                : 'run.retry_scheduled',
+          eventData: {
+            error: error instanceof Error ? error.message : 'Unknown AI error',
+            ...(error instanceof ExecutionDeadlineExceededError
+              ? { deadlineAt: error.deadlineAt.toISOString() }
+              : {}),
+          },
+          patch: {
+            error: error instanceof Error ? error.message : 'Unknown AI error',
+            completedAt: finalAttempt ? new Date() : null,
+          },
+        });
+      }
+
+      throw error;
+    } finally {
+      this.activeRuns.delete(run.id);
+    }
+  }
+
+  cancel(runId: string): void {
+    this.activeRuns.get(runId)?.abort();
+  }
+
+  private runTimeoutMs(lane: AssistantExecutionLane): number {
+    const configured = this.config.get(
+      lane === 'long'
+        ? 'assistantQueue.longRunTimeout'
+        : 'assistantQueue.shortRunTimeout',
+      { infer: true },
+    );
+    if (!configured || configured < 1_000) {
+      throw new Error(`Invalid ${lane} assistant run timeout`);
+    }
+    return configured;
+  }
+
+  private runAgentUntilDeadline(
+    run: Run,
+    messages: Awaited<ReturnType<RunHandler['createMessages']>>,
+    abortController: AbortController,
+    deadlineAt: Date,
+  ) {
+    return new Promise<Awaited<ReturnType<LoopService['run']>>>(
+      (resolve, reject) => {
+        const deadlineError = new ExecutionDeadlineExceededError(deadlineAt);
+        const timer = setTimeout(
+          () => {
+            abortController.abort(deadlineError);
+            reject(deadlineError);
+          },
+          Math.max(0, deadlineAt.getTime() - Date.now()),
+        );
+
+        void this.agentLoop
+          .run(run, messages, abortController.signal)
+          .then(resolve, reject)
+          .finally(() => clearTimeout(timer));
+      },
+    );
+  }
+
+  private async createMessages(run: Run) {
+    if (!run.conversationId) {
+      return buildAssistantPrompt(run);
+    }
+
+    const conversation = await this.runRepository.manager.findOne(
+      Conversation,
+      { where: { id: run.conversationId, userId: run.userId } },
+    );
+    if (!conversation) {
+      throw new Error('Assistant conversation not found');
+    }
+
+    const history = await this.runRepository.manager.find(ConversationMessage, {
+      where: { conversationId: conversation.id },
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+    const hasPreviousAssistantResponse = history.some(
+      (message) => message.role === 'assistant',
+    );
+
+    return hasPreviousAssistantResponse
+      ? buildConversationPrompt(conversation, history.reverse())
+      : buildAssistantPrompt(run);
+  }
+}

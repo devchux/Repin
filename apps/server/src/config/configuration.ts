@@ -10,6 +10,17 @@ export default (): Configuration => ({
   redis: required('REDIS_URL'),
   corsOrigin: required('CORS_ORIGIN'),
   enableSwagger: process.env.ENABLE_SWAGGER === 'true',
+  telemetry: {
+    serviceName: process.env.OTEL_SERVICE_NAME || 'repin-server',
+    enabled:
+      process.env.OTEL_SDK_DISABLED !== 'true' &&
+      (process.env.OTEL_ENABLED === 'true' ||
+        Boolean(process.env.OTEL_EXPORTER_OTLP_ENDPOINT)),
+    metricExportInterval:
+      Number(process.env.OTEL_METRIC_EXPORT_INTERVAL) > 0
+        ? Number(process.env.OTEL_METRIC_EXPORT_INTERVAL)
+        : 60_000,
+  },
   auth: {
     accessTokenSecret: required('ACCESS_TOKEN_SECRET'),
     refreshTokenSecret: required('REFRESH_TOKEN_SECRET'),
@@ -18,5 +29,21 @@ export default (): Configuration => ({
   },
   database: {
     url: required('DATABASE_URL'),
+  },
+  ai: {
+    provider: process.env.AI_PROVIDER || 'groq',
+    apiKey: process.env.AI_API_KEY || '',
+    baseUrl: process.env.AI_BASE_URL || 'https://api.groq.com/openai/v1',
+    model: process.env.AI_MODEL || 'llama-3.1-8b-instant',
+    requestTimeout: optionalInt('AI_REQUEST_TIMEOUT', 120000),
+  },
+  assistantQueue: {
+    rateLimitMax: optionalInt('ASSISTANT_RATE_LIMIT_MAX', 25),
+    rateLimitDuration: optionalInt('ASSISTANT_RATE_LIMIT_DURATION', 60000),
+    scaleCheckInterval: optionalInt('ASSISTANT_SCALE_CHECK_INTERVAL', 15000),
+    scaleDepthThreshold: optionalInt('ASSISTANT_SCALE_DEPTH_THRESHOLD', 20),
+    scaleWaitThreshold: optionalInt('ASSISTANT_SCALE_WAIT_THRESHOLD', 5000),
+    shortRunTimeout: optionalInt('ASSISTANT_SHORT_RUN_TIMEOUT', 180000),
+    longRunTimeout: optionalInt('ASSISTANT_LONG_RUN_TIMEOUT', 1800000),
   },
 });

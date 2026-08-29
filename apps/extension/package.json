@@ -13,6 +13,8 @@
     "check-types": "wxt prepare && tsc --noEmit"
   },
   "dependencies": {
+    "@repo/client": "workspace:*",
+    "@repo/contracts": "workspace:*",
     "@repo/ui": "workspace:*",
     "lucide-react": "^0.546.0",
     "react": "^19.2.0",
