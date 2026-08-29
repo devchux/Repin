@@ -20,6 +20,7 @@ import {
   MessageSquareText,
   Sparkles,
 } from "@repo/ui/icons";
+import Link from "next/link";
 
 const stats = [
   {
@@ -70,7 +71,7 @@ const activity = [
 
 export function OverviewPage() {
   return (
-    <main className="mx-auto w-full max-w-[1440px] p-4 md:p-6 lg:p-8">
+    <main className="mx-auto w-full max-w-360 p-4 md:p-6 lg:p-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">Friday, August 29</p>
@@ -119,8 +120,8 @@ export function OverviewPage() {
                   Your recent conversations and research.
                 </CardDescription>
               </div>
-              <Button variant="ghost" size="sm">
-                View all <ArrowRight aria-hidden="true" />
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/conversations">View all <ArrowRight aria-hidden="true" /></Link>
               </Button>
             </CardHeader>
             <CardContent className="pt-4">
@@ -220,8 +221,8 @@ export function OverviewPage() {
                   Recently saved from the web.
                 </CardDescription>
               </div>
-              <Button variant="ghost" size="sm">
-                View all
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/activity">View all</Link>
               </Button>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">

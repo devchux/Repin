@@ -114,6 +114,36 @@ export class ConversationService {
     };
   }
 
+  async findConversations(userId: number) {
+    const conversations = await this.repository.manager.find(Conversation, {
+      where: { userId },
+      relations: { messages: true },
+      order: { updatedAt: 'DESC', messages: { createdAt: 'ASC' } },
+      take: 50,
+    });
+
+    return {
+      message: 'Assistant conversations found successfully',
+      data: conversations.map((conversation) => {
+        const firstUserMessage = conversation.messages.find(
+          (message) => message.role === 'user',
+        );
+        const lastMessage = conversation.messages.at(-1);
+        const fallbackTitle = conversation.context.title || 'New conversation';
+
+        return {
+          id: conversation.id,
+          initialCapability: conversation.initialCapability,
+          title: this.truncate(firstUserMessage?.content || fallbackTitle, 80),
+          preview: this.truncate(lastMessage?.content || fallbackTitle, 180),
+          messageCount: conversation.messages.length,
+          createdAt: conversation.createdAt,
+          updatedAt: conversation.updatedAt,
+        };
+      }),
+    };
+  }
+
   async createMessage(
     userId: number,
     conversationId: string,
@@ -190,5 +220,12 @@ export class ConversationService {
     if (!conversation)
       throw new NotFoundException('Assistant conversation not found');
     return conversation;
+  }
+
+  private truncate(value: string, length: number) {
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    return normalized.length > length
+      ? `${normalized.slice(0, length - 1).trimEnd()}…`
+      : normalized;
   }
 }

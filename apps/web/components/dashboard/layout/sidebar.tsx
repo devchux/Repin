@@ -1,3 +1,5 @@
+"use client"
+
 import { Button } from "@repo/ui/button";
 import {
   Bookmark,
@@ -12,11 +14,12 @@ import {
   Sparkles,
 } from "@repo/ui/icons";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const workspaceItems = [
-  { label: "Overview", icon: LayoutDashboard, active: true, link: "/overview" },
-  { label: "Conversations", icon: MessageSquareText, link: "#" },
-  { label: "Activity", icon: Clock3, link: "#" },
+  { label: "Overview", icon: LayoutDashboard, link: "/overview" },
+  { label: "Conversations", icon: MessageSquareText, link: "/conversations" },
+  { label: "Activity", icon: Clock3, link: "/activity" },
 ];
 const libraryItems = [
   { label: "Bookmarks", icon: Bookmark, count: 18, link: "#" },
@@ -25,6 +28,8 @@ const libraryItems = [
 ];
 
 export function DashboardSidebar() {
+  const pathname = usePathname();
+
   return (
     <aside className="hidden h-full w-64 shrink-0 border-r bg-sidebar p-3 lg:flex lg:flex-col">
       <div className="flex h-12 items-center justify-between px-2">
@@ -43,13 +48,15 @@ export function DashboardSidebar() {
           <PanelLeftClose aria-hidden="true" />
         </Button>
       </div>
-      <Button className="mt-4 w-full justify-start shadow-none">
-        <Bot aria-hidden="true" />
-        New conversation
+      <Button asChild className="mt-4 w-full justify-start shadow-none">
+        <Link href="/conversations/new">
+          <Bot aria-hidden="true" />
+          New conversation
+        </Link>
       </Button>
       <nav className="mt-6 flex-1 space-y-6" aria-label="Dashboard navigation">
-        <NavigationGroup label="Workspace" items={workspaceItems} />
-        <NavigationGroup label="Library" items={libraryItems} />
+        <NavigationGroup label="Workspace" items={workspaceItems} pathname={pathname} />
+        <NavigationGroup label="Library" items={libraryItems} pathname={pathname} />
       </nav>
       <div className="rounded-xl border bg-background p-3">
         <div className="flex items-start gap-3">
@@ -78,7 +85,6 @@ export function DashboardSidebar() {
 type NavigationItem = {
   readonly label: string;
   readonly icon: typeof LayoutDashboard;
-  readonly active?: boolean;
   readonly count?: number;
   readonly link: string;
 };
@@ -86,9 +92,11 @@ type NavigationItem = {
 function NavigationGroup({
   label,
   items,
+  pathname,
 }: {
   label: string;
   items: readonly NavigationItem[];
+  pathname: string;
 }) {
   return (
     <div>
@@ -96,12 +104,14 @@ function NavigationGroup({
         {label}
       </p>
       <div className="space-y-1">
-        {items.map((item) => (
+        {items.map((item) => {
+          const active = item.link !== "#" && (pathname === item.link || pathname.startsWith(`${item.link}/`));
+          return (
           <Link
             key={item.label}
             href={item.link}
-            aria-current={item.active ? "page" : undefined}
-            className={`flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${item.active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            aria-current={active ? "page" : undefined}
+            className={`flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
           >
             <item.icon className="size-4" aria-hidden="true" />
             <span className="flex-1">{item.label}</span>
@@ -109,7 +119,8 @@ function NavigationGroup({
               <span className="text-xs tabular-nums">{item.count}</span>
             ) : null}
           </Link>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -102,6 +102,23 @@ describe('AssistantService', () => {
     );
   });
 
+  it('allows a web chat without selected page content', async () => {
+    jest.spyOn(queue, 'add').mockResolvedValue(undefined);
+
+    await expect(
+      service.createRun(1, {
+        capability: 'chat',
+        context: {
+          url: 'https://repin.ai/conversations/new',
+          title: 'Repin web conversation',
+        },
+        input: 'Help me plan a research session',
+      }),
+    ).resolves.toMatchObject({
+      data: { id: run.id, status: 'queued' },
+    });
+  });
+
   it('rejects a user with ten queued runs', async () => {
     manager.count.mockResolvedValue(10);
 

@@ -284,6 +284,9 @@ importers:
       '@repo/client':
         specifier: workspace:*
         version: link:../../packages/client
+      '@repo/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui

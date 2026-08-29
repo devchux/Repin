@@ -22,6 +22,10 @@ export class AssistantService {
     return this.conversations.findConversation(userId, conversationId);
   }
 
+  findConversations(userId: number) {
+    return this.conversations.findConversations(userId);
+  }
+
   createConversationMessage(
     userId: number,
     conversationId: string,
@@ -32,6 +36,10 @@ export class AssistantService {
 
   findRun(userId: number, runId: string) {
     return this.runs.findRun(userId, runId);
+  }
+
+  findRuns(userId: number) {
+    return this.runs.findRuns(userId);
   }
 
   watchRun(userId: number, runId: string) {
