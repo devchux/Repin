@@ -4,47 +4,21 @@ import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { Label } from "@repo/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { type FormEvent } from "react";
 
-import { AuthApiError, requestLoginCode } from "@/lib/auth-api";
-import { FormMessage } from "./form-message";
+import { useAuth } from "@/hooks/useAuth";
 
 export function LoginForm() {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, isLoggingIn } = useAuth();
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "")
       .trim()
       .toLowerCase();
-
-    try {
-      const response = await requestLoginCode(email);
-      sessionStorage.setItem("repin.auth.email", email);
-      sessionStorage.setItem("repin.auth.mode", "login");
-
-      if (response.data.mockCode) {
-        sessionStorage.setItem("repin.auth.mockCode", response.data.mockCode);
-      } else {
-        sessionStorage.removeItem("repin.auth.mockCode");
-      }
-
-      router.push("/verify?mode=login");
-    } catch (cause) {
-      setError(
-        cause instanceof AuthApiError
-          ? cause.message
-          : "We could not send your code. Try again.",
-      );
-      setIsSubmitting(false);
-    }
+    login(email);
   }
 
   return (
@@ -57,8 +31,6 @@ export function LoginForm() {
       </div>
 
       <form className="grid gap-5" onSubmit={handleSubmit}>
-        <FormMessage message={error} />
-
         <div className="grid gap-2">
           <Label htmlFor="email">Email address</Label>
           <Input
@@ -70,7 +42,7 @@ export function LoginForm() {
             placeholder="you@example.com"
             required
             autoFocus
-            disabled={isSubmitting}
+            disabled={isLoggingIn}
           />
         </div>
 
@@ -78,9 +50,9 @@ export function LoginForm() {
           type="submit"
           size="lg"
           className="w-full active:scale-[0.98]"
-          disabled={isSubmitting}
+          disabled={isLoggingIn}
         >
-          {isSubmitting ? "Sending code..." : "Continue with email"}
+          {isLoggingIn ? "Sending code..." : "Continue with email"}
         </Button>
       </form>
 

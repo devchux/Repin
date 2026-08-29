@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { RepinQueryProvider } from "@repo/client/query";
+import { Toaster } from "@repo/ui/sonner";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -24,7 +26,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
-        {children}
+        <RepinQueryProvider>{children}</RepinQueryProvider>
+        <Toaster richColors closeButton />
       </body>
     </html>
   );

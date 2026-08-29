@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { VerifyForm } from "@/components/auth/verify-form";
-import type { AuthMode } from "@/lib/auth-api";
+import type { AuthMode } from "@/hooks/useAuth";
 
 export const metadata: Metadata = {
   title: "Verify your email | Repin",
