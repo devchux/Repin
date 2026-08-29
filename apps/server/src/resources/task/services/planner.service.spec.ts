@@ -41,7 +41,23 @@ describe('PlannerService', () => {
     });
     expect(plan?.definition.goal).toEqual({
       objective: 'Research and compare products',
-      successCriteria: ['Products are compared using stated evidence'],
+      successCriteria: [
+        {
+          id: 'final-stage-output',
+          description: 'The final workflow stage produced a non-empty result',
+          verification: {
+            type: 'deterministic',
+            source: 'output',
+            path: 'stage-2',
+            operator: 'non_empty',
+          },
+        },
+        {
+          id: 'semantic-1',
+          description: 'Products are compared using stated evidence',
+          verification: { type: 'model' },
+        },
+      ],
     });
   });
 

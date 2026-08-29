@@ -14,6 +14,7 @@ import { RuntimeService } from './services/runtime.service';
 import { WorkflowService } from './services/workflow.service';
 import { WorkflowController } from './workflow.controller';
 import { GoalValidatorService } from './services/goal-validator.service';
+import { EventStreamService } from './services/event-stream.service';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { GoalValidatorService } from './services/goal-validator.service';
     RuntimeService,
     RuntimeProcessor,
     GoalValidatorService,
+    EventStreamService,
   ],
   exports: [WorkflowService],
 })

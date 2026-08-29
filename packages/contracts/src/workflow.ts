@@ -64,15 +64,71 @@ export interface WorkflowGraph {
 export const workflowGoalSchema = z
   .object({
     objective: z.string().trim().min(1).max(2_000),
-    successCriteria: z.array(z.string().trim().min(1).max(1_000)).min(1).max(8),
+    successCriteria: z
+      .array(
+        z
+          .object({
+            id: z
+              .string()
+              .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+              .max(100),
+            description: z.string().trim().min(1).max(1_000),
+            verification: z.discriminatedUnion("type", [
+              z.object({ type: z.literal("model") }).strict(),
+              z
+                .object({
+                  type: z.literal("deterministic"),
+                  source: z.enum(["input", "output"]),
+                  path: z.string().trim().min(1).max(500),
+                  operator: z.enum([
+                    "exists",
+                    "non_empty",
+                    "equals",
+                    "contains",
+                  ]),
+                  expected: z.unknown().optional(),
+                })
+                .strict(),
+            ]),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(8),
   })
-  .strict();
+  .strict()
+  .superRefine((goal, context) => {
+    const ids = new Set<string>();
+    goal.successCriteria.forEach((criterion, index) => {
+      if (ids.has(criterion.id)) {
+        context.addIssue({
+          code: "custom",
+          path: ["successCriteria", index, "id"],
+          message: "Success criterion IDs must be unique",
+        });
+      }
+      ids.add(criterion.id);
+      if (
+        criterion.verification.type === "deterministic" &&
+        ["equals", "contains"].includes(criterion.verification.operator) &&
+        criterion.verification.expected === undefined
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["successCriteria", index, "verification", "expected"],
+          message: `${criterion.verification.operator} requires an expected value`,
+        });
+      }
+    });
+  });
 
 export type WorkflowGoal = z.infer<typeof workflowGoalSchema>;
 
+export type WorkflowSuccessCriterion = WorkflowGoal["successCriteria"][number];
+
 export const workflowGoalCriterionResultSchema = z
   .object({
-    criterion: z.string().min(1).max(1_000),
+    criterionId: z.string().min(1).max(100),
     satisfied: z.boolean(),
     evidence: z.string().min(1).max(4_000),
   })
@@ -111,7 +167,7 @@ export interface CreateWorkflowDefinitionRequest {
   readonly name: string;
   readonly description?: string;
   readonly activation?: WorkflowActivation;
-  readonly goal?: WorkflowGoal;
+  readonly goal: WorkflowGoal;
   readonly graph: WorkflowGraph;
 }
 

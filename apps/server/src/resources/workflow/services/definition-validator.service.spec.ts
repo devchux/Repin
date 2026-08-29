@@ -86,4 +86,30 @@ describe('DefinitionValidator', () => {
       }),
     ).toThrow(BadRequestException);
   });
+
+  it('requires every newly created workflow to declare a goal', () => {
+    expect(() => validator.validateGoal(undefined as never)).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects deterministic comparisons without an expected value', () => {
+    expect(() =>
+      validator.validateGoal({
+        objective: 'Confirm the result',
+        successCriteria: [
+          {
+            id: 'result-matches',
+            description: 'The result matches the expected value',
+            verification: {
+              type: 'deterministic',
+              source: 'output',
+              path: 'result',
+              operator: 'equals',
+            },
+          },
+        ],
+      }),
+    ).toThrow(BadRequestException);
+  });
 });

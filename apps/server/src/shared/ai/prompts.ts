@@ -133,7 +133,7 @@ export function buildWorkflowGenerationPrompt(
 
 export function buildWorkflowGoalValidationPrompt(input: {
   objective: string;
-  successCriteria: readonly string[];
+  successCriteria: readonly { id: string; description: string }[];
   serializedWorkflowInput: string;
   serializedWorkflowOutput: string;
 }): AiMessage[] {

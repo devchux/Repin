@@ -122,6 +122,9 @@ export class WorkflowService {
         error: 'Unable to queue workflow instance',
         completedAt: new Date(),
       });
+      await this.appendEvent(instance.id, 'workflow.failed', {
+        error: 'Unable to queue workflow instance',
+      });
       throw new ServiceUnavailableException(
         'Unable to queue workflow instance',
       );
@@ -195,11 +198,33 @@ export class WorkflowService {
         { instanceId, status: 'running' },
         { status: 'cancelled', completedAt: new Date() },
       );
+      await this.appendEvent(instance.id, 'workflow.cancelled');
       const job = await this.queue.getJob(instance.queueJobId ?? instance.id);
       if (job && ['waiting', 'delayed'].includes(await job.getState())) {
         await job.remove().catch(() => undefined);
       }
     }
     return this.findInstance(userId, instanceId);
+  }
+
+  private async appendEvent(instanceId: string, type: string, data?: unknown) {
+    await this.instanceRepository.manager.transaction(async (manager) => {
+      const instance = await manager.findOne(Instance, {
+        where: { id: instanceId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!instance) return;
+      const sequence = instance.eventSequence + 1;
+      await manager.update(Instance, instanceId, { eventSequence: sequence });
+      await manager.save(
+        Event,
+        manager.create(Event, {
+          instanceId,
+          sequence,
+          type,
+          data,
+        }),
+      );
+    });
   }
 }

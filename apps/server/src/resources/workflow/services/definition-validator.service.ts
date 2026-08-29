@@ -9,8 +9,7 @@ import { AI_ASSISTANT_CAPABILITIES } from '@repo/contracts/assistant';
 
 @Injectable()
 export class DefinitionValidator {
-  validateGoal(goal?: WorkflowGoal): void {
-    if (!goal) return;
+  validateGoal(goal: WorkflowGoal): void {
     if (!workflowGoalSchema.safeParse(goal).success) {
       throw new BadRequestException('Workflow goal is invalid');
     }

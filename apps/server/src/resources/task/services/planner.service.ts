@@ -34,7 +34,24 @@ export class PlannerService {
         },
         goal: {
           objective: request.input!,
-          successCriteria: plan.successCriteria,
+          successCriteria: [
+            {
+              id: 'final-stage-output',
+              description:
+                'The final workflow stage produced a non-empty result',
+              verification: {
+                type: 'deterministic',
+                source: 'output',
+                path: `stage-${plan.stages.length}`,
+                operator: 'non_empty',
+              },
+            },
+            ...plan.successCriteria.map((description, index) => ({
+              id: `semantic-${index + 1}`,
+              description,
+              verification: { type: 'model' as const },
+            })),
+          ],
         },
         graph: {
           startNodeId: 'stage-1',

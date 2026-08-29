@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsObject,
   IsOptional,
+  IsDefined,
   IsArray,
   IsString,
   Matches,
@@ -45,9 +46,9 @@ export class CreateDefinitionDto {
   @Type(() => ActivationDto)
   activation?: ActivationDto;
 
-  @IsOptional()
+  @IsDefined()
   @IsObject()
-  goal?: WorkflowGoal;
+  goal: WorkflowGoal;
 
   @IsObject()
   graph: WorkflowGraph;

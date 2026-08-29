@@ -108,14 +108,20 @@ describe('RuntimeService', () => {
   it('completes only after the declared goal is validated', async () => {
     instance.definition.goal = {
       objective: 'Confirm readiness',
-      successCriteria: ['The workflow confirms it is ready'],
+      successCriteria: [
+        {
+          id: 'ready',
+          description: 'The workflow confirms it is ready',
+          verification: { type: 'model' },
+        },
+      ],
     };
     jest.spyOn(goalValidator, 'validate').mockResolvedValue({
       satisfied: true,
       reason: 'Readiness is confirmed',
       criteria: [
         {
-          criterion: 'The workflow confirms it is ready',
+          criterionId: 'ready',
           satisfied: true,
           evidence: 'input.ready is true',
         },
@@ -135,14 +141,20 @@ describe('RuntimeService', () => {
   it('fails closed when the workflow output does not satisfy its goal', async () => {
     instance.definition.goal = {
       objective: 'Confirm readiness',
-      successCriteria: ['The workflow confirms it is ready'],
+      successCriteria: [
+        {
+          id: 'ready',
+          description: 'The workflow confirms it is ready',
+          verification: { type: 'model' },
+        },
+      ],
     };
     jest.spyOn(goalValidator, 'validate').mockResolvedValue({
       satisfied: false,
       reason: 'No confirmation was produced',
       criteria: [
         {
-          criterion: 'The workflow confirms it is ready',
+          criterionId: 'ready',
           satisfied: false,
           evidence: 'No output contains a confirmation',
         },

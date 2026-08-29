@@ -23,7 +23,7 @@ export const workflowGenerationDecisionSchema = z
     reason: z.string().min(1).max(2_000),
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().min(1).max(2_000),
-    successCriteria: z.array(z.string().trim().min(1).max(1_000)).min(1).max(8),
+    successCriteria: z.array(z.string().trim().min(1).max(1_000)).min(1).max(7),
     stages: z
       .array(
         z.object({ instruction: z.string().trim().min(1).max(2_000) }).strict(),

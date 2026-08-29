@@ -64,8 +64,17 @@ POST /api/workflows/definitions
 GET  /api/workflows/definitions/:id
 POST /api/workflows/definitions/:id/instances
 GET  /api/workflows/instances/:id
+GET  /api/workflows/instances/:id/events
 POST /api/workflows/instances/:id/cancel
 ```
+
+The authenticated events endpoint is a Server-Sent Events stream over the
+instance's durable, ordered event log. Each event uses its workflow sequence as
+the SSE `id`, so reconnecting clients can send `Last-Event-ID` and replay only
+events they have not processed. The stream sends a heartbeat every 15 seconds
+and closes after `workflow.completed`, `workflow.failed`, or
+`workflow.cancelled`. The regular instance endpoint remains the recovery path
+for clients that need a complete state snapshot.
 
 Future node types—approval, external event, timer, deterministic tool, parallel
 fan-out, and nested workflow—should extend this resource. Multi-agent execution

@@ -84,11 +84,12 @@ models:
 
 ## Workflow goal validation
 
-A workflow definition may declare a goal containing an objective and one to
-eight observable success criteria. Generated workflows always declare this
-goal. Reaching an `end` node is only structural completion for goal-aware
-definitions: the runtime evaluates persisted workflow input and output against
-every criterion before it writes `workflow.completed`.
+A newly created workflow definition must declare a goal containing an objective
+and one to eight observable success criteria. Stored legacy definitions may
+remain goal-less so existing runs stay readable. Reaching an `end` node is only
+structural completion for goal-aware definitions: the runtime evaluates
+persisted workflow input and output against every criterion before it writes
+`workflow.completed`.
 
 Validation is provider-neutral and uses shared Zod schemas at the AI trust
 boundary. The same schema generates the JSON Schema sent to capable providers
@@ -99,8 +100,16 @@ The aggregate cannot pass if any individual criterion fails, even if the model
 claims overall success. The complete evaluation is persisted on the workflow
 instance and emitted as either `workflow.goal_validated` or
 `workflow.goal_not_satisfied`. An unmet goal terminates the instance as failed
-with an actionable reason. Definitions created before goal support remain
-executable and use structural completion until they are versioned with a goal.
+with an actionable reason.
+
+Each criterion declares a typed verification strategy. Deterministic strategies
+read an explicit path from workflow input or output and apply `exists`,
+`non_empty`, `equals`, or `contains`. The runtime evaluates all deterministic
+criteria first and skips semantic evaluation if any fails. Criteria using the
+`model` strategy are evaluated only after deterministic facts pass. Generated
+workflows include a deterministic non-empty final-stage assertion before their
+semantic criteria. This keeps observable facts authoritative and reserves model
+judgment for outcomes that cannot be expressed as typed assertions.
 
 ## Safe browser loop
 

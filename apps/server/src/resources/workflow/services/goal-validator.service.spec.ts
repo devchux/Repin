@@ -1,45 +1,105 @@
+import type { WorkflowGoal } from '@repo/contracts/workflow';
 import type { AiService } from '../../ai/ai.service';
 import { GoalValidatorService } from './goal-validator.service';
 
 describe('GoalValidatorService', () => {
   const ai = { generate: jest.fn() } as unknown as AiService;
   const validator = new GoalValidatorService(ai);
-  const goal = {
+  const semanticGoal: WorkflowGoal = {
     objective: 'Recommend the best laptop',
-    successCriteria: ['At least three laptops are compared', 'One is selected'],
+    successCriteria: [
+      {
+        id: 'compare-products',
+        description: 'At least three laptops are compared',
+        verification: { type: 'model' },
+      },
+      {
+        id: 'select-product',
+        description: 'One laptop is selected',
+        verification: { type: 'model' },
+      },
+    ],
   };
 
-  it('accepts a result only when every declared criterion is satisfied', async () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('runs deterministic checks without invoking the model', async () => {
+    const goal: WorkflowGoal = {
+      objective: 'Produce a final result',
+      successCriteria: [
+        {
+          id: 'final-output',
+          description: 'A final result exists',
+          verification: {
+            type: 'deterministic',
+            source: 'output',
+            path: 'final.content',
+            operator: 'non_empty',
+          },
+        },
+      ],
+    };
+
+    await expect(
+      validator.validate(goal, {}, { final: { content: 'done' } }),
+    ).resolves.toMatchObject({ satisfied: true });
+    expect(ai.generate).not.toHaveBeenCalled();
+  });
+
+  it('short-circuits semantic evaluation when a deterministic check fails', async () => {
+    const goal: WorkflowGoal = {
+      objective: 'Produce and assess a result',
+      successCriteria: [
+        {
+          id: 'final-output',
+          description: 'A final result exists',
+          verification: {
+            type: 'deterministic',
+            source: 'output',
+            path: 'final',
+            operator: 'non_empty',
+          },
+        },
+        {
+          id: 'quality',
+          description: 'The result is well supported',
+          verification: { type: 'model' },
+        },
+      ],
+    };
+
+    await expect(validator.validate(goal, {}, {})).resolves.toMatchObject({
+      satisfied: false,
+      criteria: [
+        { criterionId: 'final-output', satisfied: false },
+        { criterionId: 'quality', satisfied: false },
+      ],
+    });
+    expect(ai.generate).not.toHaveBeenCalled();
+  });
+
+  it('uses the model only for semantic criteria', async () => {
     jest.spyOn(ai, 'generate').mockResolvedValue({
       provider: 'test',
       model: 'test',
       content: JSON.stringify({
         satisfied: true,
         reason: 'Both criteria have direct evidence',
-        criteria: [
-          {
-            criterion: goal.successCriteria[0],
-            satisfied: true,
-            evidence: 'The output compares A, B, and C',
-          },
-          {
-            criterion: goal.successCriteria[1],
-            satisfied: true,
-            evidence: 'The output selects B',
-          },
-        ],
+        criteria: semanticGoal.successCriteria.map((criterion) => ({
+          criterionId: criterion.id,
+          satisfied: true,
+          evidence: `Evidence for ${criterion.id}`,
+        })),
       }),
     });
 
     await expect(
-      validator.validate(goal, {}, { final: 'result' }),
-    ).resolves.toMatchObject({
-      satisfied: true,
-      criteria: [{ satisfied: true }, { satisfied: true }],
-    });
+      validator.validate(semanticGoal, {}, { final: 'result' }),
+    ).resolves.toMatchObject({ satisfied: true });
+    expect(ai.generate).toHaveBeenCalledTimes(1);
   });
 
-  it('cannot report success when any individual criterion failed', async () => {
+  it('cannot report success when any semantic criterion failed', async () => {
     jest.spyOn(ai, 'generate').mockResolvedValue({
       provider: 'test',
       model: 'test',
@@ -48,12 +108,12 @@ describe('GoalValidatorService', () => {
         reason: 'A recommendation was attempted',
         criteria: [
           {
-            criterion: goal.successCriteria[0],
+            criterionId: 'compare-products',
             satisfied: false,
             evidence: 'Only one laptop is present',
           },
           {
-            criterion: goal.successCriteria[1],
+            criterionId: 'select-product',
             satisfied: true,
             evidence: 'Laptop A is selected',
           },
@@ -61,48 +121,33 @@ describe('GoalValidatorService', () => {
       }),
     });
 
-    await expect(validator.validate(goal, {}, {})).resolves.toMatchObject({
+    await expect(
+      validator.validate(semanticGoal, {}, {}),
+    ).resolves.toMatchObject({
       satisfied: false,
     });
   });
 
-  it('rejects reordered criteria so evidence cannot be attached ambiguously', async () => {
+  it('rejects reordered criterion IDs', async () => {
     jest.spyOn(ai, 'generate').mockResolvedValue({
       provider: 'test',
       model: 'test',
       content: JSON.stringify({
         satisfied: true,
         reason: 'Done',
-        criteria: goal.successCriteria
+        criteria: semanticGoal.successCriteria
           .slice()
           .reverse()
-          .map((criterion) => ({ criterion, satisfied: true, evidence: 'x' })),
-      }),
-    });
-
-    await expect(validator.validate(goal, {}, {})).rejects.toThrow(
-      'Invalid workflow goal criterion result',
-    );
-  });
-
-  it('rejects structurally invalid model output before domain evaluation', async () => {
-    jest.spyOn(ai, 'generate').mockResolvedValue({
-      provider: 'test',
-      model: 'test',
-      content: JSON.stringify({
-        satisfied: true,
-        reason: 'Done',
-        criteria: [
-          {
-            criterion: goal.successCriteria[0],
+          .map((criterion) => ({
+            criterionId: criterion.id,
             satisfied: true,
-          },
-        ],
+            evidence: 'evidence',
+          })),
       }),
     });
 
-    await expect(validator.validate(goal, {}, {})).rejects.toThrow(
-      'Invalid workflow goal validation response',
+    await expect(validator.validate(semanticGoal, {}, {})).rejects.toThrow(
+      'Invalid workflow goal criterion result',
     );
   });
 });
