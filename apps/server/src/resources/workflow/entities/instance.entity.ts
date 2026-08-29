@@ -1,6 +1,7 @@
 import {
   WORKFLOW_INSTANCE_STATUSES,
   type WorkflowInstanceStatus,
+  type WorkflowGoalValidation,
 } from '@repo/contracts/workflow';
 import {
   Column,
@@ -54,6 +55,9 @@ export class Instance {
 
   @Column({ type: 'jsonb', default: {} })
   output: Record<string, unknown>;
+
+  @Column({ type: 'jsonb', nullable: true })
+  goalValidation?: WorkflowGoalValidation;
 
   @Column({ type: 'text', nullable: true })
   error?: string;

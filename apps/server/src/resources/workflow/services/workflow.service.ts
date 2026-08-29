@@ -36,6 +36,7 @@ export class WorkflowService {
     source: Definition['source'] = 'manual',
   ) {
     this.validator.validate(request.graph);
+    this.validator.validateGoal(request.goal);
     const definition = await this.definitionRepository.manager.transaction(
       async (manager) => {
         await manager.query('SELECT pg_advisory_xact_lock($1)', [userId]);
@@ -51,6 +52,7 @@ export class WorkflowService {
             name: request.name,
             description: request.description,
             activation: request.activation,
+            goal: request.goal,
             source,
             version: (latest?.version ?? 0) + 1,
             graph: request.graph,

@@ -1,9 +1,21 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { WorkflowGraph, WorkflowNode } from '@repo/contracts/workflow';
+import type {
+  WorkflowGoal,
+  WorkflowGraph,
+  WorkflowNode,
+} from '@repo/contracts/workflow';
+import { workflowGoalSchema } from '@repo/contracts/workflow';
 import { AI_ASSISTANT_CAPABILITIES } from '@repo/contracts/assistant';
 
 @Injectable()
 export class DefinitionValidator {
+  validateGoal(goal?: WorkflowGoal): void {
+    if (!goal) return;
+    if (!workflowGoalSchema.safeParse(goal).success) {
+      throw new BadRequestException('Workflow goal is invalid');
+    }
+  }
+
   validate(graph: WorkflowGraph): void {
     if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) {
       throw new BadRequestException('A workflow requires at least one node');

@@ -77,10 +77,30 @@ The next layers should build on these records rather than add parallel run
 models:
 
 1. Execution deadlines and cost budgets.
-2. Rich success criteria and domain-specific verification strategies.
+2. Domain-specific deterministic verification strategies for workflow goals.
 3. Versioned workflow definitions whose agent nodes create the same steps and
    events.
 4. Event streaming and replay APIs shared by the web app and extension.
+
+## Workflow goal validation
+
+A workflow definition may declare a goal containing an objective and one to
+eight observable success criteria. Generated workflows always declare this
+goal. Reaching an `end` node is only structural completion for goal-aware
+definitions: the runtime evaluates persisted workflow input and output against
+every criterion before it writes `workflow.completed`.
+
+Validation is provider-neutral and uses shared Zod schemas at the AI trust
+boundary. The same schema generates the JSON Schema sent to capable providers
+and validates the response locally; provider enforcement is never treated as
+sufficient validation. Each criterion must retain its declared identity and
+include a boolean result and evidence.
+The aggregate cannot pass if any individual criterion fails, even if the model
+claims overall success. The complete evaluation is persisted on the workflow
+instance and emitted as either `workflow.goal_validated` or
+`workflow.goal_not_satisfied`. An unmet goal terminates the instance as failed
+with an actionable reason. Definitions created before goal support remain
+executable and use structural completion until they are versioned with a goal.
 
 ## Safe browser loop
 

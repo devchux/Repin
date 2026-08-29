@@ -9,7 +9,8 @@
     "./browser-session": "./src/browser-session.ts",
     "./messages": "./src/messages.ts",
     "./workflow": "./src/workflow.ts",
-    "./task": "./src/task.ts"
+    "./task": "./src/task.ts",
+    "./schema": "./src/schema.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"
@@ -17,5 +18,8 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "typescript": "5.9.2"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
   }
 }

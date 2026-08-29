@@ -6,13 +6,16 @@ import { Definition } from '../../workflow/entities/definition.entity';
 import { buildWorkflowSelectionPrompt } from '../../../shared/ai/prompts';
 import { DispatchDto } from '../dto/dispatch.dto';
 import { getWordsList } from 'src/shared/utils/helper';
+import {
+  workflowSelectionDecisionJsonSchema,
+  workflowSelectionDecisionSchema,
+  WorkflowSelectionDecision,
+} from '@repo/contracts/schema';
 
-export interface SelectionDecision {
-  workflowDefinitionId?: string | null;
-  confidence: number;
-  requiresMultipleSteps: boolean;
-  reason: string;
-}
+type SelectionDecision = Omit<
+  WorkflowSelectionDecision,
+  'workflowDefinitionId'
+> & { workflowDefinitionId?: string | null };
 
 export interface WorkflowSelection {
   decision: SelectionDecision;
@@ -82,34 +85,9 @@ export class SelectorService {
             examples: candidate.activation?.examples,
           })),
         }),
-        responseSchema: {
-          type: 'object',
-          additionalProperties: false,
-          required: [
-            'workflowDefinitionId',
-            'confidence',
-            'requiresMultipleSteps',
-            'reason',
-          ],
-          properties: {
-            workflowDefinitionId: { type: ['string', 'null'] },
-            confidence: { type: 'number', minimum: 0, maximum: 1 },
-            requiresMultipleSteps: { type: 'boolean' },
-            reason: { type: 'string' },
-          },
-        },
+        responseSchema: workflowSelectionDecisionJsonSchema,
       });
-      const decision = JSON.parse(result.content) as SelectionDecision;
-      if (
-        typeof decision.confidence !== 'number' ||
-        typeof decision.requiresMultipleSteps !== 'boolean' ||
-        typeof decision.reason !== 'string' ||
-        (decision.workflowDefinitionId !== null &&
-          typeof decision.workflowDefinitionId !== 'string')
-      ) {
-        throw new Error('Invalid workflow selection response');
-      }
-      return decision;
+      return workflowSelectionDecisionSchema.parse(JSON.parse(result.content));
     } catch {
       return this.selectLexically(request.input ?? '', candidates);
     }

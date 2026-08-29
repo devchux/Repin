@@ -1,4 +1,4 @@
-import type { WorkflowGraph } from '@repo/contracts/workflow';
+import type { WorkflowGraph, WorkflowGoal } from '@repo/contracts/workflow';
 import {
   IsNotEmpty,
   IsObject,
@@ -44,6 +44,10 @@ export class CreateDefinitionDto {
   @ValidateNested()
   @Type(() => ActivationDto)
   activation?: ActivationDto;
+
+  @IsOptional()
+  @IsObject()
+  goal?: WorkflowGoal;
 
   @IsObject()
   graph: WorkflowGraph;

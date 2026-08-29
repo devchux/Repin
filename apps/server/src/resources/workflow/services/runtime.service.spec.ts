@@ -3,6 +3,7 @@ import type { Repository } from 'typeorm';
 import type { AssistantService } from '../../assistant/services/assistant.service';
 import { Instance } from '../entities/instance.entity';
 import { RuntimeService } from './runtime.service';
+import type { GoalValidatorService } from './goal-validator.service';
 
 describe('RuntimeService', () => {
   const instance = {
@@ -81,7 +82,14 @@ describe('RuntimeService', () => {
     }),
   } as unknown as Repository<Instance>;
   const assistant = {} as AssistantService;
-  const runtime = new RuntimeService(instanceRepository, assistant);
+  const goalValidator = {
+    validate: jest.fn(),
+  } as unknown as GoalValidatorService;
+  const runtime = new RuntimeService(
+    instanceRepository,
+    assistant,
+    goalValidator,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -94,6 +102,62 @@ describe('RuntimeService', () => {
       startedAt: undefined,
       completedAt: undefined,
     });
+    instance.definition.goal = undefined;
+  });
+
+  it('completes only after the declared goal is validated', async () => {
+    instance.definition.goal = {
+      objective: 'Confirm readiness',
+      successCriteria: ['The workflow confirms it is ready'],
+    };
+    jest.spyOn(goalValidator, 'validate').mockResolvedValue({
+      satisfied: true,
+      reason: 'Readiness is confirmed',
+      criteria: [
+        {
+          criterion: 'The workflow confirms it is ready',
+          satisfied: true,
+          evidence: 'input.ready is true',
+        },
+      ],
+      validatedAt: new Date().toISOString(),
+    });
+
+    await runtime.execute({
+      name: 'execute-workflow',
+      data: { instanceId: instance.id },
+    } as Job<{ instanceId: string }>);
+
+    expect(instance.status).toBe('completed');
+    expect(instance.goalValidation?.satisfied).toBe(true);
+  });
+
+  it('fails closed when the workflow output does not satisfy its goal', async () => {
+    instance.definition.goal = {
+      objective: 'Confirm readiness',
+      successCriteria: ['The workflow confirms it is ready'],
+    };
+    jest.spyOn(goalValidator, 'validate').mockResolvedValue({
+      satisfied: false,
+      reason: 'No confirmation was produced',
+      criteria: [
+        {
+          criterion: 'The workflow confirms it is ready',
+          satisfied: false,
+          evidence: 'No output contains a confirmation',
+        },
+      ],
+      validatedAt: new Date().toISOString(),
+    });
+
+    await runtime.execute({
+      name: 'execute-workflow',
+      data: { instanceId: instance.id },
+    } as Job<{ instanceId: string }>);
+
+    expect(instance.status).toBe('failed');
+    expect(instance.error).toContain('Workflow goal was not satisfied');
+    expect(instance.goalValidation?.satisfied).toBe(false);
   });
 
   it('routes a condition and durably completes at the selected end node', async () => {

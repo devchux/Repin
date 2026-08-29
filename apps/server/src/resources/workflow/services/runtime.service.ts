@@ -9,6 +9,7 @@ import { AGENT_POLL_DELAY, EXECUTE_JOB } from '../constants';
 import { Event } from '../entities/event.entity';
 import { Instance } from '../entities/instance.entity';
 import { NodeExecution } from '../entities/node-execution.entity';
+import { GoalValidatorService } from './goal-validator.service';
 
 interface RuntimeJobData {
   instanceId: string;
@@ -20,6 +21,7 @@ export class RuntimeService {
     @InjectRepository(Instance)
     private readonly instanceRepository: Repository<Instance>,
     private readonly assistant: AssistantService,
+    private readonly goalValidator: GoalValidatorService,
   ) {}
 
   async execute(job: Job<RuntimeJobData>, token?: string): Promise<void> {
@@ -55,6 +57,35 @@ export class RuntimeService {
 
       if (node.type === 'end') {
         await this.completeNode(instance, node, undefined);
+        if (instance.definition.goal) {
+          const validation = await this.goalValidator.validate(
+            instance.definition.goal,
+            instance.input,
+            instance.output,
+          );
+          if (!validation.satisfied) {
+            await this.update(
+              instance.id,
+              {
+                status: 'failed',
+                error: `Workflow goal was not satisfied: ${validation.reason}`,
+                goalValidation: validation,
+                completedAt: new Date(),
+              },
+              'workflow.goal_not_satisfied',
+              node.id,
+              validation,
+            );
+            return;
+          }
+          await this.update(
+            instance.id,
+            { goalValidation: validation },
+            'workflow.goal_validated',
+            node.id,
+            validation,
+          );
+        }
         await this.update(
           instance.id,
           {

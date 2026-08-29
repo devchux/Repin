@@ -4,6 +4,7 @@ import type {
   AssistantRunOptions,
 } from "./assistant";
 import type { PageContext } from "./browser";
+import { z } from "zod";
 
 export const WORKFLOW_INSTANCE_STATUSES = [
   "queued",
@@ -60,11 +61,57 @@ export interface WorkflowGraph {
   readonly edges: readonly WorkflowEdge[];
 }
 
+export const workflowGoalSchema = z
+  .object({
+    objective: z.string().trim().min(1).max(2_000),
+    successCriteria: z.array(z.string().trim().min(1).max(1_000)).min(1).max(8),
+  })
+  .strict();
+
+export type WorkflowGoal = z.infer<typeof workflowGoalSchema>;
+
+export const workflowGoalCriterionResultSchema = z
+  .object({
+    criterion: z.string().min(1).max(1_000),
+    satisfied: z.boolean(),
+    evidence: z.string().min(1).max(4_000),
+  })
+  .strict();
+
+export type WorkflowGoalCriterionResult = z.infer<
+  typeof workflowGoalCriterionResultSchema
+>;
+
+export const workflowGoalEvaluationSchema = z
+  .object({
+    satisfied: z.boolean(),
+    reason: z.string().min(1).max(2_000),
+    criteria: z.array(workflowGoalCriterionResultSchema).min(1).max(8),
+  })
+  .strict();
+
+export const workflowGoalEvaluationJsonSchema = z.toJSONSchema(
+  workflowGoalEvaluationSchema,
+);
+
+export type WorkflowGoalEvaluation = z.infer<
+  typeof workflowGoalEvaluationSchema
+>;
+
+export const workflowGoalValidationSchema = workflowGoalEvaluationSchema
+  .extend({ validatedAt: z.iso.datetime() })
+  .strict();
+
+export type WorkflowGoalValidation = z.infer<
+  typeof workflowGoalValidationSchema
+>;
+
 export interface CreateWorkflowDefinitionRequest {
   readonly key: string;
   readonly name: string;
   readonly description?: string;
   readonly activation?: WorkflowActivation;
+  readonly goal?: WorkflowGoal;
   readonly graph: WorkflowGraph;
 }
 

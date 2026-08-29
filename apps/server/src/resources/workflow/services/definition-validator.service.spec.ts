@@ -77,4 +77,13 @@ describe('DefinitionValidator', () => {
       }),
     ).toThrow(BadRequestException);
   });
+
+  it('rejects goals without observable success criteria', () => {
+    expect(() =>
+      validator.validateGoal({
+        objective: 'Finish the task',
+        successCriteria: [],
+      }),
+    ).toThrow(BadRequestException);
+  });
 });

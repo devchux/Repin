@@ -4,14 +4,11 @@ import { AiService } from '../../ai/ai.service';
 import { buildWorkflowGenerationPrompt } from '../../../shared/ai/prompts';
 import { DispatchDto } from '../dto/dispatch.dto';
 import type { CreateDefinitionDto } from '../../workflow/dto/create-definition.dto';
-
-interface GenerationDecision {
-  requiresWorkflow: boolean;
-  reason: string;
-  name: string;
-  description: string;
-  stages: { instruction: string }[];
-}
+import {
+  workflowGenerationDecisionJsonSchema,
+  workflowGenerationDecisionSchema,
+  WorkflowGenerationDecision,
+} from '@repo/contracts/schema';
 
 export interface WorkflowPlan {
   reason: string;
@@ -34,6 +31,10 @@ export class PlannerService {
         activation: {
           description: plan.description,
           examples: [request.input!],
+        },
+        goal: {
+          objective: request.input!,
+          successCriteria: plan.successCriteria,
         },
         graph: {
           startNodeId: 'stage-1',
@@ -64,7 +65,7 @@ export class PlannerService {
 
   private async generate(
     request: DispatchDto,
-  ): Promise<GenerationDecision | undefined> {
+  ): Promise<WorkflowGenerationDecision | undefined> {
     try {
       const result = await this.ai.generate({
         messages: buildWorkflowGenerationPrompt({
@@ -73,52 +74,9 @@ export class PlannerService {
           pageTitle: request.context.title,
           pageUrl: request.context.url,
         }),
-        responseSchema: {
-          type: 'object',
-          additionalProperties: false,
-          required: [
-            'requiresWorkflow',
-            'reason',
-            'name',
-            'description',
-            'stages',
-          ],
-          properties: {
-            requiresWorkflow: { type: 'boolean' },
-            reason: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            stages: {
-              type: 'array',
-              minItems: 0,
-              maxItems: 8,
-              items: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['instruction'],
-                properties: { instruction: { type: 'string' } },
-              },
-            },
-          },
-        },
+        responseSchema: workflowGenerationDecisionJsonSchema,
       });
-      const plan = JSON.parse(result.content) as GenerationDecision;
-      if (
-        typeof plan.requiresWorkflow !== 'boolean' ||
-        typeof plan.reason !== 'string' ||
-        typeof plan.name !== 'string' ||
-        typeof plan.description !== 'string' ||
-        !Array.isArray(plan.stages) ||
-        plan.stages.length > 8 ||
-        plan.stages.some(
-          (stage) =>
-            typeof stage.instruction !== 'string' ||
-            !stage.instruction.trim() ||
-            stage.instruction.length > 2_000,
-        )
-      )
-        return undefined;
-      return plan;
+      return workflowGenerationDecisionSchema.parse(JSON.parse(result.content));
     } catch {
       return undefined;
     }
