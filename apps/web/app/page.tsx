@@ -1,4 +1,5 @@
 import { Button } from "@repo/ui/button";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -13,8 +14,12 @@ export default function Home() {
           Repin web application.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button>Get started</Button>
-          <Button variant="outline">View components</Button>
+          <Button asChild>
+            <Link href="/register">Create account</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/login">Sign in</Link>
+          </Button>
         </div>
       </section>
     </main>
