@@ -11,6 +11,8 @@ import { ActivityMetric } from "../features/activity/metric";
 import { ActivityRow } from "../features/activity/row";
 import { ActivitySkeleton } from "../features/activity/skeleton";
 import { EmptyState } from "../features/common/empty-state";
+import { PageHeading } from "../features/common/page-heading";
+import { WorkspacePage } from "../layout/workspace-page";
 
 type ActivityFilter = "all" | "in-progress" | "completed" | "failed";
 
@@ -50,20 +52,15 @@ export function ActivityPage() {
   }, [filter, query, runs.data]);
 
   return (
-    <main className="mx-auto w-full max-w-5xl p-4 md:p-6 lg:p-8">
-      <section>
-        <p className="text-sm font-medium text-primary">Workspace</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
-          Activity
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Follow assistant runs and browser work from both the web app and
-          extension.
-        </p>
-      </section>
+    <WorkspacePage>
+      <PageHeading
+        eyebrow="Workspace"
+        title="Activity"
+        description="Follow assistant runs and browser work from both the web app and extension."
+      />
 
       <section
-        className="mt-7 grid gap-3 sm:grid-cols-3"
+        className="mt-8 grid overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)] sm:grid-cols-3"
         aria-label="Activity summary"
       >
         <ActivityMetric
@@ -79,6 +76,7 @@ export function ActivityPage() {
             ).length
           }
           detail="Finished successfully"
+          bordered
         />
         <ActivityMetric
           label="Needs attention"
@@ -88,14 +86,13 @@ export function ActivityPage() {
             ).length
           }
           detail="Review or resume"
+          bordered
         />
       </section>
 
-      <div className="mt-7 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div
-          className="flex gap-1 overflow-x-auto rounded-lg bg-muted p-1"
-          aria-label="Filter activity"
-        >
+      <section className="mt-7 overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)]" aria-label="Assistant activity">
+        <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex gap-1 overflow-x-auto rounded-lg bg-muted/70 p-1" aria-label="Filter activity">
           {filters.map((item) => (
             <button
               key={item.value}
@@ -107,26 +104,22 @@ export function ActivityPage() {
               {item.label}
             </button>
           ))}
-        </div>
-        <div className="relative w-full md:max-w-xs">
+          </div>
+          <div className="relative w-full md:max-w-xs">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
           />
           <Input
             aria-label="Search activity"
-            className="pl-9"
+            className="bg-muted/25 pl-9 shadow-none"
             placeholder="Search activity"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
+          </div>
         </div>
-      </div>
-
-      <section
-        className="mt-5 overflow-hidden rounded-xl border bg-background"
-        aria-label="Assistant activity"
-      >
+        <div className="border-t">
         {runs.isLoading ? <ActivitySkeleton /> : null}
         {runs.isError ? (
           <EmptyState
@@ -154,7 +147,8 @@ export function ActivityPage() {
         {items.map((run) => (
           <ActivityRow key={run.id} run={run} />
         ))}
+        </div>
       </section>
-    </main>
+    </WorkspacePage>
   );
 }

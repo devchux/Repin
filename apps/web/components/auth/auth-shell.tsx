@@ -11,9 +11,14 @@ export function AuthShell({ children }: { children: ReactNode }) {
           className="inline-flex w-fit items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           aria-label="Repin home"
         >
-          <span className="grid size-8 place-items-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-xs">
-            R
-          </span>
+          <Image
+            src="/images/repin-logo-icon.png"
+            alt=""
+            width={32}
+            height={32}
+            className="size-8 object-contain"
+            priority
+          />
           <span className="text-lg font-semibold tracking-tight">Repin</span>
         </Link>
 

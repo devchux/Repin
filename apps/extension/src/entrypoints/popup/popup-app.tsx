@@ -5,6 +5,7 @@ import { getRepinThemeClass, handleThemeChange } from "@/lib/theme";
 import { useRepinTheme } from "@/hooks/use-theme";
 import { repinThemes } from "@/types/content";
 import { cn } from "@repo/ui/lib/utils";
+import repinLogoUrl from "@/assets/repin-logo-icon.png";
 
 export const PopupApp = () => {
   const theme = useRepinTheme();
@@ -17,7 +18,10 @@ export const PopupApp = () => {
       )}
     >
       <div>
-        <h1 className="text-base font-semibold">Repin</h1>
+        <div className="flex items-center gap-2.5">
+          <img src={repinLogoUrl} alt="" className="size-8 object-contain" />
+          <h1 className="text-base font-semibold">Repin</h1>
+        </div>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
           Use the page toolbar to save or annotate the current tab.
         </p>

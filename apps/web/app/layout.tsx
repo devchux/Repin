@@ -16,6 +16,11 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Repin AI",
   description: "Your intelligent companion for the web.",
+  icons: {
+    icon: "/images/repin-logo-icon.png",
+    shortcut: "/images/repin-logo-icon.png",
+    apple: "/images/repin-logo-icon.png",
+  },
 };
 
 export default function RootLayout({

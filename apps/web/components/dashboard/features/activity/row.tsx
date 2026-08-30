@@ -16,10 +16,10 @@ export function ActivityRow({ run }: { run: AssistantRun }) {
   return (
     <Link
       href={`/activity/${run.id}`}
-      className="group grid gap-3 border-b p-4 transition-colors last:border-b-0 hover:bg-muted/40 active:bg-muted sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center md:p-5"
+      className="group grid gap-3 border-b px-4 py-5 transition-colors last:border-b-0 hover:bg-muted/35 active:bg-muted sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center md:px-5"
     >
       <span
-        className={`flex size-9 items-center justify-center rounded-lg ${status.className}`}
+        className={`flex size-9 items-center justify-center rounded-xl ${status.className}`}
       >
         <status.icon
           className={`size-4 ${status.spin ? "animate-spin" : ""}`}
@@ -28,10 +28,10 @@ export function ActivityRow({ run }: { run: AssistantRun }) {
       </span>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="max-w-full truncate text-sm font-semibold">
+          <h2 className="max-w-full truncate text-sm font-semibold tracking-tight group-hover:text-primary">
             {getRunTitle(run)}
           </h2>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium capitalize text-muted-foreground">
+          <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium capitalize text-muted-foreground">
             {run.capability}
           </span>
         </div>
