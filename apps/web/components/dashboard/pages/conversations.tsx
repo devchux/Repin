@@ -9,10 +9,12 @@ import { useMemo, useState } from "react";
 
 import { useFetch } from "@/hooks/useFetch";
 import { formatRelativeDate } from "@/lib/utils";
+import { FilterSelect } from "../features/conversations/filter-select";
 import { EmptyState } from "../features/common/empty-state";
 import { PageHeading } from "../features/common/page-heading";
 import { ConversationSkeleton } from "../features/conversations/skeleton";
 import { WorkspacePage } from "../layout/workspace-page";
+import { ConversationSort, ConversationType, UpdatedRange } from "@/types/conversation";
 
 export function ConversationsPage() {
   const [query, setQuery] = useState("");
@@ -90,7 +92,7 @@ export function ConversationsPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-b bg-muted/[0.16] px-4 py-2.5 text-xs text-muted-foreground md:px-5">
+          <div className="flex items-center justify-between border-b bg-muted/16 px-4 py-2.5 text-xs text-muted-foreground md:px-5">
             <span>{filteredItems.length} {filteredItems.length === 1 ? "conversation" : "conversations"}</span>
             <span>{filtersActive ? "Filtered results" : "All conversations"}</span>
           </div>
@@ -128,9 +130,7 @@ export function ConversationsPage() {
   );
 }
 
-type ConversationType = "all" | AssistantConversationSummary["initialCapability"];
-type UpdatedRange = "any" | "day" | "week" | "month";
-type ConversationSort = "recent" | "created" | "oldest" | "messages";
+
 
 function getUpdatedAfter(range: UpdatedRange) {
   const ranges: Record<Exclude<UpdatedRange, "any">, number> = {
@@ -139,15 +139,4 @@ function getUpdatedAfter(range: UpdatedRange) {
     month: 2_592_000_000,
   };
   return range === "any" ? undefined : Date.now() - ranges[range];
-}
-
-function FilterSelect({ label, value, onChange, children }: { readonly label: string; readonly value: string; readonly onChange: (value: string) => void; readonly children: React.ReactNode }) {
-  return (
-    <label>
-      <span className="sr-only">{label}</span>
-      <select className="h-9 w-full min-w-40 rounded-md border bg-background px-3 text-sm text-foreground shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={value} onChange={(event) => onChange(event.target.value)}>
-        {children}
-      </select>
-    </label>
-  );
 }

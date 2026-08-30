@@ -1,4 +1,5 @@
 import { StatusPresentation } from "@/types/activity";
+import { Theme, themes } from "@/types/appearance";
 import { AssistantRun, AssistantRunStatus } from "@repo/contracts/assistant";
 import { AlertCircle, CheckCircle2, LoaderCircle, XCircle } from "@repo/ui/icons";
 
@@ -82,4 +83,18 @@ export function getRunTitle(run: AssistantRun) {
     run.input?.trim() ||
     `${capitalize(run.capability)} ${getHost(run.context.url)}`
   );
+}
+
+export function isTheme(value: string | null): value is Theme {
+  return themes.some((theme) => theme === value);
+}
+
+export function applyTheme(theme: Theme) {
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.classList.toggle(
+    "dark",
+    theme === "dark" || (theme === "system" && prefersDark),
+  );
+  document.documentElement.style.colorScheme =
+    theme === "system" ? "light dark" : theme;
 }

@@ -1,33 +1,85 @@
 "use client";
 
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
-import { Avatar, AvatarFallback } from "@repo/ui/avatar";
+import { AppearanceSettings } from "@/components/dashboard/features/settings/appearance-settings";
+import { BrowserSettings } from "@/components/dashboard/features/settings/browser-settings";
+import { NotificationSettings } from "@/components/dashboard/features/settings/notification-settings";
+import { ProfileSettings } from "@/components/dashboard/features/settings/profile-settings";
 import { Button } from "@repo/ui/button";
-import { Input } from "@repo/ui/input";
-import { Label } from "@repo/ui/label";
-import { Bell, Check, Laptop, Moon, Save, Sun, User, Wifi } from "@repo/ui/icons";
+import { Check, Save } from "@repo/ui/icons";
 import { useState } from "react";
 import { WorkspacePage } from "../layout/workspace-page";
 
-const tabs = ["Profile", "Appearance", "Notifications", "Browser connection"] as const;
-type SettingsTab = typeof tabs[number];
+const tabs = [
+  "Profile",
+  "Appearance",
+  "Notifications",
+  "Browser connection",
+] as const;
+type SettingsTab = (typeof tabs)[number];
 
-export function SettingsPage({ initialTab = "Profile" }: { readonly initialTab?: SettingsTab }) {
-  const [tab, setTab] = useState<SettingsTab>(initialTab); const [saved, setSaved] = useState(false);
-  return <WorkspacePage><PageHeading eyebrow="Workspace" title="Settings" description="Manage your account, experience, and how Repin works across devices." />
-    <div className="mt-8 grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)]">
-      <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label="Settings sections">{tabs.map((item) => <button key={item} onClick={() => { setTab(item); setSaved(false); }} className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${tab === item ? "bg-accent font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}>{item}</button>)}</nav>
-      <section className="max-w-3xl">{tab === "Profile" ? <ProfileSettings /> : null}{tab === "Appearance" ? <AppearanceSettings /> : null}{tab === "Notifications" ? <NotificationSettings /> : null}{tab === "Browser connection" ? <BrowserSettings /> : null}
-        <div className="mt-8 flex items-center justify-between border-t pt-5"><p className="text-xs text-muted-foreground">{saved ? <span className="inline-flex items-center gap-1 text-primary"><Check className="size-3" />Changes saved</span> : "Changes are stored for this workspace."}</p><Button onClick={() => setSaved(true)}><Save />Save changes</Button></div>
-      </section>
-    </div>
-  </WorkspacePage>;
+export function SettingsPage({
+  initialTab = "Profile",
+}: {
+  readonly initialTab?: SettingsTab;
+}) {
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const [saved, setSaved] = useState(false);
+  return (
+    <WorkspacePage>
+      <PageHeading
+        eyebrow="Workspace"
+        title="Settings"
+        description="Manage your account, experience, and how Repin works across devices."
+      />
+      <div className="mt-8 grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <nav
+          className="flex gap-1 overflow-x-auto lg:flex-col"
+          aria-label="Settings sections"
+        >
+          {tabs.map((item) => (
+            <button
+              key={item}
+              onClick={() => {
+                setTab(item);
+                setSaved(false);
+              }}
+              className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${tab === item ? "bg-accent font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+        <section className="max-w-3xl">
+          {tab === "Profile" ? <ProfileSettings /> : null}
+          {tab === "Appearance" ? <AppearanceSettings /> : null}
+          {tab === "Notifications" ? <NotificationSettings /> : null}
+          {tab === "Browser connection" ? <BrowserSettings /> : null}
+          <div className="mt-8 flex items-center justify-between border-t pt-5">
+            <p className="text-xs text-muted-foreground">
+              {tab === "Appearance" ? (
+                <span className="inline-flex items-center gap-1 text-primary">
+                  <Check className="size-3" />
+                  Appearance changes are saved automatically
+                </span>
+              ) : saved ? (
+                <span className="inline-flex items-center gap-1 text-primary">
+                  <Check className="size-3" />
+                  Changes saved
+                </span>
+              ) : (
+                "Changes are stored for this workspace."
+              )}
+            </p>
+            {tab === "Appearance" ? null : (
+              <Button onClick={() => setSaved(true)}>
+                <Save />
+                Save changes
+              </Button>
+            )}
+          </div>
+        </section>
+      </div>
+    </WorkspacePage>
+  );
 }
-
-function SectionHeading({ title, description }: { readonly title: string; readonly description: string }) { return <div className="border-b pb-5"><h2 className="text-xl font-semibold">{title}</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p></div>; }
-function ProfileSettings() { return <><SectionHeading title="Profile" description="Personal information shown across your Repin workspace." /><div className="mt-6 flex items-center gap-4"><Avatar className="size-16"><AvatarFallback className="text-lg">CO</AvatarFallback></Avatar><div><Button variant="outline" size="sm">Change photo</Button><p className="mt-2 text-xs text-muted-foreground">JPG, PNG, or WebP. 2 MB max.</p></div></div><div className="mt-7 grid gap-5 sm:grid-cols-2"><Field label="Full name" defaultValue="Chukwudi Onwuma" /><Field label="Email address" type="email" defaultValue="chukwudi@example.com" /><div className="sm:col-span-2"><Field label="Workspace name" defaultValue="Chukwudi's workspace" /></div></div></>; }
-function AppearanceSettings() { const [theme, setTheme] = useState("System"); return <><SectionHeading title="Appearance" description="Choose how Repin looks on this device." /><div className="mt-6 grid gap-3 sm:grid-cols-3">{[{name:"Light",icon:Sun},{name:"Dark",icon:Moon},{name:"System",icon:Laptop}].map(({name,icon:Icon}) => <button key={name} onClick={() => setTheme(name)} className={`rounded-xl border p-3 text-left transition-colors ${theme === name ? "border-primary ring-2 ring-primary/15" : "hover:bg-muted/30"}`}><div className={`flex h-24 items-center justify-center rounded-lg border ${name === "Dark" ? "bg-zinc-900 text-zinc-100" : name === "System" ? "bg-gradient-to-r from-white from-50% to-zinc-900 text-primary" : "bg-white text-zinc-900"}`}><Icon className="size-5" /></div><p className="mt-3 text-sm font-medium">{name}</p></button>)}</div><div className="mt-8"><Label htmlFor="density">Content density</Label><select id="density" className="mt-2 h-11 w-full rounded-md border bg-background px-3 text-sm sm:max-w-sm"><option>Comfortable</option><option>Compact</option></select></div></>; }
-function NotificationSettings() { return <><SectionHeading title="Notifications" description="Decide which updates deserve your attention." /><div className="mt-2 divide-y"><Toggle icon={Bell} title="Assistant run updates" description="When a long-running task completes or needs approval." defaultChecked /><Toggle icon={Wifi} title="Browser connection" description="When the extension connects or goes offline." defaultChecked /><Toggle icon={User} title="Product updates" description="Occasional news about new Repin capabilities." /></div></>; }
-function BrowserSettings() { return <><SectionHeading title="Browser connection" description="Manage extension sessions that can carry out browser actions." /><div className="mt-6 rounded-xl border p-5"><div className="flex items-start gap-4"><span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Wifi /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">Chrome on this Mac</h3><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Connected</span></div><p className="mt-1 text-sm text-muted-foreground">Extension 0.1 · Last active just now</p></div><Button variant="outline" size="sm">Disconnect</Button></div></div><div className="mt-6 rounded-xl border border-dashed p-5"><h3 className="font-medium">Connect another browser</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Install the Repin extension and sign in with this account. Your browser will appear here automatically.</p><Button className="mt-4" variant="outline">Get the extension</Button></div></>; }
-function Field({ label, ...props }: React.ComponentProps<typeof Input> & { readonly label: string }) { const id = label.toLowerCase().replaceAll(" ", "-"); return <div><Label htmlFor={id}>{label}</Label><Input id={id} className="mt-2 shadow-none" {...props} /></div>; }
-function Toggle({ icon: Icon, title, description, defaultChecked }: { readonly icon: typeof Bell; readonly title: string; readonly description: string; readonly defaultChecked?: boolean }) { const [checked, setChecked] = useState(Boolean(defaultChecked)); return <div className="flex items-center gap-4 py-5"><span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="size-4" /></span><div className="min-w-0 flex-1"><p className="text-sm font-medium">{title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p></div><button type="button" role="switch" aria-checked={checked} onClick={() => setChecked(!checked)} className={`relative h-6 w-11 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}><span className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`} /></button></div>; }

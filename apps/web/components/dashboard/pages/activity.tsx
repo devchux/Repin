@@ -13,8 +13,7 @@ import { ActivitySkeleton } from "../features/activity/skeleton";
 import { EmptyState } from "../features/common/empty-state";
 import { PageHeading } from "../features/common/page-heading";
 import { WorkspacePage } from "../layout/workspace-page";
-
-type ActivityFilter = "all" | "in-progress" | "completed" | "failed";
+import { ActivityFilter } from "@/types/activity";
 
 const filters: readonly { label: string; value: ActivityFilter }[] = [
   { label: "All", value: "all" },
