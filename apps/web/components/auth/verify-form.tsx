@@ -3,6 +3,7 @@
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { Label } from "@repo/ui/label";
+import { Skeleton } from "@repo/ui/skeleton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -46,10 +47,10 @@ export function VerifyForm({ mode }: VerifyFormProps) {
   if (!hasHydrated || !pendingAuth) {
     return (
       <div aria-label="Loading verification" className="grid gap-4">
-        <div className="h-8 w-44 animate-pulse rounded-md bg-muted" />
-        <div className="h-4 w-full animate-pulse rounded-md bg-muted" />
-        <div className="mt-5 h-11 w-full animate-pulse rounded-md bg-muted" />
-        <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
+        <Skeleton className="h-8 w-44" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="mt-5 h-11 w-full" />
+        <Skeleton className="h-11 w-full" />
       </div>
     );
   }

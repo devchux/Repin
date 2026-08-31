@@ -57,6 +57,18 @@ export class RunService {
     };
   }
 
+  async findRuns(userId: number) {
+    const runs = await this.repository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+    return {
+      message: 'Assistant runs found successfully',
+      data: runs.map((run) => this.toResponse(run)),
+    };
+  }
+
   async watchRun(
     userId: number,
     runId: string,
@@ -229,7 +241,11 @@ export class RunService {
   }
 
   validateRequest(request: ExecuteDto): void {
-    if (!request.context.selectedText && !request.context.pageContent) {
+    if (
+      request.capability !== 'chat' &&
+      !request.context.selectedText &&
+      !request.context.pageContent
+    ) {
       throw new BadRequestException(
         'Selected text or page content is required',
       );
@@ -250,6 +266,8 @@ export class RunService {
       conversationId: run.conversationId,
       capability: run.capability,
       executionLane: run.executionLane,
+      context: run.context,
+      input: run.input,
       status: run.status,
       phase: run.phase,
       result: run.result,

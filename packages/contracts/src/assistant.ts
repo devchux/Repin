@@ -90,6 +90,8 @@ export interface AssistantRun {
   readonly status: AssistantRunStatus;
   readonly phase: AssistantRunPhase;
   readonly executionLane: AssistantExecutionLane;
+  readonly context: PageContext;
+  readonly input?: string;
   readonly result?: string;
   readonly error?: string;
   readonly provider?: string;
@@ -136,6 +138,16 @@ export interface AssistantConversation {
   readonly initialCapability: AiAssistantCapability;
   readonly context: PageContext;
   readonly messages: readonly AssistantConversationMessage[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AssistantConversationSummary {
+  readonly id: string;
+  readonly initialCapability: AiAssistantCapability;
+  readonly title: string;
+  readonly preview: string;
+  readonly messageCount: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

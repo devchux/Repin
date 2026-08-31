@@ -10,6 +10,7 @@ import {
   REPIN_SIDEBAR_VIEWPORT_GAP,
 } from "@/lib/constants";
 import type { RepinSidebarMode } from "@/types";
+import repinLogoUrl from "@/assets/repin-logo-icon.png";
 
 interface RepinSidebarProps {
   mode: RepinSidebarMode;
@@ -56,9 +57,11 @@ export const RepinSidebar = ({
             className="flex min-w-0 items-center gap-3 rounded-md text-left outline-none transition hover:text-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950"
             type="button"
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
-              <Icon aria-hidden="true" className="size-4" />
-            </span>
+            <img
+              src={repinLogoUrl}
+              alt=""
+              className="size-9 shrink-0 object-contain"
+            />
             <span className="min-w-0">
               <span className="truncate text-base font-semibold">
                 {config.title}

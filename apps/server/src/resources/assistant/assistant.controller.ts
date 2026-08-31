@@ -34,6 +34,11 @@ export class AssistantController {
     return this.assistantService.findRun(user.id, runId);
   }
 
+  @Get('runs')
+  findRuns(@CurrentUser() user: AuthUser) {
+    return this.assistantService.findRuns(user.id);
+  }
+
   @Sse('runs/:id/events')
   @SkipTimeout()
   @SkipResponseTransform()
@@ -92,6 +97,11 @@ export class AssistantController {
     @Param('id', ParseUUIDPipe) conversationId: string,
   ) {
     return this.assistantService.findConversation(user.id, conversationId);
+  }
+
+  @Get('conversations')
+  findConversations(@CurrentUser() user: AuthUser) {
+    return this.assistantService.findConversations(user.id);
   }
 
   @Post('conversations/:id/messages')
