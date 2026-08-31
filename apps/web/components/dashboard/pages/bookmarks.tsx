@@ -13,6 +13,7 @@ import {
   Folder,
   MoreHorizontal,
 } from "@repo/ui/icons";
+import { Tabs, TabsList, TabsTrigger } from "@repo/ui/tabs";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { WorkspacePage } from "../layout/workspace-page";
@@ -56,16 +57,16 @@ export function BookmarksPage() {
         layout={layout}
         onLayoutChange={setLayout}
       >
-        <div className="flex items-center gap-1 rounded-md border bg-background p-1">
-          {folders.slice(0, 4).map((item) => (
-            <button
-              key={item}
-              onClick={() => setFolder(item)}
-              className={`whitespace-nowrap rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${folder === item ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-            >
-              {item}
-            </button>
-          ))}
+        <div className="flex items-center rounded-md border bg-background p-1">
+          <Tabs value={folder} onValueChange={setFolder}>
+            <TabsList className="h-auto bg-transparent p-0" aria-label="Filter bookmarks by folder">
+              {folders.slice(0, 4).map((item) => (
+                <TabsTrigger key={item} value={item} className="h-7 px-2.5 text-xs">
+                  {item}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           <Button
             size="icon"
             variant="ghost"

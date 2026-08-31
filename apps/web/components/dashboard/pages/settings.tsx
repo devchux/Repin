@@ -7,6 +7,7 @@ import { NotificationSettings } from "@/components/dashboard/features/settings/n
 import { ProfileSettings } from "@/components/dashboard/features/settings/profile-settings";
 import { Button } from "@repo/ui/button";
 import { Check, Save } from "@repo/ui/icons";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/tabs";
 import { useState } from "react";
 import { WorkspacePage } from "../layout/workspace-page";
 
@@ -32,29 +33,33 @@ export function SettingsPage({
         title="Settings"
         description="Manage your account, experience, and how Repin works across devices."
       />
-      <div className="mt-8 grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)]">
-        <nav
-          className="flex gap-1 overflow-x-auto lg:flex-col"
+      <Tabs
+        value={tab}
+        onValueChange={(value) => {
+          setTab(value as SettingsTab);
+          setSaved(false);
+        }}
+        className="mt-8 grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)]"
+      >
+        <TabsList
+          className="h-auto w-full justify-start overflow-x-auto bg-transparent p-0 lg:flex-col lg:items-stretch"
           aria-label="Settings sections"
         >
           {tabs.map((item) => (
-            <button
+            <TabsTrigger
               key={item}
-              onClick={() => {
-                setTab(item);
-                setSaved(false);
-              }}
-              className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${tab === item ? "bg-accent font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}
+              value={item}
+              className="h-auto flex-none justify-start border-0 px-3 py-2.5 text-muted-foreground shadow-none data-[state=active]:bg-accent data-[state=active]:text-foreground data-[state=active]:shadow-none lg:w-full"
             >
               {item}
-            </button>
+            </TabsTrigger>
           ))}
-        </nav>
+        </TabsList>
         <section className="max-w-3xl">
-          {tab === "Profile" ? <ProfileSettings /> : null}
-          {tab === "Appearance" ? <AppearanceSettings /> : null}
-          {tab === "Notifications" ? <NotificationSettings /> : null}
-          {tab === "Browser connection" ? <BrowserSettings /> : null}
+          <TabsContent value="Profile"><ProfileSettings /></TabsContent>
+          <TabsContent value="Appearance"><AppearanceSettings /></TabsContent>
+          <TabsContent value="Notifications"><NotificationSettings /></TabsContent>
+          <TabsContent value="Browser connection"><BrowserSettings /></TabsContent>
           <div className="mt-8 flex items-center justify-between border-t pt-5">
             <p className="text-xs text-muted-foreground">
               {tab === "Appearance" ? (
@@ -79,7 +84,7 @@ export function SettingsPage({
             )}
           </div>
         </section>
-      </div>
+      </Tabs>
     </WorkspacePage>
   );
 }

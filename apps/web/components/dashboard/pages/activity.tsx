@@ -4,6 +4,7 @@ import type { AssistantRun } from "@repo/contracts/assistant";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { Search } from "@repo/ui/icons";
+import { Tabs, TabsList, TabsTrigger } from "@repo/ui/tabs";
 import { useMemo, useState } from "react";
 
 import { useFetch } from "@/hooks/useFetch";
@@ -89,63 +90,72 @@ export function ActivityPage() {
         />
       </section>
 
-      <section className="mt-7 overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)]" aria-label="Assistant activity">
+      <section
+        className="mt-7 overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)]"
+        aria-label="Assistant activity"
+      >
         <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex gap-1 overflow-x-auto rounded-lg bg-muted/70 p-1" aria-label="Filter activity">
-          {filters.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setFilter(item.value)}
-              aria-pressed={filter === item.value}
-              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${filter === item.value ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          <Tabs
+            value={filter}
+            onValueChange={(value) => setFilter(value as ActivityFilter)}
+          >
+            <TabsList
+              className="h-auto max-w-full justify-start overflow-x-auto bg-muted/70"
+              aria-label="Filter activity"
             >
-              {item.label}
-            </button>
-          ))}
-          </div>
+              {filters.map((item) => (
+                <TabsTrigger
+                  key={item.value}
+                  value={item.value}
+                  className="flex-none px-3 py-1.5"
+                >
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           <div className="relative w-full md:max-w-xs">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            aria-label="Search activity"
-            className="bg-muted/25 pl-9 shadow-none"
-            placeholder="Search activity"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              aria-label="Search activity"
+              className="bg-muted/25 pl-9 shadow-none"
+              placeholder="Search activity"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
           </div>
         </div>
         <div className="border-t">
-        {runs.isLoading ? <ActivitySkeleton /> : null}
-        {runs.isError ? (
-          <EmptyState
-            title="Activity could not be loaded"
-            description="Check your connection and try again."
-            action={
-              <Button onClick={() => void runs.refetch()}>Try again</Button>
-            }
-          />
-        ) : null}
-        {!runs.isLoading && !runs.isError && items.length === 0 ? (
-          <EmptyState
-            title={
-              query || filter !== "all"
-                ? "No matching activity"
-                : "No activity yet"
-            }
-            description={
-              query || filter !== "all"
-                ? "Adjust the search or filter to see more results."
-                : "Assistant and browser runs will appear here as you use Repin."
-            }
-          />
-        ) : null}
-        {items.map((run) => (
-          <ActivityRow key={run.id} run={run} />
-        ))}
+          {runs.isLoading ? <ActivitySkeleton /> : null}
+          {runs.isError ? (
+            <EmptyState
+              title="Activity could not be loaded"
+              description="Check your connection and try again."
+              action={
+                <Button onClick={() => void runs.refetch()}>Try again</Button>
+              }
+            />
+          ) : null}
+          {!runs.isLoading && !runs.isError && items.length === 0 ? (
+            <EmptyState
+              title={
+                query || filter !== "all"
+                  ? "No matching activity"
+                  : "No activity yet"
+              }
+              description={
+                query || filter !== "all"
+                  ? "Adjust the search or filter to see more results."
+                  : "Assistant and browser runs will appear here as you use Repin."
+              }
+            />
+          ) : null}
+          {items.map((run) => (
+            <ActivityRow key={run.id} run={run} />
+          ))}
         </div>
       </section>
     </WorkspacePage>
