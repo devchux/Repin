@@ -16,9 +16,9 @@ export const REPIN_THEME_STORAGE_KEY = "repin:theme";
 export const modeConfig = {
   summarize: {
     title: "Summarize",
-    description: "Create a concise summary of the selected passage.",
+    description: "Create a concise summary of the current page.",
     icon: FileText,
-    emptyState: "Select text and ask Repin to summarize the important points.",
+    emptyState: "Repin will identify the page's important points.",
     prompt: "Ask follow-up",
     primaryAction: "Save summary",
   },

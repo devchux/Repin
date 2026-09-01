@@ -18,6 +18,7 @@ interface ContentAppState {
   sidebarMode: RepinSidebarMode;
   sidebarOpen: boolean;
   sidebarPinned: boolean;
+  sidebarRequestId: number;
   toolbarPosition: ToolbarPosition | null;
 }
 
@@ -27,6 +28,7 @@ export const ContentApp = () => {
     sidebarMode: "summarize",
     sidebarOpen: false,
     sidebarPinned: false,
+    sidebarRequestId: 0,
     toolbarPosition: null,
   });
   const dismissedSelectionRangeRef = useRef<Range | null>(null);
@@ -49,6 +51,7 @@ export const ContentApp = () => {
       selectedText: window.getSelection()?.toString().trim() ?? "",
       sidebarMode: mode,
       sidebarOpen: true,
+      sidebarRequestId: state.sidebarRequestId + 1,
     });
   };
 
@@ -176,6 +179,7 @@ export const ContentApp = () => {
         pinned={state.sidebarPinned}
         open={state.sidebarOpen}
         selectedText={state.selectedText}
+        requestId={state.sidebarRequestId}
         onClose={() => setState({ sidebarOpen: false })}
         onPinnedChange={(sidebarPinned) => setState({ sidebarPinned })}
       />

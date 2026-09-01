@@ -127,6 +127,10 @@ export async function authenticatedFetch(
   return response;
 }
 
+export async function getExtensionServerUrl(): Promise<string> {
+  return (await getServiceUrls()).serverUrl;
+}
+
 async function getAccessToken(): Promise<string> {
   const stored = await browser.storage.session.get([
     ACCESS_TOKEN_KEY,

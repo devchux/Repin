@@ -11,6 +11,7 @@ import {
 } from "@/lib/constants";
 import type { RepinSidebarMode } from "@/types";
 import repinLogoUrl from "@/assets/repin-logo-icon.png";
+import { SummarizeRun } from "./summarize-run";
 
 interface RepinSidebarProps {
   mode: RepinSidebarMode;
@@ -21,6 +22,7 @@ interface RepinSidebarProps {
   };
   pinned: boolean;
   selectedText: string;
+  requestId: number;
   onClose: () => void;
   onPinnedChange: (pinned: boolean) => void;
 }
@@ -31,6 +33,7 @@ export const RepinSidebar = ({
   page,
   pinned,
   selectedText,
+  requestId,
   onClose,
   onPinnedChange,
 }: RepinSidebarProps) => {
@@ -101,34 +104,43 @@ export const RepinSidebar = ({
       <main className="flex flex-1 flex-col overflow-y-auto">
         <section className="border-b border-neutral-200 p-4 dark:border-neutral-800">
           <h2 className="text-xs font-medium tracking-wide text-neutral-500 dark:text-neutral-400">
-            Selected text
+            {mode === "summarize" ? "Current page" : "Selected text"}
           </h2>
 
           <div className="mt-4">
             <p className="line-clamp-4 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm leading-6 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
-              {hasSelection ? selectedText : "No selected text available."}
+              {mode === "summarize"
+                ? page.title || page.url
+                : hasSelection
+                  ? selectedText
+                  : "No selected text available."}
             </p>
           </div>
         </section>
 
-        <section className="flex flex-1 flex-col gap-4 p-4">
-          <div className="flex items-start gap-3">
-            <span className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-white">
-              <Icon aria-hidden="true" className="size-4" />
-            </span>
-            <div className="min-w-0 flex-1 space-y-2">
-              <p className="text-sm leading-6 text-neutral-700 dark:text-neutral-200">
-                {config.description}
-              </p>
-              <p className="text-sm leading-6 text-neutral-500 dark:text-neutral-400">
-                {config.emptyState}
-              </p>
+        {mode === "summarize" ? (
+          <SummarizeRun enabled={open} requestId={requestId} />
+        ) : (
+          <section className="flex flex-1 flex-col gap-4 p-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="text-sm leading-6 text-neutral-700 dark:text-neutral-200">
+                  {config.description}
+                </p>
+                <p className="text-sm leading-6 text-neutral-500 dark:text-neutral-400">
+                  {config.emptyState}
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
-      <footer className="relative border-t border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950">
+      {mode !== "summarize" ? (
+        <footer className="relative border-t border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950">
         {recording ? (
           <div className="flex items-center gap-2 rounded-3xl border border-neutral-200 bg-white p-2.5 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-neutral-100 px-3 dark:bg-neutral-950">
@@ -198,7 +210,8 @@ export const RepinSidebar = ({
             </div>
           </div>
         )}
-      </footer>
+        </footer>
+      ) : null}
     </aside>
   );
 };
