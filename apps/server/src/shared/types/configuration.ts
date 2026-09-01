@@ -12,7 +12,10 @@ export type Configuration = {
   auth: {
     accessTokenSecret: string;
     refreshTokenSecret: string;
+    extensionClientIds: string[];
     accessTokenTtl: number;
+    extensionAuthorizationCodeTtl: number;
+    extensionRefreshTokenTtl: number;
     refreshTokenTtl: number;
   };
   database: {

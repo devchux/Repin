@@ -7,7 +7,14 @@ export default defineConfig({
   manifest: {
     name: "Repin",
     description: "Save, annotate, and organize useful pages from anywhere.",
-    permissions: ["storage", "tabs", "sessions", "downloads", "scripting"],
+    permissions: [
+      "identity",
+      "storage",
+      "tabs",
+      "sessions",
+      "downloads",
+      "scripting",
+    ],
     optional_permissions: ["debugger"] as never[],
     host_permissions: ["<all_urls>"],
     action: {

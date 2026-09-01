@@ -11,13 +11,18 @@ export const metadata: Metadata = {
 type VerifyPageProps = {
   searchParams: Promise<{
     mode?: string;
+    returnTo?: string;
   }>;
 };
 
 export default async function VerifyPage({ searchParams }: VerifyPageProps) {
-  const { mode: requestedMode } = await searchParams;
+  const { mode: requestedMode, returnTo } = await searchParams;
 
   const mode: AuthMode = requestedMode === "register" ? "register" : "login";
 
-  return <VerifyForm mode={mode} />;
+  const safeReturnTo =
+    returnTo?.startsWith("/") && !returnTo.startsWith("//")
+      ? returnTo
+      : undefined;
+  return <VerifyForm mode={mode} returnTo={safeReturnTo} />;
 }

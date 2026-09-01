@@ -30,8 +30,19 @@ async function bootstrap() {
   const corsOrigin = configService.get<string>('corsOrigin');
   const enableSwagger = configService.get<boolean>('enableSwagger');
 
+  const allowedWebOrigins = corsOrigin
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      const allowed =
+        !origin ||
+        allowedWebOrigins.includes(origin) ||
+        origin.startsWith('chrome-extension://') ||
+        origin.startsWith('moz-extension://');
+      callback(allowed ? null : new Error('Origin is not allowed'), allowed);
+    },
     credentials: true,
   });
 

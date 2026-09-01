@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   description: "Create your Repin workspace.",
 };
 
-export default function RegisterPage() {
-  return <RegisterForm />;
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
+  const { returnTo } = await searchParams;
+  const safeReturnTo =
+    returnTo?.startsWith("/") && !returnTo.startsWith("//")
+      ? returnTo
+      : undefined;
+  return <RegisterForm returnTo={safeReturnTo} />;
 }

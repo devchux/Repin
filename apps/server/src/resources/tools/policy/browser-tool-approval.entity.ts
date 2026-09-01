@@ -47,7 +47,7 @@ export class BrowserToolApproval {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column()
+  @Column({ type: 'varchar' })
   toolName: BrowserToolName;
 
   @Column({ type: 'jsonb' })
@@ -62,7 +62,7 @@ export class BrowserToolApproval {
   @Column({ type: 'text' })
   reason: string;
 
-  @Column({ default: 'pending' })
+  @Column({ type: 'varchar', default: 'pending' })
   status: BrowserToolApprovalStatus;
 
   @Column({ type: 'timestamp' })

@@ -12,9 +12,10 @@ import { type AuthMode, useAuth } from "@/hooks/useAuth";
 
 type VerifyFormProps = {
   mode: AuthMode;
+  returnTo?: string;
 };
 
-export function VerifyForm({ mode }: VerifyFormProps) {
+export function VerifyForm({ mode, returnTo }: VerifyFormProps) {
   const router = useRouter();
   const {
     hasHydrated,
@@ -28,9 +29,14 @@ export function VerifyForm({ mode }: VerifyFormProps) {
 
   useEffect(() => {
     if (hasHydrated && !pendingAuth) {
-      router.replace(mode === "register" ? "/register" : "/login");
+      const authPath = mode === "register" ? "/register" : "/login";
+      router.replace(
+        returnTo
+          ? `${authPath}?returnTo=${encodeURIComponent(returnTo)}`
+          : authPath,
+      );
     }
-  }, [hasHydrated, mode, pendingAuth, router]);
+  }, [hasHydrated, mode, pendingAuth, returnTo, router]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,7 +48,10 @@ export function VerifyForm({ mode }: VerifyFormProps) {
   }
 
   const activeMode = pendingAuth?.mode ?? mode;
-  const returnPath = activeMode === "register" ? "/register" : "/login";
+  const authPath = activeMode === "register" ? "/register" : "/login";
+  const returnPath = returnTo
+    ? `${authPath}?returnTo=${encodeURIComponent(returnTo)}`
+    : authPath;
 
   if (!hasHydrated || !pendingAuth) {
     return (

@@ -15,6 +15,8 @@ WORKDIR /app
 # Copy package-related files first to leverage Docker's caching mechanism
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/package.json
+COPY packages/client/package.json ./packages/client/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 COPY packages/eslint-config/package.json ./packages/eslint-config/package.json
 COPY packages/typescript-config/package.json ./packages/typescript-config/package.json
@@ -37,6 +39,8 @@ WORKDIR /app
 # Copy project dependencies from dependencies stage
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=dependencies /app/packages/client/node_modules ./packages/client/node_modules
+COPY --from=dependencies /app/packages/contracts/node_modules ./packages/contracts/node_modules
 COPY --from=dependencies /app/packages/ui/node_modules ./packages/ui/node_modules
 
 # Copy application source code

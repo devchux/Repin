@@ -24,17 +24,29 @@ export default (): Configuration => ({
   auth: {
     accessTokenSecret: required('ACCESS_TOKEN_SECRET'),
     refreshTokenSecret: required('REFRESH_TOKEN_SECRET'),
+    extensionClientIds: (process.env.EXTENSION_CLIENT_IDS ?? '')
+      .split(',')
+      .map((clientId) => clientId.trim())
+      .filter(Boolean),
     accessTokenTtl: optionalInt('ACCESS_TOKEN_TTL', 900000),
+    extensionAuthorizationCodeTtl: optionalInt(
+      'EXTENSION_AUTHORIZATION_CODE_TTL',
+      60000,
+    ),
+    extensionRefreshTokenTtl: optionalInt(
+      'EXTENSION_REFRESH_TOKEN_TTL',
+      2592000000,
+    ),
     refreshTokenTtl: optionalInt('REFRESH_TOKEN_TTL', 604800000),
   },
   database: {
     url: required('DATABASE_URL'),
   },
   ai: {
-    provider: process.env.AI_PROVIDER || 'groq',
+    provider: process.env.AI_PROVIDER || 'openai',
     apiKey: process.env.AI_API_KEY || '',
-    baseUrl: process.env.AI_BASE_URL || 'https://api.groq.com/openai/v1',
-    model: process.env.AI_MODEL || 'llama-3.1-8b-instant',
+    baseUrl: process.env.AI_BASE_URL || 'https://api.openai.com/v1',
+    model: process.env.AI_MODEL || 'gpt-5-mini',
     requestTimeout: optionalInt('AI_REQUEST_TIMEOUT', 120000),
   },
   assistantQueue: {

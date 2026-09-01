@@ -44,7 +44,7 @@ export class Definition {
   @Column({ type: 'jsonb', nullable: true })
   activation?: WorkflowActivation;
 
-  @Column({ default: 'manual' })
+  @Column({ type: 'varchar', default: 'manual' })
   source: WorkflowDefinitionSource;
 
   @Column({ type: 'jsonb', nullable: true })

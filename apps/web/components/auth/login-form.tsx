@@ -8,7 +8,7 @@ import { type FormEvent } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 
-export function LoginForm() {
+export function LoginForm({ returnTo }: { returnTo?: string }) {
   const { login, isLoggingIn } = useAuth();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -59,7 +59,11 @@ export function LoginForm() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         New to Repin?{" "}
         <Link
-          href="/register"
+          href={
+            returnTo
+              ? `/register?returnTo=${encodeURIComponent(returnTo)}`
+              : "/register"
+          }
           className="font-medium text-foreground underline-offset-4 hover:underline"
         >
           Create an account

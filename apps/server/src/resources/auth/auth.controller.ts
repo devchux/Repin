@@ -11,6 +11,11 @@ import { RegisterDto } from './dto/register.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
 import type { AuthenticatedRequest } from 'src/shared/types';
 import { Public } from './decorators/public.decorator';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthorizeExtensionDto } from './dto/authorize-extension.dto';
+import { ExchangeExtensionCodeDto } from './dto/exchange-extension-code.dto';
+import { RefreshExtensionDto } from './dto/refresh-extension.dto';
+import type { AuthUser } from 'src/shared/types';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -99,5 +104,32 @@ export class AuthController {
       message: 'Authenticated user found successfully',
       data: (request as AuthenticatedRequest).user,
     };
+  }
+
+  @Post('extension/authorize')
+  authorizeExtension(
+    @CurrentUser() user: AuthUser,
+    @Body() request: AuthorizeExtensionDto,
+  ) {
+    return this.authService.authorizeExtension(user, request);
+  }
+
+  @Post('extension/token')
+  @Public()
+  exchangeExtensionCode(@Body() request: ExchangeExtensionCodeDto) {
+    return this.authService.exchangeExtensionCode(request);
+  }
+
+  @Post('extension/refresh')
+  @Public()
+  refreshExtension(@Body() request: RefreshExtensionDto) {
+    return this.authService.refreshExtension(request.refreshToken);
+  }
+
+  @Post('extension/logout')
+  @Public()
+  async logoutExtension(@Body() request: RefreshExtensionDto) {
+    await this.authService.logoutExtension(request.refreshToken);
+    return { message: 'Extension disconnected', data: null };
   }
 }

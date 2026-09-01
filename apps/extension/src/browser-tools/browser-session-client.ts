@@ -4,11 +4,18 @@ import {
   type BrowserSessionServerMessage,
 } from "@repo/contracts/browser-session";
 import { executeBrowserCommand } from "./browser-command-router";
+import { authenticatedFetch } from "../auth/extension-auth-client";
 
 const SERVER_URL_KEY = "repinServerUrl";
 const SESSION_ID_KEY = "repinBrowserSessionId";
 const COMMAND_RESULTS_KEY = "repinBrowserCommandResults";
 const MAX_CACHED_COMMAND_RESULTS = 100;
+let activeSocket: WebSocket | undefined;
+
+export const stopBrowserSession = (): void => {
+  activeSocket?.close(1000, "Extension disconnected");
+  activeSocket = undefined;
+};
 
 export const startBrowserSession = async (): Promise<void> => {
   const stored = await browser.storage.local.get([
@@ -16,16 +23,15 @@ export const startBrowserSession = async (): Promise<void> => {
     SESSION_ID_KEY,
   ]);
   const serverUrl =
-    (stored[SERVER_URL_KEY] as string | undefined) ?? "http://localhost:8080";
+    (stored[SERVER_URL_KEY] as string | undefined) ?? "http://localhost:3001";
   const browserSessionId =
     (stored[SESSION_ID_KEY] as string | undefined) ?? crypto.randomUUID();
   await browser.storage.local.set({ [SESSION_ID_KEY]: browserSessionId });
 
-  const ticketResponse = await fetch(
+  const ticketResponse = await authenticatedFetch(
     `${serverUrl}/api/browser-sessions/ticket`,
     {
       method: "POST",
-      credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ browserSessionId }),
     },
@@ -41,6 +47,7 @@ export const startBrowserSession = async (): Promise<void> => {
   websocketUrl.pathname = "/api/browser-sessions/connect";
   websocketUrl.search = new URLSearchParams({ ticket }).toString();
   const socket = new WebSocket(websocketUrl);
+  activeSocket = socket;
   const running = new Map<string, AbortController>();
 
   socket.addEventListener("open", () =>
@@ -98,7 +105,14 @@ export const startBrowserSession = async (): Promise<void> => {
     }
   });
   await new Promise<void>((resolve) => {
-    socket.addEventListener("close", () => resolve(), { once: true });
+    socket.addEventListener(
+      "close",
+      () => {
+        if (activeSocket === socket) activeSocket = undefined;
+        resolve();
+      },
+      { once: true },
+    );
   });
 };
 

@@ -1,10 +1,29 @@
-import { startBrowserSession } from "../browser-tools/browser-session-client";
+import {
+  startBrowserSession,
+  stopBrowserSession,
+} from "../browser-tools/browser-session-client";
+import {
+  connectExtension,
+  disconnectExtension,
+  getExtensionAuthState,
+  initializeExtensionAuth,
+} from "../auth/extension-auth-client";
 
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     console.info("Repin extension installed");
   });
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if (!message || typeof message !== "object" || !("type" in message)) return;
+    if (message.type === "repin.auth.status") return getExtensionAuthState();
+    if (message.type === "repin.auth.connect") return connectExtension();
+    if (message.type === "repin.auth.disconnect") {
+      stopBrowserSession();
+      return disconnectExtension().then(() => ({ authenticated: false }));
+    }
+  });
   const maintainBrowserSession = async () => {
+    await initializeExtensionAuth();
     while (true) {
       try {
         await startBrowserSession();

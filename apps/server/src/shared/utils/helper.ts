@@ -65,6 +65,12 @@ export const getAuthCodeKey = (email: string) => `auth-code:${email}`;
 export const getRefreshTokenKey = (sessionId: string) =>
   `refresh-token:${sessionId}`;
 
+export const getExtensionAuthorizationCodeKey = (code: string) =>
+  `extension-auth-code:${hashToken(code)}`;
+
+export const getExtensionRefreshTokenKey = (token: string) =>
+  `extension-refresh-token:${hashToken(token)}`;
+
 export const hashToken = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 

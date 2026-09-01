@@ -38,7 +38,7 @@ export class ConversationMessage {
   @JoinColumn({ name: 'runId' })
   run?: Run;
 
-  @Column()
+  @Column({ type: 'varchar' })
   role: ConversationMessageRole;
 
   @Column({ type: 'text' })
