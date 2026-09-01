@@ -1,6 +1,7 @@
 import { CircleStop, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { Button } from "@repo/ui/button";
+import { RichContent } from "@repo/ui/rich-content";
 
 import { useSummarizePageRun } from "../hooks/use-assistant-run";
 
@@ -60,9 +61,7 @@ export const SummarizeRun = ({
           <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
             Summary
           </h2>
-          <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-neutral-700 dark:text-neutral-200">
-            {run.result}
-          </div>
+          <RichContent className="mt-3" content={run.result} />
         </div>
       ) : null}
 

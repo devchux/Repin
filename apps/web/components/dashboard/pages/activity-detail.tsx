@@ -8,6 +8,7 @@ import {
   MessageSquareText,
 } from "@repo/ui/icons";
 import { Skeleton } from "@repo/ui/skeleton";
+import { RichContent } from "@repo/ui/rich-content";
 import Link from "next/link";
 
 import { useFetch } from "@/hooks/useFetch";
@@ -142,9 +143,10 @@ export function ActivityDetailPage({ runId }: { runId: string }) {
               />{" "}
               Result
             </h2>
-            <div className="mt-3 whitespace-pre-wrap rounded-xl border bg-background p-5 text-sm leading-7">
-              {run.result}
-            </div>
+            <RichContent
+              className="mt-3 rounded-xl border bg-background p-5"
+              content={run.result}
+            />
           </div>
         ) : null}
         {run.error ? (
