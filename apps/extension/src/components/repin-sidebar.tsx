@@ -22,7 +22,7 @@ interface RepinSidebarProps {
   };
   pinned: boolean;
   selectedText: string;
-  requestId: number;
+  requestId: string;
   onClose: () => void;
   onPinnedChange: (pinned: boolean) => void;
 }

@@ -12,10 +12,19 @@ import {
   handleAssistantRunMessage,
   isAssistantRunMessage,
 } from "../assistant/background-run-handler";
+import {
+  handleContextMenuClick,
+  registerContextMenus,
+} from "../lib/context-menus";
 
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     console.info("Repin extension installed");
+    void registerContextMenus();
+  });
+  browser.runtime.onStartup.addListener(() => void registerContextMenus());
+  browser.contextMenus.onClicked.addListener((info, tab) => {
+    void handleContextMenuClick(info, tab);
   });
   browser.runtime.onMessage.addListener((message: unknown) => {
     if (isAssistantRunMessage(message)) {

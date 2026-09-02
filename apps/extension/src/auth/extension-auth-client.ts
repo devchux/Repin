@@ -131,6 +131,10 @@ export async function getExtensionServerUrl(): Promise<string> {
   return (await getServiceUrls()).serverUrl;
 }
 
+export async function getExtensionWebUrl(): Promise<string> {
+  return (await getServiceUrls()).webUrl;
+}
+
 async function getAccessToken(): Promise<string> {
   const stored = await browser.storage.session.get([
     ACCESS_TOKEN_KEY,

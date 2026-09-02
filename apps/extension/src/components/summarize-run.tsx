@@ -20,7 +20,7 @@ export const SummarizeRun = ({
   requestId,
 }: {
   enabled: boolean;
-  requestId: number;
+  requestId: string;
 }) => {
   const { cancel, cancelling, error, retry, run, starting } =
     useSummarizePageRun(enabled, requestId);

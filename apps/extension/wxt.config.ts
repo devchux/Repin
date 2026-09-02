@@ -9,6 +9,7 @@ export default defineConfig({
     description: "Save, annotate, and organize useful pages from anywhere.",
     permissions: [
       "identity",
+      "contextMenus",
       "storage",
       "tabs",
       "sessions",

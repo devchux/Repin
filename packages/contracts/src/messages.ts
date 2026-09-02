@@ -37,3 +37,12 @@ export type ExtensionResponseMessage =
 export interface AssistantRunReference {
   readonly runId: string;
 }
+
+export interface OpenExtensionSidebarMessage {
+  readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+  readonly type: "repin.sidebar.open";
+  readonly payload: {
+    readonly mode: "summarize";
+    readonly requestId: string;
+  };
+}

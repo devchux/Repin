@@ -27,12 +27,12 @@ const initialState: AssistantRunState = {
   starting: false,
 };
 
-export const useSummarizePageRun = (enabled: boolean, requestId: number) => {
+export const useSummarizePageRun = (enabled: boolean, requestId: string) => {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<AssistantRunState>(initialState);
 
   useEffect(() => {
-    if (!enabled || requestId === 0) return;
+    if (!enabled || !requestId) return;
     let disposed = false;
     let pollTimer: ReturnType<typeof setTimeout> | undefined;
     let pollFailures = 0;

@@ -12,13 +12,17 @@ import {
   isSameSelectionRange,
 } from "@/lib/utils";
 import type { RepinSidebarMode, ToolbarPosition } from "@/types";
+import {
+  REPIN_PROTOCOL_VERSION,
+  type OpenExtensionSidebarMessage,
+} from "@repo/contracts/messages";
 
 interface ContentAppState {
   selectedText: string;
   sidebarMode: RepinSidebarMode;
   sidebarOpen: boolean;
   sidebarPinned: boolean;
-  sidebarRequestId: number;
+  sidebarRequestId: string;
   toolbarPosition: ToolbarPosition | null;
 }
 
@@ -28,7 +32,7 @@ export const ContentApp = () => {
     sidebarMode: "summarize",
     sidebarOpen: false,
     sidebarPinned: false,
-    sidebarRequestId: 0,
+    sidebarRequestId: "",
     toolbarPosition: null,
   });
   const dismissedSelectionRangeRef = useRef<Range | null>(null);
@@ -51,9 +55,36 @@ export const ContentApp = () => {
       selectedText: window.getSelection()?.toString().trim() ?? "",
       sidebarMode: mode,
       sidebarOpen: true,
-      sidebarRequestId: state.sidebarRequestId + 1,
+      sidebarRequestId: crypto.randomUUID(),
     });
   };
+
+  useEffect(() => {
+    const handleSidebarMessage = (message: unknown) => {
+      if (
+        !message ||
+        typeof message !== "object" ||
+        !("protocolVersion" in message) ||
+        message.protocolVersion !== REPIN_PROTOCOL_VERSION ||
+        !("type" in message) ||
+        message.type !== "repin.sidebar.open" ||
+        !("payload" in message)
+      ) {
+        return undefined;
+      }
+      const request = message as OpenExtensionSidebarMessage;
+      setState({
+        selectedText: "",
+        sidebarMode: request.payload.mode,
+        sidebarOpen: true,
+        sidebarRequestId: request.payload.requestId,
+      });
+      return { opened: true };
+    };
+
+    browser.runtime.onMessage.addListener(handleSidebarMessage);
+    return () => browser.runtime.onMessage.removeListener(handleSidebarMessage);
+  }, [setState]);
 
   useEffect(() => {
     let frame = 0;
