@@ -71,9 +71,6 @@ export const PopupApp = () => {
           <img src={repinLogoUrl} alt="" className="size-8 object-contain" />
           <h1 className="text-base font-semibold">Repin</h1>
         </div>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Use the page toolbar to save or annotate the current tab.
-        </p>
       </div>
       <div className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
         {!auth ? (

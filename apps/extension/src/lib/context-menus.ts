@@ -1,9 +1,23 @@
-import { openSummarizeSidebar } from "./sidebar-activation";
+import type { AssistantCapability } from "@repo/contracts/assistant";
+import { openPageSidebar } from "./sidebar-activation";
 import { getExtensionWebUrl } from "../auth/extension-auth-client";
 
 const REPIN_MENU_ID = "repin.page-actions";
-const SUMMARIZE_PAGE_MENU_ID = "repin.summarize-page";
 const OPEN_DASHBOARD_MENU_ID = "repin.open-dashboard";
+const PAGE_ACTIONS = [
+  {
+    id: "repin.summarize-page",
+    title: "Summarize page",
+    mode: "summarize",
+  },
+  { id: "repin.save-page", title: "Save page", mode: "save" },
+  { id: "repin.take-page-note", title: "Take page note", mode: "note" },
+  { id: "repin.chat-about-page", title: "Chat about page", mode: "chat" },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  title: string;
+  mode: AssistantCapability;
+}>;
 
 export const registerContextMenus = async () => {
   await browser.contextMenus.removeAll();
@@ -12,12 +26,14 @@ export const registerContextMenus = async () => {
     id: REPIN_MENU_ID,
     title: "Repin",
   });
-  browser.contextMenus.create({
-    contexts: ["page"],
-    id: SUMMARIZE_PAGE_MENU_ID,
-    parentId: REPIN_MENU_ID,
-    title: "Summarize page",
-  });
+  for (const action of PAGE_ACTIONS) {
+    browser.contextMenus.create({
+      contexts: ["page"],
+      id: action.id,
+      parentId: REPIN_MENU_ID,
+      title: action.title,
+    });
+  }
   browser.contextMenus.create({
     contexts: ["page"],
     id: OPEN_DASHBOARD_MENU_ID,
@@ -34,10 +50,11 @@ export const handleContextMenuClick = async (
     await browser.tabs.create({ url: await getExtensionWebUrl() });
     return;
   }
-  if (info.menuItemId !== SUMMARIZE_PAGE_MENU_ID || !tab) return;
+  const action = PAGE_ACTIONS.find(({ id }) => id === info.menuItemId);
+  if (!action || !tab) return;
   try {
-    await openSummarizeSidebar(tab);
+    await openPageSidebar(tab, action.mode);
   } catch (error) {
-    console.warn("Repin could not open the summarize sidebar", error);
+    console.warn(`Repin could not open the ${action.mode} sidebar`, error);
   }
 };

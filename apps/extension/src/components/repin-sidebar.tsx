@@ -45,6 +45,7 @@ export const RepinSidebar = ({
   const config = modeConfig[mode];
   const Icon = config.icon;
   const hasSelection = selectedText.length > 0;
+  const usesPageContext = mode === "summarize" || !hasSelection;
 
   return (
     <aside
@@ -109,16 +110,14 @@ export const RepinSidebar = ({
       <main className="flex flex-1 flex-col overflow-y-auto">
         <section className="border-b border-neutral-200 p-4 dark:border-neutral-800">
           <h2 className="text-xs font-medium tracking-wide text-neutral-500 dark:text-neutral-400">
-            {mode === "summarize" ? "Current page" : "Selected text"}
+            {usesPageContext ? "Current page" : "Selected text"}
           </h2>
 
           <div className="mt-4">
             <p className="line-clamp-4 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm leading-6 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
-              {mode === "summarize"
+              {usesPageContext
                 ? page.title || page.url
-                : hasSelection
-                  ? selectedText
-                  : "No selected text available."}
+                : selectedText}
             </p>
           </div>
         </section>

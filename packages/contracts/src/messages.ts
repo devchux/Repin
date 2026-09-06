@@ -1,4 +1,8 @@
-import type { AssistantRun, CreateAssistantRunRequest } from "./assistant";
+import type {
+  AssistantCapability,
+  AssistantRun,
+  CreateAssistantRunRequest,
+} from "./assistant";
 
 export const REPIN_PROTOCOL_VERSION = 1 as const;
 
@@ -42,7 +46,7 @@ export interface OpenExtensionSidebarMessage {
   readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
   readonly type: "repin.sidebar.open";
   readonly payload: {
-    readonly mode: "summarize";
+    readonly mode: AssistantCapability;
     readonly requestId: string;
   };
 }
