@@ -11,7 +11,19 @@ const normalizePageText = (value: string) =>
     .join("\n")
     .slice(0, MAX_PAGE_CONTENT_LENGTH);
 
-export const extractPageContext = (): PageContext => {
+export const extractPageContext = (selectedText?: string): PageContext => {
+  const normalizedSelection = selectedText
+    ? normalizePageText(selectedText)
+    : undefined;
+
+  if (normalizedSelection) {
+    return {
+      url: window.location.href,
+      title: document.title.trim() || window.location.hostname,
+      selectedText: normalizedSelection,
+    };
+  }
+
   const source =
     document.querySelector<HTMLElement>(CONTENT_ROOT_SELECTOR) ?? document.body;
   // innerText excludes script/style content and elements hidden from layout.

@@ -45,7 +45,7 @@ export const RepinSidebar = ({
   const config = modeConfig[mode];
   const Icon = config.icon;
   const hasSelection = selectedText.length > 0;
-  const usesPageContext = mode === "summarize" || !hasSelection;
+  const usesPageContext = !hasSelection;
 
   return (
     <aside
@@ -123,7 +123,11 @@ export const RepinSidebar = ({
         </section>
 
         {mode === "summarize" ? (
-          <SummarizeRun enabled={open} requestId={requestId} />
+          <SummarizeRun
+            enabled={open}
+            requestId={requestId}
+            selectedText={selectedText}
+          />
         ) : (
           <section className="flex flex-1 flex-col gap-4 p-4">
             <div className="flex items-start gap-3">

@@ -27,7 +27,11 @@ const initialState: AssistantRunState = {
   starting: false,
 };
 
-export const useSummarizePageRun = (enabled: boolean, requestId: string) => {
+export const useSummarizeRun = (
+  enabled: boolean,
+  requestId: string,
+  selectedText: string,
+) => {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<AssistantRunState>(initialState);
 
@@ -77,7 +81,7 @@ export const useSummarizePageRun = (enabled: boolean, requestId: string) => {
         const run = await createAssistantRun({
           browserExecutionTarget: "extension",
           capability: "summarize",
-          context: extractPageContext(),
+          context: extractPageContext(selectedText),
           executionLane: "short",
         });
         updateRun(run);
@@ -100,7 +104,7 @@ export const useSummarizePageRun = (enabled: boolean, requestId: string) => {
       disposed = true;
       if (pollTimer) clearTimeout(pollTimer);
     };
-  }, [attempt, enabled, requestId]);
+  }, [attempt, enabled, requestId, selectedText]);
 
   const cancel = useCallback(async () => {
     if (!state.run || TERMINAL_STATUSES.has(state.run.status)) return;

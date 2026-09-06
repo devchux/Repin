@@ -77,12 +77,12 @@ export const modeConfig = {
 >;
 export const toolbarActions = [
   {
-    label: "Explain selection",
+    label: "Explain",
     icon: Sparkles,
     mode: "explain",
   },
   {
-    label: "Summarize page",
+    label: "Summarize",
     icon: FileText,
     mode: "summarize",
   },
@@ -92,7 +92,7 @@ export const toolbarActions = [
     mode: "save",
   },
   {
-    label: "Translate text",
+    label: "Translate",
     icon: Languages,
     mode: "translate",
   },

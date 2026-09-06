@@ -3,7 +3,7 @@ import { CircleStop, LoaderCircle, RefreshCw } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { RichContent } from "@repo/ui/rich-content";
 
-import { useSummarizePageRun } from "../hooks/use-assistant-run";
+import { useSummarizeRun } from "../hooks/use-assistant-run";
 
 const statusCopy = {
   awaiting_approval: "Waiting for approval",
@@ -18,12 +18,15 @@ const statusCopy = {
 export const SummarizeRun = ({
   enabled,
   requestId,
+  selectedText,
 }: {
   enabled: boolean;
   requestId: string;
+  selectedText: string;
 }) => {
+  const summarizesSelection = selectedText.length > 0;
   const { cancel, cancelling, error, retry, run, starting } =
-    useSummarizePageRun(enabled, requestId);
+    useSummarizeRun(enabled, requestId, selectedText);
   const active =
     starting ||
     Boolean(
@@ -46,7 +49,13 @@ export const SummarizeRun = ({
           />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">
-              {run ? statusCopy[run.status] : "Reading page"}
+              {run
+                ? run.status === "running" && summarizesSelection
+                  ? "Summarizing selection"
+                  : statusCopy[run.status]
+                : summarizesSelection
+                  ? "Reading selection"
+                  : "Reading page"}
             </p>
             <p className="mt-1 text-xs leading-5 text-neutral-500 dark:text-neutral-400">
               You can close the sidebar. This run will remain available in
