@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CircleStop, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { Button } from "@repo/ui/button";
@@ -84,6 +84,7 @@ export const AssistantRun = ({
   const [submittedMessage, setSubmittedMessage] = useState("");
   const [pendingMessage, setPendingMessage] = useState("");
   const [conversation, setConversation] = useState<AssistantConversation>();
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const usesSelection = selectedText.length > 0;
   const copy = capabilityCopy[capability];
   const ready =
@@ -118,6 +119,22 @@ export const AssistantRun = ({
       })
       .catch(() => undefined);
   }, [capability, run?.conversationId, run?.status]);
+
+  useEffect(() => {
+    if (capability !== "chat") return;
+    const container = chatScrollRef.current;
+    if (!container) return;
+    container.scrollTo({
+      behavior: "smooth",
+      top: container.scrollHeight,
+    });
+  }, [
+    active,
+    capability,
+    conversation?.messages.length,
+    pendingMessage,
+    submittedMessage,
+  ]);
 
   if (!ready) {
     if (capability === "chat") {
@@ -175,7 +192,10 @@ export const AssistantRun = ({
         aria-live="polite"
         className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        <div
+          className="flex-1 space-y-3 overflow-y-auto p-4"
+          ref={chatScrollRef}
+        >
           {showInitialMessage ? (
             <div className="ml-8 rounded-xl bg-primary p-3 text-sm leading-6 text-white">
               {submittedMessage}
