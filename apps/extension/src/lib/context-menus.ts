@@ -1,24 +1,9 @@
-import type { AssistantCapability } from "@repo/contracts/assistant";
 import { openPageSidebar } from "./sidebar-activation";
 import { getExtensionWebUrl } from "../auth/extension-auth-client";
+import { PAGE_ACTIONS } from "./page-actions";
 
 const REPIN_MENU_ID = "repin.page-actions";
 const OPEN_DASHBOARD_MENU_ID = "repin.open-dashboard";
-const PAGE_ACTIONS = [
-  {
-    id: "repin.summarize-page",
-    title: "Summarize page",
-    mode: "summarize",
-  },
-  { id: "repin.save-page", title: "Save page", mode: "save" },
-  { id: "repin.take-page-note", title: "Take page note", mode: "note" },
-  { id: "repin.chat-about-page", title: "Chat about page", mode: "chat" },
-] as const satisfies ReadonlyArray<{
-  id: string;
-  title: string;
-  mode: AssistantCapability;
-}>;
-
 export const registerContextMenus = async () => {
   await browser.contextMenus.removeAll();
   browser.contextMenus.create({
@@ -31,7 +16,7 @@ export const registerContextMenus = async () => {
       contexts: ["page"],
       id: action.id,
       parentId: REPIN_MENU_ID,
-      title: action.title,
+      title: action.menuTitle,
     });
   }
   browser.contextMenus.create({
