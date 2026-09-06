@@ -3,6 +3,7 @@ import { CircleStop, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { Button } from "@repo/ui/button";
 import { RichContent } from "@repo/ui/rich-content";
+import { TypingIndicator } from "@repo/ui/typing-indicator";
 import type {
   AiAssistantCapability,
   AssistantConversation,
@@ -122,12 +123,16 @@ export const AssistantRun = ({
 
   useEffect(() => {
     if (capability !== "chat") return;
-    const container = chatScrollRef.current;
-    if (!container) return;
-    container.scrollTo({
-      behavior: "smooth",
-      top: container.scrollHeight,
+    const frame = requestAnimationFrame(() => {
+      const container = chatScrollRef.current;
+      if (!container) return;
+      container.scrollTo({
+        behavior: "smooth",
+        top: container.scrollHeight,
+      });
     });
+
+    return () => cancelAnimationFrame(frame);
   }, [
     active,
     capability,
@@ -190,18 +195,17 @@ export const AssistantRun = ({
     return (
       <section
         aria-live="polite"
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
       >
         <div
           className="flex-1 space-y-3 overflow-y-auto p-4"
           ref={chatScrollRef}
         >
-          {showInitialMessage ? (
+          {showInitialMessage && (
             <div className="ml-8 rounded-xl bg-primary p-3 text-sm leading-6 text-white">
               {submittedMessage}
             </div>
-          ) : null}
-
+          )}
           {messages.map((conversationMessage) => (
             <div
               className={
@@ -219,34 +223,19 @@ export const AssistantRun = ({
             </div>
           ))}
 
-          {pendingMessage ? (
+          {!!pendingMessage && (
             <div className="ml-8 rounded-xl bg-primary p-3 text-sm leading-6 text-white">
               {pendingMessage}
             </div>
-          ) : null}
+          )}
 
-          {active ? (
-            <div
-              aria-label="Repin is typing"
-              className="mr-4 flex w-fit items-center gap-1 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900"
-              role="status"
-            >
-              {[0, 150, 300].map((delay) => (
-                <span
-                  aria-hidden="true"
-                  className="size-1.5 animate-bounce rounded-full bg-neutral-400 dark:bg-neutral-500"
-                  key={delay}
-                  style={{ animationDelay: `${delay}ms` }}
-                />
-              ))}
-            </div>
-          ) : null}
+          {active && <TypingIndicator label="Repin is typing" />}
 
-          {failure ? (
+          {failure && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700 dark:border-red-950 dark:bg-red-950/30 dark:text-red-300">
               {failure}
             </div>
-          ) : null}
+          )}
         </div>
 
         <div className="border-t border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950">
@@ -333,7 +322,6 @@ export const AssistantRun = ({
           ) : null}
         </div>
       ) : null}
-
     </section>
   );
 };
