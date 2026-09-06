@@ -18,9 +18,10 @@ import {
 } from "../lib/context-menus";
 import {
   REPIN_THEME_CHANGED_MESSAGE,
+  REPIN_THEME_GET_MESSAGE,
   REPIN_THEME_STORAGE_KEY,
 } from "../lib/constants";
-import { isRepinTheme } from "../lib/theme";
+import { getStoredRepinTheme, isRepinTheme } from "../lib/theme";
 
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
@@ -38,19 +39,20 @@ export default defineBackground(() => {
       return;
     }
 
+    const message = {
+      type: REPIN_THEME_CHANGED_MESSAGE,
+      theme: themeChange.newValue,
+    };
+
     void browser.tabs.query({}).then(async (tabs) => {
-      await Promise.allSettled(
-        tabs.flatMap((tab) =>
+      await Promise.allSettled([
+        browser.runtime.sendMessage(message),
+        ...tabs.flatMap((tab) =>
           tab.id === undefined
             ? []
-            : [
-                browser.tabs.sendMessage(tab.id, {
-                  type: REPIN_THEME_CHANGED_MESSAGE,
-                  theme: themeChange.newValue,
-                }),
-              ],
+            : [browser.tabs.sendMessage(tab.id, message)],
         ),
-      );
+      ]);
     });
   });
   browser.runtime.onMessage.addListener((message: unknown) => {
@@ -58,6 +60,7 @@ export default defineBackground(() => {
       return handleAssistantRunMessage(message);
     }
     if (!message || typeof message !== "object" || !("type" in message)) return;
+    if (message.type === REPIN_THEME_GET_MESSAGE) return getStoredRepinTheme();
     if (message.type === "repin.auth.status") return getExtensionAuthState();
     if (message.type === "repin.auth.connect") return connectExtension();
     if (message.type === "repin.auth.disconnect") {

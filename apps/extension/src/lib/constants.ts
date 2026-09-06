@@ -13,6 +13,7 @@ export const TOOLBAR_EDGE_OFFSET = 176;
 export const REPIN_SIDEBAR_MAX_WIDTH = 420;
 export const REPIN_SIDEBAR_VIEWPORT_GAP = 24;
 export const REPIN_THEME_STORAGE_KEY = "repin:theme";
+export const REPIN_THEME_GET_MESSAGE = "repin.theme.get";
 export const REPIN_THEME_CHANGED_MESSAGE = "repin.theme.changed";
 export const modeConfig = {
   summarize: {
