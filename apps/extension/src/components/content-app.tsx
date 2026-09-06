@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { useReducerState } from "@repo/ui/hooks/use-reducer-state";
-import { getRepinThemeClass } from "@/lib/theme";
 import { RepinSidebar } from "./repin-sidebar";
 import { RepinToolbar } from "./repin-toolbar";
 import { useRepinTheme } from "@/hooks/use-theme";
@@ -188,9 +187,7 @@ export const ContentApp = () => {
   }, [state.sidebarOpen, state.sidebarPinned]);
 
   return (
-    <div
-      className={`${getRepinThemeClass(theme)} repin-extension text-neutral-950 antialiased dark:text-neutral-50`}
-    >
+    <div className="repin-extension antialiased">
       {state.toolbarPosition && (
         <RepinToolbar
           onClose={() => {
@@ -202,6 +199,7 @@ export const ContentApp = () => {
           }}
           onModeSelect={openSidebar}
           position={state.toolbarPosition}
+          theme={theme}
         />
       )}
       <RepinSidebar
@@ -211,6 +209,7 @@ export const ContentApp = () => {
         open={state.sidebarOpen}
         selectedText={state.selectedText}
         requestId={state.sidebarRequestId}
+        theme={theme}
         onClose={() => setState({ sidebarOpen: false })}
         onPinnedChange={(sidebarPinned) => setState({ sidebarPinned })}
       />

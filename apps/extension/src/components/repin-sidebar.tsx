@@ -9,7 +9,9 @@ import {
   REPIN_SIDEBAR_MAX_WIDTH,
   REPIN_SIDEBAR_VIEWPORT_GAP,
 } from "@/lib/constants";
+import { getRepinThemeClass } from "@/lib/theme";
 import type { RepinSidebarMode } from "@/types";
+import type { RepinTheme } from "@/types/content";
 import repinLogoUrl from "@/assets/repin-logo-icon.png";
 import { SummarizeRun } from "./summarize-run";
 
@@ -23,6 +25,7 @@ interface RepinSidebarProps {
   pinned: boolean;
   selectedText: string;
   requestId: string;
+  theme: RepinTheme;
   onClose: () => void;
   onPinnedChange: (pinned: boolean) => void;
 }
@@ -34,6 +37,7 @@ export const RepinSidebar = ({
   pinned,
   selectedText,
   requestId,
+  theme,
   onClose,
   onPinnedChange,
 }: RepinSidebarProps) => {
@@ -46,6 +50,7 @@ export const RepinSidebar = ({
     <aside
       aria-hidden={!open}
       className={cn(
+        getRepinThemeClass(theme),
         "fixed right-0 top-0 z-2147483647 flex h-dvh translate-x-full flex-col border-l border-neutral-200 bg-white text-neutral-950 shadow-2xl shadow-neutral-950/20 transition-transform duration-200 ease-out dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-50 dark:shadow-neutral-950/40",
         pinned && "shadow-none dark:shadow-none",
         open && "translate-x-0",

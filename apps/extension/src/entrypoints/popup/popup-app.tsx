@@ -125,7 +125,7 @@ export const PopupApp = () => {
         <select
           className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm capitalize outline-none ring-offset-white transition focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 dark:border-neutral-800 dark:bg-neutral-900 dark:ring-offset-neutral-950 dark:focus-visible:ring-neutral-300"
           value={theme}
-          onChange={handleThemeChange}
+          onChange={(event) => void handleThemeChange(event)}
         >
           {repinThemes.map((themeOption) => (
             <option key={themeOption} value={themeOption}>
