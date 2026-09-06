@@ -1,6 +1,8 @@
 import type {
   AssistantCapability,
+  AssistantConversation,
   AssistantRun,
+  CreateConversationMessageRequest,
   CreateAssistantRunRequest,
 } from "./assistant";
 
@@ -17,6 +19,18 @@ export type ExtensionRequestMessage =
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "assistant.run.get" | "assistant.run.cancel";
       readonly payload: AssistantRunReference;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "assistant.conversation.get";
+      readonly payload: { readonly conversationId: string };
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "assistant.conversation.message.create";
+      readonly payload: CreateConversationMessageRequest & {
+        readonly conversationId: string;
+      };
     };
 
 export type ExtensionResponseMessage =
@@ -24,6 +38,11 @@ export type ExtensionResponseMessage =
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "assistant.run.accepted";
       readonly payload: AssistantRun;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "assistant.conversation.loaded";
+      readonly payload: AssistantConversation;
     }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;

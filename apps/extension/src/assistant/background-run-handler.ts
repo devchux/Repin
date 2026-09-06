@@ -1,4 +1,7 @@
-import type { AssistantRun } from "@repo/contracts/assistant";
+import type {
+  AssistantConversation,
+  AssistantRun,
+} from "@repo/contracts/assistant";
 import {
   REPIN_PROTOCOL_VERSION,
   type ExtensionRequestMessage,
@@ -27,6 +30,23 @@ const readRun = async (response: Response): Promise<AssistantRun> => {
   return body.data;
 };
 
+const readConversation = async (
+  response: Response,
+): Promise<AssistantConversation> => {
+  const body = (await response.json().catch(() => null)) as
+    | ApiEnvelope<AssistantConversation>
+    | { error?: string; message?: string }
+    | null;
+  if (!response.ok || !body || !("data" in body)) {
+    throw new Error(
+      body && "error" in body
+        ? body.error ?? body.message ?? "Conversation request failed"
+        : "Conversation request failed",
+    );
+  }
+  return body.data;
+};
+
 export const isAssistantRunMessage = (
   message: unknown,
 ): message is ExtensionRequestMessage => {
@@ -42,7 +62,9 @@ export const isAssistantRunMessage = (
   return (
     message.type === "assistant.run.create" ||
     message.type === "assistant.run.get" ||
-    message.type === "assistant.run.cancel"
+    message.type === "assistant.run.cancel" ||
+    message.type === "assistant.conversation.get" ||
+    message.type === "assistant.conversation.message.create"
   );
 };
 
@@ -51,6 +73,37 @@ export const handleAssistantRunMessage = async (
 ): Promise<ExtensionResponseMessage> => {
   try {
     const serverUrl = await getExtensionServerUrl();
+    if (message.type === "assistant.conversation.get") {
+      const conversation = await readConversation(
+        await authenticatedFetch(
+          `${serverUrl}/api/assistant/conversations/${message.payload.conversationId}`,
+          { method: "GET" },
+        ),
+      );
+      return {
+        protocolVersion: REPIN_PROTOCOL_VERSION,
+        type: "assistant.conversation.loaded",
+        payload: conversation,
+      };
+    }
+    if (message.type === "assistant.conversation.message.create") {
+      const { conversationId, ...payload } = message.payload;
+      const run = await readRun(
+        await authenticatedFetch(
+          `${serverUrl}/api/assistant/conversations/${conversationId}/messages`,
+          {
+            body: JSON.stringify(payload),
+            headers: { "content-type": "application/json" },
+            method: "POST",
+          },
+        ),
+      );
+      return {
+        protocolVersion: REPIN_PROTOCOL_VERSION,
+        type: "assistant.run.accepted",
+        payload: run,
+      };
+    }
     if (message.type === "assistant.run.create") {
       const run = await readRun(
         await authenticatedFetch(`${serverUrl}/api/assistant/runs`, {

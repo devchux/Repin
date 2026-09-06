@@ -1,5 +1,6 @@
 import type {
   CreateAssistantRunRequest,
+  AssistantConversation,
   AssistantRun,
 } from "@repo/contracts/assistant";
 import {
@@ -58,4 +59,39 @@ export const cancelAssistantRun = async (
       payload: { runId },
     }),
     "assistant.run.updated",
+  );
+
+export const getAssistantConversation = async (
+  conversationId: string,
+): Promise<AssistantConversation> => {
+  const response = await send({
+    protocolVersion: REPIN_PROTOCOL_VERSION,
+    type: "assistant.conversation.get",
+    payload: { conversationId },
+  });
+  if (response.type === "assistant.run.rejected") {
+    throw new Error(response.payload.message);
+  }
+  if (response.type !== "assistant.conversation.loaded") {
+    throw new Error("Repin received an unexpected conversation response");
+  }
+  return response.payload;
+};
+
+export const createAssistantConversationMessage = async (
+  conversationId: string,
+  content: string,
+): Promise<AssistantRun> =>
+  unwrapRun(
+    await send({
+      protocolVersion: REPIN_PROTOCOL_VERSION,
+      type: "assistant.conversation.message.create",
+      payload: {
+        browserExecutionTarget: "extension",
+        content,
+        conversationId,
+        executionLane: "short",
+      },
+    }),
+    "assistant.run.accepted",
   );

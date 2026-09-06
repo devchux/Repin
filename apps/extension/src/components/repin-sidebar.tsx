@@ -13,7 +13,8 @@ import { getRepinThemeClass } from "@/lib/theme";
 import type { RepinSidebarMode } from "@/types";
 import type { RepinTheme } from "@/types/content";
 import repinLogoUrl from "@/assets/repin-logo-icon.png";
-import { SummarizeRun } from "./summarize-run";
+import { AssistantRun } from "./assistant-run";
+import type { AiAssistantCapability } from "@repo/contracts/assistant";
 
 interface RepinSidebarProps {
   mode: RepinSidebarMode;
@@ -46,6 +47,9 @@ export const RepinSidebar = ({
   const Icon = config.icon;
   const hasSelection = selectedText.length > 0;
   const usesPageContext = !hasSelection;
+  const isAssistantMode = ["summarize", "explain", "translate", "chat"].includes(
+    mode,
+  );
 
   return (
     <aside
@@ -122,9 +126,11 @@ export const RepinSidebar = ({
           </div>
         </section>
 
-        {mode === "summarize" ? (
-          <SummarizeRun
+        {isAssistantMode ? (
+          <AssistantRun
+            capability={mode as AiAssistantCapability}
             enabled={open}
+            key={requestId}
             requestId={requestId}
             selectedText={selectedText}
           />
@@ -147,7 +153,7 @@ export const RepinSidebar = ({
         )}
       </main>
 
-      {mode !== "summarize" ? (
+      {!isAssistantMode ? (
         <footer className="relative border-t border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950">
         {recording ? (
           <div className="flex items-center gap-2 rounded-3xl border border-neutral-200 bg-white p-2.5 dark:border-neutral-800 dark:bg-neutral-900">

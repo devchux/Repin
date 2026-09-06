@@ -1,6 +1,7 @@
 import type { PageContext } from "@repo/contracts/browser";
 
 const MAX_PAGE_CONTENT_LENGTH = 100_000;
+const MAX_SELECTED_TEXT_LENGTH = 20_000;
 const CONTENT_ROOT_SELECTOR = "main, article, [role='main']";
 
 const normalizePageText = (value: string) =>
@@ -13,7 +14,7 @@ const normalizePageText = (value: string) =>
 
 export const extractPageContext = (selectedText?: string): PageContext => {
   const normalizedSelection = selectedText
-    ? normalizePageText(selectedText)
+    ? normalizePageText(selectedText).slice(0, MAX_SELECTED_TEXT_LENGTH)
     : undefined;
 
   if (normalizedSelection) {
