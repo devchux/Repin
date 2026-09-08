@@ -11,6 +11,7 @@ import {
   getAssistantRun,
 } from "../assistant/assistant-run-client";
 import { extractPageContext } from "../lib/page-context";
+import { dispatchTask } from "../assistant/workflow-client";
 
 const TERMINAL_STATUSES = new Set<AssistantRun["status"]>([
   "cancelled",
@@ -31,7 +32,7 @@ const initialState: AssistantRunState = {
   starting: false,
 };
 
-export const useAssistantRun = (
+export const useAssistantExecution = (
   capability: AiAssistantCapability,
   enabled: boolean,
   requestId: string,
@@ -41,6 +42,7 @@ export const useAssistantRun = (
 ) => {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<AssistantRunState>(initialState);
+  const [workflowInstanceId, setWorkflowInstanceId] = useState<string>();
   const pollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pollGeneration = useRef(0);
 
@@ -90,15 +92,32 @@ export const useAssistantRun = (
 
     const start = async () => {
       setState({ cancelling: false, starting: true });
+      setWorkflowInstanceId(undefined);
       try {
-        const run = await createAssistantRun({
+        const request = {
           browserExecutionTarget: "extension",
           capability,
           context: extractPageContext(selectedText),
           executionLane: "short",
           input,
           options: targetLanguage ? { targetLanguage } : undefined,
-        });
+        } as const;
+        if (capability === "chat") {
+          const result = await dispatchTask({
+            ...request,
+            selectionMode: "auto",
+          });
+          if (result.kind === "workflow") {
+            if (!disposed) {
+              setWorkflowInstanceId(result.id);
+              setState({ cancelling: false, starting: false });
+            }
+            return;
+          }
+          if (!disposed) await trackRun(result);
+          return;
+        }
+        const run = await createAssistantRun(request);
         if (!disposed) await trackRun(run);
       } catch (error) {
         if (disposed) return;
@@ -177,5 +196,11 @@ export const useAssistantRun = (
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
-  return { ...state, cancel, retry, sendMessage };
+  return {
+    ...state,
+    cancel,
+    retry,
+    sendMessage,
+    workflowInstanceId,
+  };
 };

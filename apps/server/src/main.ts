@@ -20,7 +20,7 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(
     new TransformInterceptor(app.get(Reflector)),
-    new TimeoutInterceptor(app.get(Reflector)),
+    new TimeoutInterceptor(app.get(Reflector), app.get(ConfigService)),
   );
 
   app.setGlobalPrefix('api');

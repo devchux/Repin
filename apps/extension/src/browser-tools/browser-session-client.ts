@@ -11,6 +11,19 @@ const SESSION_ID_KEY = "repinBrowserSessionId";
 const COMMAND_RESULTS_KEY = "repinBrowserCommandResults";
 const MAX_CACHED_COMMAND_RESULTS = 100;
 let activeSocket: WebSocket | undefined;
+let browserSessionIdPromise: Promise<string> | undefined;
+
+export const getBrowserSessionId = (): Promise<string> => {
+  browserSessionIdPromise ??= (async () => {
+    const stored = await browser.storage.local.get(SESSION_ID_KEY);
+    const existing = stored[SESSION_ID_KEY] as string | undefined;
+    if (existing) return existing;
+    const created = crypto.randomUUID();
+    await browser.storage.local.set({ [SESSION_ID_KEY]: created });
+    return created;
+  })();
+  return browserSessionIdPromise;
+};
 
 export const stopBrowserSession = (): void => {
   activeSocket?.close(1000, "Extension disconnected");
@@ -18,15 +31,10 @@ export const stopBrowserSession = (): void => {
 };
 
 export const startBrowserSession = async (): Promise<void> => {
-  const stored = await browser.storage.local.get([
-    SERVER_URL_KEY,
-    SESSION_ID_KEY,
-  ]);
+  const stored = await browser.storage.local.get(SERVER_URL_KEY);
   const serverUrl =
     (stored[SERVER_URL_KEY] as string | undefined) ?? "http://localhost:3001";
-  const browserSessionId =
-    (stored[SESSION_ID_KEY] as string | undefined) ?? crypto.randomUUID();
-  await browser.storage.local.set({ [SESSION_ID_KEY]: browserSessionId });
+  const browserSessionId = await getBrowserSessionId();
 
   const ticketResponse = await authenticatedFetch(
     `${serverUrl}/api/browser-sessions/ticket`,

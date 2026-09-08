@@ -5,6 +5,8 @@ import type {
   CreateConversationMessageRequest,
   CreateAssistantRunRequest,
 } from "./assistant";
+import type { DispatchTaskRequest, TaskDispatchResult } from "./task";
+import type { WorkflowInstance } from "./workflow";
 
 export const REPIN_PROTOCOL_VERSION = 1 as const;
 
@@ -31,6 +33,16 @@ export type ExtensionRequestMessage =
       readonly payload: CreateConversationMessageRequest & {
         readonly conversationId: string;
       };
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "task.dispatch";
+      readonly payload: DispatchTaskRequest;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "workflow.instance.get" | "workflow.instance.cancel";
+      readonly payload: { readonly instanceId: string };
     };
 
 export type ExtensionResponseMessage =
@@ -43,6 +55,16 @@ export type ExtensionResponseMessage =
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "assistant.conversation.loaded";
       readonly payload: AssistantConversation;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "task.dispatched";
+      readonly payload: TaskDispatchResult;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "workflow.instance.loaded";
+      readonly payload: WorkflowInstance;
     }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;

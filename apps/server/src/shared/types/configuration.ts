@@ -1,6 +1,7 @@
 export type Configuration = {
   nodeEnv: string;
   port: number;
+  requestTimeout: number;
   redis: string;
   corsOrigin: string;
   enableSwagger: boolean;

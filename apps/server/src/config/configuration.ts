@@ -7,6 +7,7 @@ dotenv.config();
 export default (): Configuration => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: optionalInt('PORT', 8080),
+  requestTimeout: optionalInt('SERVER_REQUEST_TIMEOUT', 25000),
   redis: required('REDIS_URL'),
   corsOrigin: required('CORS_ORIGIN'),
   enableSwagger: process.env.ENABLE_SWAGGER === 'true',

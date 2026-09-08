@@ -3,6 +3,7 @@ import { CircleStop, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { Button } from "@repo/ui/button";
 import { RichContent } from "@repo/ui/rich-content";
+import { WorkflowPanel } from "@repo/ui/workflow-panel";
 import { TypingIndicator } from "@repo/ui/typing-indicator";
 import type {
   AiAssistantCapability,
@@ -11,7 +12,8 @@ import type {
 
 import { getAssistantConversation } from "../assistant/assistant-run-client";
 import { ChatComposer } from "./chat-composer";
-import { useAssistantRun } from "../hooks/use-assistant-run";
+import { useAssistantExecution } from "../hooks/use-assistant-execution";
+import { useWorkflowInstance } from "../hooks/use-workflow-instance";
 import {
   getRunStatusLabel,
   type AssistantRunStatusCopy,
@@ -91,8 +93,16 @@ export const AssistantRun = ({
   const ready =
     (capability !== "translate" || Boolean(submittedLanguage)) &&
     (capability !== "chat" || Boolean(submittedMessage));
-  const { cancel, cancelling, error, retry, run, sendMessage, starting } =
-    useAssistantRun(
+  const {
+    cancel,
+    cancelling,
+    error,
+    retry,
+    run,
+    sendMessage,
+    starting,
+    workflowInstanceId,
+  } = useAssistantExecution(
       capability,
       enabled && ready,
       requestId,
@@ -100,6 +110,7 @@ export const AssistantRun = ({
       submittedLanguage || undefined,
       submittedMessage || undefined,
     );
+  const workflow = useWorkflowInstance(workflowInstanceId);
   const active =
     starting ||
     Boolean(
@@ -184,6 +195,29 @@ export const AssistantRun = ({
         >
           Translate
         </Button>
+      </section>
+    );
+  }
+
+  if (workflowInstanceId) {
+    return workflow.instance ? (
+      <WorkflowPanel
+        cancelling={workflow.cancelling}
+        instance={workflow.instance}
+        onCancel={() => void workflow.cancel()}
+      />
+    ) : (
+      <section className="flex flex-1 items-center justify-center p-4">
+        {workflow.error ? (
+          <p className="text-sm text-red-700 dark:text-red-300">
+            {workflow.error}
+          </p>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-neutral-500">
+            <LoaderCircle className="size-4 animate-spin" />
+            Loading workflow
+          </div>
+        )}
       </section>
     );
   }

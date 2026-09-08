@@ -2,6 +2,8 @@ import type {
   AssistantConversation,
   AssistantRun,
 } from "@repo/contracts/assistant";
+import type { TaskDispatchResult } from "@repo/contracts/task";
+import type { WorkflowInstance } from "@repo/contracts/workflow";
 import {
   REPIN_PROTOCOL_VERSION,
   type ExtensionRequestMessage,
@@ -12,6 +14,7 @@ import {
   authenticatedFetch,
   getExtensionServerUrl,
 } from "../auth/extension-auth-client";
+import { getBrowserSessionId } from "../browser-tools/browser-session-client";
 
 type ApiEnvelope<T> = { data: T; message: string };
 
@@ -23,7 +26,7 @@ const readRun = async (response: Response): Promise<AssistantRun> => {
   if (!response.ok || !body || !("data" in body)) {
     throw new Error(
       body && "error" in body
-        ? body.error ?? body.message ?? "Assistant request failed"
+        ? (body.error ?? body.message ?? "Assistant request failed")
         : "Assistant request failed",
     );
   }
@@ -40,9 +43,23 @@ const readConversation = async (
   if (!response.ok || !body || !("data" in body)) {
     throw new Error(
       body && "error" in body
-        ? body.error ?? body.message ?? "Conversation request failed"
+        ? (body.error ?? body.message ?? "Conversation request failed")
         : "Conversation request failed",
     );
+  }
+  return body.data;
+};
+
+const readData = async <T>(
+  response: Response,
+  fallback: string,
+): Promise<T> => {
+  const body = (await response.json().catch(() => null)) as
+    | ApiEnvelope<T>
+    | { error?: string; message?: string }
+    | null;
+  if (!response.ok || !body || !("data" in body)) {
+    throw new Error(body?.message ?? fallback);
   }
   return body.data;
 };
@@ -64,7 +81,10 @@ export const isAssistantRunMessage = (
     message.type === "assistant.run.get" ||
     message.type === "assistant.run.cancel" ||
     message.type === "assistant.conversation.get" ||
-    message.type === "assistant.conversation.message.create"
+    message.type === "assistant.conversation.message.create" ||
+    message.type === "task.dispatch" ||
+    message.type === "workflow.instance.get" ||
+    message.type === "workflow.instance.cancel"
   );
 };
 
@@ -73,6 +93,46 @@ export const handleAssistantRunMessage = async (
 ): Promise<ExtensionResponseMessage> => {
   try {
     const serverUrl = await getExtensionServerUrl();
+    if (message.type === "task.dispatch") {
+      const browserSessionId =
+        message.payload.browserSessionId ?? (await getBrowserSessionId());
+      const result = await readData<TaskDispatchResult>(
+        await authenticatedFetch(`${serverUrl}/api/tasks`, {
+          body: JSON.stringify({ ...message.payload, browserSessionId }),
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        }),
+        "Task dispatch failed",
+      );
+      return {
+        protocolVersion: REPIN_PROTOCOL_VERSION,
+        type: "task.dispatched",
+        payload: result,
+      };
+    }
+    if (
+      message.type === "workflow.instance.get" ||
+      message.type === "workflow.instance.cancel"
+    ) {
+      const endpoint = `${serverUrl}/api/workflows/instances/${message.payload.instanceId}`;
+      const instance = await readData<WorkflowInstance>(
+        await authenticatedFetch(
+          message.type === "workflow.instance.cancel"
+            ? `${endpoint}/cancel`
+            : endpoint,
+          {
+            method:
+              message.type === "workflow.instance.cancel" ? "POST" : "GET",
+          },
+        ),
+        "Workflow request failed",
+      );
+      return {
+        protocolVersion: REPIN_PROTOCOL_VERSION,
+        type: "workflow.instance.loaded",
+        payload: instance,
+      };
+    }
     if (message.type === "assistant.conversation.get") {
       const conversation = await readConversation(
         await authenticatedFetch(
@@ -88,11 +148,13 @@ export const handleAssistantRunMessage = async (
     }
     if (message.type === "assistant.conversation.message.create") {
       const { conversationId, ...payload } = message.payload;
+      const browserSessionId =
+        payload.browserSessionId ?? (await getBrowserSessionId());
       const run = await readRun(
         await authenticatedFetch(
           `${serverUrl}/api/assistant/conversations/${conversationId}/messages`,
           {
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ ...payload, browserSessionId }),
             headers: { "content-type": "application/json" },
             method: "POST",
           },
@@ -105,9 +167,11 @@ export const handleAssistantRunMessage = async (
       };
     }
     if (message.type === "assistant.run.create") {
+      const browserSessionId =
+        message.payload.browserSessionId ?? (await getBrowserSessionId());
       const run = await readRun(
         await authenticatedFetch(`${serverUrl}/api/assistant/runs`, {
-          body: JSON.stringify(message.payload),
+          body: JSON.stringify({ ...message.payload, browserSessionId }),
           headers: { "content-type": "application/json" },
           method: "POST",
         }),
@@ -119,10 +183,18 @@ export const handleAssistantRunMessage = async (
       };
     }
 
+    if (
+      message.type !== "assistant.run.get" &&
+      message.type !== "assistant.run.cancel"
+    ) {
+      throw new Error("Unsupported assistant request");
+    }
     const endpoint = `${serverUrl}/api/assistant/runs/${message.payload.runId}`;
     const run = await readRun(
       await authenticatedFetch(
-        message.type === "assistant.run.cancel" ? `${endpoint}/cancel` : endpoint,
+        message.type === "assistant.run.cancel"
+          ? `${endpoint}/cancel`
+          : endpoint,
         { method: message.type === "assistant.run.cancel" ? "POST" : "GET" },
       ),
     );
