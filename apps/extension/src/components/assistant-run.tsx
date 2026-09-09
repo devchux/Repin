@@ -103,13 +103,13 @@ export const AssistantRun = ({
     starting,
     workflowInstanceId,
   } = useAssistantExecution(
-      capability,
-      enabled && ready,
-      requestId,
-      selectedText,
-      submittedLanguage || undefined,
-      submittedMessage || undefined,
-    );
+    capability,
+    enabled && ready,
+    requestId,
+    selectedText,
+    submittedLanguage || undefined,
+    submittedMessage || undefined,
+  );
   const workflow = useWorkflowInstance(workflowInstanceId);
   const active =
     starting ||
@@ -236,16 +236,18 @@ export const AssistantRun = ({
           ref={chatScrollRef}
         >
           {showInitialMessage && (
-            <div className="ml-8 rounded-xl bg-primary p-3 text-sm leading-6 text-white">
+            <div className="max-w-[86%] ml-auto w-fit whitespace-pre-wrap rounded-2xl rounded-br-[5px] bg-primary p-3 text-sm leading-6 text-white">
               {submittedMessage}
             </div>
           )}
           {messages.map((conversationMessage) => (
             <div
               className={
-                conversationMessage.role === "user"
-                  ? "ml-8 rounded-xl bg-primary p-3 text-sm leading-6 text-white"
-                  : "mr-4 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900"
+                "max-w-[86%] w-fit whitespace-pre-wrap rounded-2xl" +
+                " " +
+                (conversationMessage.role === "user"
+                  ? "bg-primary p-3 text-sm leading-6 text-white rounded-br-[5px] ml-auto"
+                  : "border border-neutral-200 bg-neutral-50 rounded-bl-[5px] p-3 dark:border-neutral-800 dark:bg-neutral-900 mr-auto")
               }
               key={conversationMessage.id}
             >
@@ -258,7 +260,7 @@ export const AssistantRun = ({
           ))}
 
           {!!pendingMessage && (
-            <div className="ml-8 rounded-xl bg-primary p-3 text-sm leading-6 text-white">
+            <div className="max-w-[86%] ml-auto w-fit whitespace-pre-wrap rounded-2xl rounded-br-[5px] bg-primary p-3 text-sm leading-6 text-white">
               {pendingMessage}
             </div>
           )}
