@@ -1,4 +1,14 @@
-import type { AssistantRunStatus } from "@repo/contracts/assistant";
+import type {
+  AssistantRun,
+  AssistantRunStatus,
+} from "@repo/contracts/assistant";
+
+const ACTIVE_RUN_STATUSES: readonly AssistantRunStatus[] = [
+  "queued",
+  "running",
+  "awaiting_approval",
+  "suspended",
+];
 
 export interface AssistantRunStatusCopy {
   readonly cancelled: string;
@@ -33,3 +43,8 @@ export const getRunStatusLabel = (
       return copy.failed;
   }
 };
+
+export const isAssistantRunActive = (
+  run: AssistantRun | undefined,
+  starting: boolean,
+) => starting || (run ? ACTIVE_RUN_STATUSES.includes(run.status) : false);

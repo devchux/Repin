@@ -7,6 +7,8 @@ import {
   NotebookPen,
   Sparkles,
 } from "lucide-react";
+import { AssistantRunStatusCopy } from "./assistant-run";
+import { AiAssistantCapability } from "@repo/contracts";
 
 export const TOOLBAR_VERTICAL_OFFSET = 8;
 export const TOOLBAR_EDGE_OFFSET = 176;
@@ -111,3 +113,55 @@ export const toolbarActions = [
   icon: typeof Sparkles;
   mode: RepinSidebarMode;
 }>;
+
+export const capabilityCopy = {
+  explain: {
+    cancelled: "Explanation cancelled",
+    completed: "Explanation complete",
+    failed: "Explanation failed",
+    preparing: "Preparing explanation",
+    resultTitle: "Explanation",
+    runningPage: "Explaining page",
+    runningSelection: "Explaining selection",
+  },
+  summarize: {
+    cancelled: "Summary cancelled",
+    completed: "Summary complete",
+    failed: "Summary failed",
+    preparing: "Preparing summary",
+    resultTitle: "Summary",
+    runningPage: "Summarizing page",
+    runningSelection: "Summarizing selection",
+  },
+  translate: {
+    cancelled: "Translation cancelled",
+    completed: "Translation complete",
+    failed: "Translation failed",
+    preparing: "Preparing translation",
+    resultTitle: "Translation",
+    runningPage: "Translating page",
+    runningSelection: "Translating selection",
+  },
+  chat: {
+    cancelled: "Response cancelled",
+    completed: "Response complete",
+    failed: "Response failed",
+    preparing: "Preparing response",
+    resultTitle: "Response",
+    runningPage: "Reading page",
+    runningSelection: "Reading selection",
+  },
+} as const satisfies Record<AiAssistantCapability, AssistantRunStatusCopy>;
+
+export const TARGET_LANGUAGES = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Portuguese",
+  "Arabic",
+  "Chinese (Simplified)",
+  "Japanese",
+  "Korean",
+  "Hindi",
+] as const;
