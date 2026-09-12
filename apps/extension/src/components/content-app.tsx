@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useReducerState } from "@repo/ui/hooks/use-reducer-state";
 import { RepinSidebar } from "./repin-sidebar";
@@ -15,6 +15,7 @@ import {
   REPIN_PROTOCOL_VERSION,
   type OpenExtensionSidebarMessage,
 } from "@repo/contracts/messages";
+import type { SidebarSessionState } from "@/lib/sidebar-session";
 
 interface ContentAppState {
   selectedText: string;
@@ -35,6 +36,8 @@ export const ContentApp = () => {
     toolbarPosition: null,
   });
   const dismissedSelectionRangeRef = useRef<Range | null>(null);
+  const interactionBeforeHydrationRef = useRef(false);
+  const [sessionHydrated, setSessionHydrated] = useState(false);
   const previousPageStylesRef = useRef<{
     bodyMarginRight: string;
     bodyTransition: string;
@@ -50,6 +53,7 @@ export const ContentApp = () => {
   );
 
   const openSidebar = (mode: RepinSidebarMode) => {
+    interactionBeforeHydrationRef.current = true;
     setState({
       selectedText: window.getSelection()?.toString().trim() ?? "",
       sidebarMode: mode,
@@ -57,6 +61,54 @@ export const ContentApp = () => {
       sidebarRequestId: crypto.randomUUID(),
     });
   };
+
+  useEffect(() => {
+    let disposed = false;
+    void browser.runtime
+      .sendMessage({ type: "repin.sidebar.session.get" })
+      .then((saved: SidebarSessionState | null) => {
+        if (disposed || interactionBeforeHydrationRef.current || !saved) return;
+        setState({
+          selectedText: saved.selectedText,
+          sidebarMode: saved.mode,
+          sidebarOpen: saved.open,
+          sidebarPinned: saved.pinned,
+          sidebarRequestId: saved.requestId,
+        });
+      })
+      .catch((error: unknown) =>
+        console.warn("Repin could not restore this tab's sidebar state", error),
+      )
+      .finally(() => {
+        if (!disposed) setSessionHydrated(true);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [setState]);
+
+  useEffect(() => {
+    if (!sessionHydrated) return;
+    const saved: SidebarSessionState = {
+      mode: state.sidebarMode,
+      open: state.sidebarOpen,
+      pinned: state.sidebarPinned,
+      requestId: state.sidebarRequestId,
+      selectedText: state.selectedText,
+    };
+    void browser.runtime
+      .sendMessage({ type: "repin.sidebar.session.set", state: saved })
+      .catch((error: unknown) =>
+        console.warn("Repin could not persist this tab's sidebar state", error),
+      );
+  }, [
+    sessionHydrated,
+    state.selectedText,
+    state.sidebarMode,
+    state.sidebarOpen,
+    state.sidebarPinned,
+    state.sidebarRequestId,
+  ]);
 
   useEffect(() => {
     const handleSidebarMessage = (message: unknown) => {
@@ -72,6 +124,7 @@ export const ContentApp = () => {
         return undefined;
       }
       const request = message as OpenExtensionSidebarMessage;
+      interactionBeforeHydrationRef.current = true;
       setState({
         selectedText: "",
         sidebarMode: request.payload.mode,
@@ -215,4 +268,4 @@ export const ContentApp = () => {
       />
     </div>
   );
-}
+};

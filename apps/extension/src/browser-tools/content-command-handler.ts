@@ -35,8 +35,8 @@ document.documentElement.addEventListener("repin:page-observation", (event) => {
     ) {
       lastDialog = observation.dialog as Record<string, unknown>;
     }
-  } catch {
-    // Ignore malformed observations originating from untrusted page code.
+  } catch (error) {
+    console.debug("Repin ignored a malformed page observation", error);
   }
 });
 

@@ -24,6 +24,10 @@ import {
 import { getStoredRepinTheme, isRepinTheme } from "../lib/theme";
 import { stageFiles } from "../browser-tools/file-handle-registry";
 import { registerEventStreamManager } from "../assistant/background-event-stream-manager";
+import {
+  isSidebarSessionMessage,
+  sidebarSessionStorageKey,
+} from "../lib/sidebar-session";
 
 export default defineBackground(() => {
   registerEventStreamManager();
@@ -58,7 +62,18 @@ export default defineBackground(() => {
       ]);
     });
   });
-  browser.runtime.onMessage.addListener((message: unknown) => {
+  browser.runtime.onMessage.addListener((message: unknown, sender) => {
+    if (isSidebarSessionMessage(message)) {
+      const tabId = sender.tab?.id;
+      if (tabId === undefined) return;
+      const key = sidebarSessionStorageKey(tabId);
+      if (message.type === "repin.sidebar.session.get") {
+        return browser.storage.session
+          .get(key)
+          .then((stored) => stored[key] ?? null);
+      }
+      return browser.storage.session.set({ [key]: message.state });
+    }
     if (isAssistantRunMessage(message)) {
       return handleAssistantRunMessage(message);
     }
@@ -78,6 +93,16 @@ export default defineBackground(() => {
       stopBrowserSession();
       return disconnectExtension().then(() => ({ authenticated: false }));
     }
+  });
+  browser.tabs.onRemoved.addListener((tabId) => {
+    void browser.storage.session
+      .remove(sidebarSessionStorageKey(tabId))
+      .catch((error: unknown) =>
+        console.warn("Repin could not clear closed-tab sidebar state", {
+          error,
+          tabId,
+        }),
+      );
   });
   const maintainBrowserSession = async () => {
     await initializeExtensionAuth();

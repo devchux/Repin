@@ -9,6 +9,7 @@ import {
   type EventStreamServerMessage,
 } from "./event-stream-protocol";
 import { parseServerEvents, type ParsedServerEvent } from "./sse-parser";
+import { isExpectedRuntimeDisconnect } from "../lib/runtime-errors";
 
 const TERMINAL_RUN_STATUSES = new Set(["cancelled", "completed", "failed"]);
 const TERMINAL_WORKFLOW_EVENTS = new Set([
@@ -51,8 +52,10 @@ const post = (
 ) => {
   try {
     port.postMessage(message);
-  } catch {
-    // The subscriber disconnected between the stream read and delivery.
+  } catch (error) {
+    if (!isExpectedRuntimeDisconnect(error)) {
+      console.warn("Repin could not deliver an event-stream message", error);
+    }
   }
 };
 
@@ -100,7 +103,14 @@ const runSubscription = async (
       post(port, { type: "reconnecting", attempt });
       const backoff = Math.min(15_000, 500 * 2 ** (attempt - 1));
       await delay(backoff + Math.floor(Math.random() * 250), signal).catch(
-        () => undefined,
+        (delayError: unknown) => {
+          if (!signal.aborted) {
+            console.warn(
+              "Repin event-stream reconnect delay failed",
+              delayError,
+            );
+          }
+        },
       );
     }
   }
