@@ -6,6 +6,9 @@ const DEBUGGER_TOOLS = new Set([
   "browser_mouse_down",
   "browser_mouse_up",
   "browser_mouse_wheel",
+  "browser_press_key",
+  "browser_resize_viewport",
+  "browser_get_navigation_state",
   "browser_stop_loading",
   "browser_get_history",
   "browser_go_to_history_entry",
@@ -45,6 +48,68 @@ export const executeDebuggerCommand = async (
   await debuggerApi.attach(target, "1.3");
   try {
     switch (name) {
+      case "browser_press_key": {
+        const chord = String(input.key).split("+");
+        const key = chord.pop() ?? "";
+        const modifiers = chord.reduce(
+          (value, modifier) =>
+            value |
+            ({ Alt: 1, Control: 2, Ctrl: 2, Meta: 4, Command: 4, Shift: 8 }[
+              modifier
+            ] ?? 0),
+          0,
+        );
+        await debuggerApi.sendCommand(target, "Input.dispatchKeyEvent", {
+          type: "keyDown",
+          key,
+          modifiers,
+        });
+        await debuggerApi.sendCommand(target, "Input.dispatchKeyEvent", {
+          type: "keyUp",
+          key,
+          modifiers,
+        });
+        return { success: true, tabId: String(tabId) };
+      }
+      case "browser_resize_viewport":
+        await debuggerApi.sendCommand(
+          target,
+          "Emulation.setDeviceMetricsOverride",
+          {
+            width: input.width,
+            height: input.height,
+            deviceScaleFactor: input.deviceScaleFactor ?? 1,
+            mobile: false,
+          },
+        );
+        return {
+          success: true,
+          tabId: String(tabId),
+          width: input.width,
+          height: input.height,
+        };
+      case "browser_get_navigation_state": {
+        const history = (await debuggerApi.sendCommand(
+          target,
+          "Page.getNavigationHistory",
+        )) as { currentIndex: number; entries: unknown[] };
+        const state = (await debuggerApi.sendCommand(
+          target,
+          "Runtime.evaluate",
+          {
+            expression: "({url:location.href,readyState:document.readyState})",
+            returnByValue: true,
+          },
+        )) as { result?: { value?: { url?: string; readyState?: string } } };
+        return {
+          tabId: String(tabId),
+          url: state.result?.value?.url ?? "",
+          loading: state.result?.value?.readyState === "loading",
+          canGoBack: history.currentIndex > 0,
+          canGoForward: history.currentIndex < history.entries.length - 1,
+          readyState: state.result?.value?.readyState ?? "loading",
+        };
+      }
       case "browser_key_down":
       case "browser_key_up":
         await debuggerApi.sendCommand(target, "Input.dispatchKeyEvent", {

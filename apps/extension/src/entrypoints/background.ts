@@ -22,6 +22,7 @@ import {
   REPIN_THEME_STORAGE_KEY,
 } from "../lib/constants";
 import { getStoredRepinTheme, isRepinTheme } from "../lib/theme";
+import { stageFiles } from "../browser-tools/file-handle-registry";
 
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
@@ -60,6 +61,14 @@ export default defineBackground(() => {
       return handleAssistantRunMessage(message);
     }
     if (!message || typeof message !== "object" || !("type" in message)) return;
+    if (message.type === "repin.files.stage" && "payload" in message) {
+      const payload = message.payload as {
+        fileIds: string[];
+        files: Array<{ dataBase64: string; name: string; type: string }>;
+      };
+      stageFiles(payload.fileIds, payload.files);
+      return { staged: true };
+    }
     if (message.type === REPIN_THEME_GET_MESSAGE) return getStoredRepinTheme();
     if (message.type === "repin.auth.status") return getExtensionAuthState();
     if (message.type === "repin.auth.connect") return connectExtension();

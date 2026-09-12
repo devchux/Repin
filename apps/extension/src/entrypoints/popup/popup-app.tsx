@@ -6,6 +6,7 @@ import {
   LogOut,
   MessageCircle,
   NotebookPen,
+  ShieldCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AssistantCapability } from "@repo/contracts/assistant";
@@ -36,6 +37,7 @@ export const PopupApp = () => {
   const [authPending, setAuthPending] = useState(false);
   const [actionError, setActionError] = useState<string>();
   const [actionPending, setActionPending] = useState<AssistantCapability>();
+  const [browserControlEnabled, setBrowserControlEnabled] = useState(false);
 
   useEffect(() => {
     void browser.runtime
@@ -43,6 +45,27 @@ export const PopupApp = () => {
       .then(setAuth)
       .catch(() => setAuth({ authenticated: false }));
   }, []);
+
+  useEffect(() => {
+    void browser.permissions
+      .contains({ permissions: ["debugger"] })
+      .then(setBrowserControlEnabled);
+  }, []);
+
+  async function enableBrowserControl() {
+    setActionError(undefined);
+    try {
+      setBrowserControlEnabled(
+        await browser.permissions.request({ permissions: ["debugger"] }),
+      );
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Browser control permission was not granted",
+      );
+    }
+  }
 
   async function handleConnect() {
     setAuthError(undefined);
@@ -92,7 +115,9 @@ export const PopupApp = () => {
       window.close();
     } catch (error) {
       setActionError(
-        error instanceof Error ? error.message : "Repin could not open this action",
+        error instanceof Error
+          ? error.message
+          : "Repin could not open this action",
       );
     } finally {
       setActionPending(undefined);
@@ -178,6 +203,18 @@ export const PopupApp = () => {
               <LoaderCircle className="size-4 animate-spin" />
             ) : null}
             {authPending ? "Opening Repin..." : "Connect"}
+          </Button>
+        ) : null}
+
+        {auth?.authenticated && !browserControlEnabled ? (
+          <Button
+            className="mt-2 w-full"
+            onClick={() => void enableBrowserControl()}
+            size="sm"
+            variant="outline"
+          >
+            <ShieldCheck className="size-4" />
+            Enable advanced browser control
           </Button>
         ) : null}
 
