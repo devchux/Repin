@@ -2,6 +2,7 @@ import type {
   AssistantCapability,
   AssistantConversation,
   AssistantRun,
+  BrowserActionApproval,
   CreateConversationMessageRequest,
   CreateAssistantRunRequest,
 } from "./assistant";
@@ -19,8 +20,23 @@ export type ExtensionRequestMessage =
     }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
-      readonly type: "assistant.run.get" | "assistant.run.cancel";
+      readonly type:
+        | "assistant.run.get"
+        | "assistant.run.cancel"
+        | "assistant.run.resume";
       readonly payload: AssistantRunReference;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "assistant.run.approvals.get";
+      readonly payload: AssistantRunReference;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type:
+        | "assistant.run.approval.approve"
+        | "assistant.run.approval.deny";
+      readonly payload: AssistantRunReference & { readonly approvalId: string };
     }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
@@ -70,6 +86,11 @@ export type ExtensionResponseMessage =
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "assistant.run.updated";
       readonly payload: AssistantRun;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "assistant.run.approvals.loaded";
+      readonly payload: readonly BrowserActionApproval[];
     }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;

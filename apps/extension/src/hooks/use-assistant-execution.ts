@@ -1,14 +1,19 @@
 import type {
   AiAssistantCapability,
   AssistantRun,
+  BrowserActionApproval,
 } from "@repo/contracts/assistant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   cancelAssistantRun,
+  approveAssistantRunAction,
   createAssistantConversationMessage,
   createAssistantRun,
+  denyAssistantRunAction,
   getAssistantRun,
+  getAssistantRunApprovals,
+  resumeAssistantRun,
 } from "../assistant/assistant-run-client";
 import { extractPageContext } from "../lib/page-context";
 import { dispatchTask } from "../assistant/workflow-client";
@@ -21,14 +26,21 @@ const TERMINAL_STATUSES = new Set<AssistantRun["status"]>([
 const MAX_POLL_FAILURES = 3;
 
 type AssistantRunState = {
+  approvalError?: string;
+  approvals: readonly BrowserActionApproval[];
   cancelling: boolean;
+  decidingApproval?: "approve" | "deny";
+  decidingApprovalId?: string;
   error?: string;
+  resuming: boolean;
   run?: AssistantRun;
   starting: boolean;
 };
 
 const initialState: AssistantRunState = {
+  approvals: [],
   cancelling: false,
+  resuming: false,
   starting: false,
 };
 
@@ -43,7 +55,9 @@ export const useAssistantExecution = (
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<AssistantRunState>(initialState);
   const [workflowInstanceId, setWorkflowInstanceId] = useState<string>();
-  const pollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const pollGeneration = useRef(0);
 
   const trackRun = useCallback(async (acceptedRun: AssistantRun) => {
@@ -51,7 +65,17 @@ export const useAssistantExecution = (
     let pollFailures = 0;
     const updateRun = (run: AssistantRun) => {
       if (generation !== pollGeneration.current) return;
-      setState({ cancelling: false, run, starting: false });
+      setState((current) => ({
+        ...current,
+        approvalError: undefined,
+        approvals: run.status === "awaiting_approval" ? current.approvals : [],
+        cancelling: false,
+        decidingApproval: undefined,
+        decidingApprovalId: undefined,
+        resuming: false,
+        run,
+        starting: false,
+      }));
     };
     const poll = async (runId: string) => {
       try {
@@ -91,7 +115,7 @@ export const useAssistantExecution = (
     let disposed = false;
 
     const start = async () => {
-      setState({ cancelling: false, starting: true });
+      setState({ ...initialState, starting: true });
       setWorkflowInstanceId(undefined);
       try {
         const request = {
@@ -110,7 +134,7 @@ export const useAssistantExecution = (
           if (result.kind === "workflow") {
             if (!disposed) {
               setWorkflowInstanceId(result.id);
-              setState({ cancelling: false, starting: false });
+              setState(initialState);
             }
             return;
           }
@@ -122,7 +146,7 @@ export const useAssistantExecution = (
       } catch (error) {
         if (disposed) return;
         setState({
-          cancelling: false,
+          ...initialState,
           error:
             error instanceof Error
               ? error.message
@@ -148,6 +172,37 @@ export const useAssistantExecution = (
     targetLanguage,
     trackRun,
   ]);
+
+  useEffect(() => {
+    const runId = state.run?.id;
+    const runStatus = state.run?.status;
+    if (!runId || runStatus !== "awaiting_approval") return;
+    let disposed = false;
+    void getAssistantRunApprovals(runId)
+      .then((approvals) => {
+        if (!disposed) {
+          setState((current) => ({
+            ...current,
+            approvalError: undefined,
+            approvals,
+          }));
+        }
+      })
+      .catch((error) => {
+        if (!disposed) {
+          setState((current) => ({
+            ...current,
+            approvalError:
+              error instanceof Error
+                ? error.message
+                : "Repin could not load this approval",
+          }));
+        }
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [state.run?.id, state.run?.status]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -181,7 +236,13 @@ export const useAssistantExecution = (
     setState((current) => ({ ...current, cancelling: true, error: undefined }));
     try {
       const run = await cancelAssistantRun(state.run.id);
-      setState({ cancelling: false, run, starting: false });
+      setState((current) => ({
+        ...current,
+        approvals: [],
+        cancelling: false,
+        run,
+        starting: false,
+      }));
     } catch (error) {
       setState((current) => ({
         ...current,
@@ -196,9 +257,59 @@ export const useAssistantExecution = (
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
+  const decideApproval = useCallback(
+    async (approvalId: string, decision: "approve" | "deny") => {
+      const runId = state.run?.id;
+      if (!runId) return;
+      setState((current) => ({
+        ...current,
+        approvalError: undefined,
+        decidingApproval: decision,
+        decidingApprovalId: approvalId,
+      }));
+      try {
+        const run = await (decision === "approve"
+          ? approveAssistantRunAction(runId, approvalId)
+          : denyAssistantRunAction(runId, approvalId));
+        await trackRun(run);
+      } catch (error) {
+        setState((current) => ({
+          ...current,
+          approvalError:
+            error instanceof Error
+              ? error.message
+              : "Repin could not record your decision",
+          decidingApproval: undefined,
+          decidingApprovalId: undefined,
+        }));
+      }
+    },
+    [state.run?.id, trackRun],
+  );
+
+  const resume = useCallback(async () => {
+    if (state.run?.status !== "suspended") return;
+    setState((current) => ({ ...current, error: undefined, resuming: true }));
+    try {
+      await trackRun(await resumeAssistantRun(state.run.id));
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Repin could not resume this run",
+        resuming: false,
+      }));
+    }
+  }, [state.run, trackRun]);
+
   return {
     ...state,
+    approve: (approvalId: string) => decideApproval(approvalId, "approve"),
     cancel,
+    deny: (approvalId: string) => decideApproval(approvalId, "deny"),
+    resume,
     retry,
     sendMessage,
     workflowInstanceId,

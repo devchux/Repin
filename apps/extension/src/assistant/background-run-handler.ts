@@ -1,6 +1,7 @@
 import type {
   AssistantConversation,
   AssistantRun,
+  BrowserActionApproval,
 } from "@repo/contracts/assistant";
 import type { TaskDispatchResult } from "@repo/contracts/task";
 import type { WorkflowInstance } from "@repo/contracts/workflow";
@@ -80,6 +81,10 @@ export const isAssistantRunMessage = (
     message.type === "assistant.run.create" ||
     message.type === "assistant.run.get" ||
     message.type === "assistant.run.cancel" ||
+    message.type === "assistant.run.resume" ||
+    message.type === "assistant.run.approvals.get" ||
+    message.type === "assistant.run.approval.approve" ||
+    message.type === "assistant.run.approval.deny" ||
     message.type === "assistant.conversation.get" ||
     message.type === "assistant.conversation.message.create" ||
     message.type === "task.dispatch" ||
@@ -183,9 +188,44 @@ export const handleAssistantRunMessage = async (
       };
     }
 
+    if (message.type === "assistant.run.approvals.get") {
+      const approvals = await readData<BrowserActionApproval[]>(
+        await authenticatedFetch(
+          `${serverUrl}/api/assistant/runs/${message.payload.runId}/approvals`,
+          { method: "GET" },
+        ),
+        "Could not load the proposed browser action",
+      );
+      return {
+        protocolVersion: REPIN_PROTOCOL_VERSION,
+        type: "assistant.run.approvals.loaded",
+        payload: approvals,
+      };
+    }
+
+    if (
+      message.type === "assistant.run.approval.approve" ||
+      message.type === "assistant.run.approval.deny"
+    ) {
+      const decision =
+        message.type === "assistant.run.approval.approve" ? "approve" : "deny";
+      const run = await readRun(
+        await authenticatedFetch(
+          `${serverUrl}/api/assistant/runs/${message.payload.runId}/approvals/${message.payload.approvalId}/${decision}`,
+          { method: "POST" },
+        ),
+      );
+      return {
+        protocolVersion: REPIN_PROTOCOL_VERSION,
+        type: "assistant.run.updated",
+        payload: run,
+      };
+    }
+
     if (
       message.type !== "assistant.run.get" &&
-      message.type !== "assistant.run.cancel"
+      message.type !== "assistant.run.cancel" &&
+      message.type !== "assistant.run.resume"
     ) {
       throw new Error("Unsupported assistant request");
     }
@@ -194,8 +234,10 @@ export const handleAssistantRunMessage = async (
       await authenticatedFetch(
         message.type === "assistant.run.cancel"
           ? `${endpoint}/cancel`
-          : endpoint,
-        { method: message.type === "assistant.run.cancel" ? "POST" : "GET" },
+          : message.type === "assistant.run.resume"
+            ? `${endpoint}/resume`
+            : endpoint,
+        { method: message.type === "assistant.run.get" ? "GET" : "POST" },
       ),
     );
     return {

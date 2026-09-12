@@ -60,8 +60,23 @@ export class ApprovalService {
   }
 
   async findPending(userId: number, runId: string) {
-    await this.runs.findUserRun(userId, runId);
+    const run = await this.runs.findUserRun(userId, runId);
     const approvals = await this.approvals.findPending(userId, runId);
+    if (run.status === 'awaiting_approval' && approvals.length === 0) {
+      await this.execution
+        .transition(runId, {
+          expectedStatuses: ['awaiting_approval'],
+          status: 'failed',
+          phase: 'terminal',
+          eventType: 'approval.unavailable',
+          eventData: { reason: 'expired_or_missing' },
+          patch: {
+            error: 'The browser action approval expired or is unavailable',
+            completedAt: new Date(),
+          },
+        })
+        .catch(() => undefined);
+    }
     return {
       message: 'Pending browser action approvals found',
       data: approvals.map((approval) => ({

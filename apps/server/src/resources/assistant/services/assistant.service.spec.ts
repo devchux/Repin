@@ -63,6 +63,7 @@ describe('AssistantService', () => {
   const approvals = {
     approve: jest.fn(),
     deny: jest.fn(),
+    findPending: jest.fn(),
   } as unknown as BrowserToolApprovalService;
   const runService = new RunService(
     runRepository,
@@ -314,6 +315,31 @@ describe('AssistantService', () => {
       { runId: run.id },
       expect.objectContaining({
         jobId: `${run.id}:approval:9d06cd75-e508-4d25-8a0d-a018863c2187`,
+      }),
+    );
+  });
+
+  it('fails closed when an awaiting approval has expired or disappeared', async () => {
+    const awaitingRun = {
+      ...run,
+      status: 'awaiting_approval' as const,
+      phase: 'awaiting_approval' as const,
+    };
+    jest.spyOn(runRepository, 'findOne').mockResolvedValue(awaitingRun);
+    jest.spyOn(approvals, 'findPending').mockResolvedValue([]);
+
+    await expect(
+      service.findPendingApprovals(run.userId, run.id),
+    ).resolves.toEqual({
+      message: 'Pending browser action approvals found',
+      data: [],
+    });
+    expect(execution.transition).toHaveBeenCalledWith(
+      run.id,
+      expect.objectContaining({
+        expectedStatuses: ['awaiting_approval'],
+        eventType: 'approval.unavailable',
+        status: 'failed',
       }),
     );
   });

@@ -33,8 +33,9 @@ export const getRunStatusLabel = (
     case "running":
       return usesSelection ? copy.runningSelection : copy.runningPage;
     case "awaiting_approval":
+      return "Waiting for your approval";
     case "suspended":
-      return "Waiting for the browser";
+      return "Ready to resume";
     case "cancelled":
       return copy.cancelled;
     case "completed":

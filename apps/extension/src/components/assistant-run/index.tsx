@@ -13,13 +13,18 @@ import type {
 import { getAssistantConversation } from "../../assistant/assistant-run-client";
 import { useAssistantExecution } from "../../hooks/use-assistant-execution";
 import { useWorkflowInstance } from "../../hooks/use-workflow-instance";
-import { getRunStatusLabel, isAssistantRunActive } from "../../lib/assistant-run";
+import {
+  getRunStatusLabel,
+  isAssistantRunActive,
+} from "../../lib/assistant-run";
 import { capabilityCopy } from "@/lib/constants";
 import { ChatMessage } from "./chat-message";
 import { FailureMessage } from "./failure-message";
 import { RunProgress } from "./run-progress";
 import { TranslationPrompt } from "./translation-prompt";
 import { ChatComposer } from "../chat-composer";
+import { ApprovalPanel } from "./approval-panel";
+import { ResumePanel } from "./resume-panel";
 
 interface AssistantRunProps {
   readonly capability: AiAssistantCapability;
@@ -103,6 +108,27 @@ export const AssistantRun = ({
 
   if (execution.workflowInstanceId) {
     if (workflow.instance) {
+      const approval = workflow.approvals[0];
+      if (workflow.activeRun?.status === "awaiting_approval") {
+        return (
+          <ApprovalPanel
+            approval={approval}
+            decision={workflow.decision}
+            error={workflow.interventionError}
+            onApprove={() => approval && void workflow.approve(approval.id)}
+            onDeny={() => approval && void workflow.deny(approval.id)}
+          />
+        );
+      }
+      if (workflow.activeRun?.status === "suspended") {
+        return (
+          <ResumePanel
+            error={workflow.interventionError}
+            resuming={workflow.resuming}
+            onResume={() => void workflow.resume()}
+          />
+        );
+      }
       return (
         <WorkflowPanel
           cancelling={workflow.cancelling}
@@ -124,6 +150,33 @@ export const AssistantRun = ({
           </div>
         )}
       </section>
+    );
+  }
+
+  if (execution.run?.status === "awaiting_approval") {
+    const approval = execution.approvals[0];
+    return (
+      <ApprovalPanel
+        approval={approval}
+        decision={
+          execution.decidingApprovalId === approval?.id
+            ? execution.decidingApproval
+            : undefined
+        }
+        error={execution.approvalError}
+        onApprove={() => approval && void execution.approve(approval.id)}
+        onDeny={() => approval && void execution.deny(approval.id)}
+      />
+    );
+  }
+
+  if (execution.run?.status === "suspended") {
+    return (
+      <ResumePanel
+        error={execution.error}
+        resuming={execution.resuming}
+        onResume={() => void execution.resume()}
+      />
     );
   }
 

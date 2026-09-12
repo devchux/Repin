@@ -2,6 +2,7 @@ import type {
   CreateAssistantRunRequest,
   AssistantConversation,
   AssistantRun,
+  BrowserActionApproval,
 } from "@repo/contracts/assistant";
 import {
   REPIN_PROTOCOL_VERSION,
@@ -60,6 +61,55 @@ export const cancelAssistantRun = async (
     }),
     "assistant.run.updated",
   );
+
+export const resumeAssistantRun = async (
+  runId: string,
+): Promise<AssistantRun> =>
+  unwrapRun(
+    await send({
+      protocolVersion: REPIN_PROTOCOL_VERSION,
+      type: "assistant.run.resume",
+      payload: { runId },
+    }),
+    "assistant.run.updated",
+  );
+
+export const getAssistantRunApprovals = async (
+  runId: string,
+): Promise<readonly BrowserActionApproval[]> => {
+  const response = await send({
+    protocolVersion: REPIN_PROTOCOL_VERSION,
+    type: "assistant.run.approvals.get",
+    payload: { runId },
+  });
+  if (response.type === "assistant.run.rejected") {
+    throw new Error(response.payload.message);
+  }
+  if (response.type !== "assistant.run.approvals.loaded") {
+    throw new Error("Repin received an unexpected approval response");
+  }
+  return response.payload;
+};
+
+const decideAssistantRunApproval = async (
+  runId: string,
+  approvalId: string,
+  decision: "approve" | "deny",
+): Promise<AssistantRun> =>
+  unwrapRun(
+    await send({
+      protocolVersion: REPIN_PROTOCOL_VERSION,
+      type: `assistant.run.approval.${decision}`,
+      payload: { approvalId, runId },
+    }),
+    "assistant.run.updated",
+  );
+
+export const approveAssistantRunAction = (runId: string, approvalId: string) =>
+  decideAssistantRunApproval(runId, approvalId, "approve");
+
+export const denyAssistantRunAction = (runId: string, approvalId: string) =>
+  decideAssistantRunApproval(runId, approvalId, "deny");
 
 export const getAssistantConversation = async (
   conversationId: string,
