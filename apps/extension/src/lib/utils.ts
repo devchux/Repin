@@ -6,6 +6,21 @@ import {
   TOOLBAR_VERTICAL_OFFSET,
 } from "./constants";
 
+export const formatBrowserActionLabel = (value: string) =>
+  value
+    .replace(/^browser_/, "")
+    .split("_")
+    .map((word) => `${word[0]?.toUpperCase() ?? ""}${word.slice(1)}`)
+    .join(" ");
+
+export const formatDisplayValue = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+};
+
 export const getCurrentSelectionRange: () => Range | null = () => {
   const selection = window.getSelection();
 

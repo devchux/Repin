@@ -17,6 +17,16 @@ export const REPIN_SIDEBAR_VIEWPORT_GAP = 24;
 export const REPIN_THEME_STORAGE_KEY = "repin:theme";
 export const REPIN_THEME_GET_MESSAGE = "repin.theme.get";
 export const REPIN_THEME_CHANGED_MESSAGE = "repin.theme.changed";
+export const BROWSER_TOOL_LABELS: Readonly<Record<string, string>> = {
+  browser_close_tab: "Close a browser tab",
+  browser_close_window: "Close a browser window",
+  browser_download: "Download a file",
+  browser_execute_script: "Run a script on this page",
+  browser_paste: "Paste into this page",
+  browser_set_permission: "Change a browser permission",
+  browser_submit_form: "Submit a form",
+  browser_upload_files: "Upload files",
+};
 export const modeConfig = {
   summarize: {
     title: "Summarize",

@@ -1,5 +1,10 @@
 import type { BrowserActionApproval } from "@repo/contracts/assistant";
 import { Button } from "@repo/ui/button";
+import { BROWSER_TOOL_LABELS } from "@/lib/constants";
+import {
+  formatBrowserActionLabel,
+  formatDisplayValue,
+} from "@/lib/utils";
 import {
   AlertTriangle,
   Check,
@@ -7,32 +12,6 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-
-const TOOL_LABELS: Readonly<Record<string, string>> = {
-  browser_close_tab: "Close a browser tab",
-  browser_close_window: "Close a browser window",
-  browser_download: "Download a file",
-  browser_execute_script: "Run a script on this page",
-  browser_paste: "Paste into this page",
-  browser_set_permission: "Change a browser permission",
-  browser_submit_form: "Submit a form",
-  browser_upload_files: "Upload files",
-};
-
-const labelFor = (value: string) =>
-  value
-    .replace(/^browser_/, "")
-    .split("_")
-    .map((word) => `${word[0]?.toUpperCase() ?? ""}${word.slice(1)}`)
-    .join(" ");
-
-const displayValue = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return JSON.stringify(value);
-};
 
 export const ApprovalPanel = ({
   approval,
@@ -66,7 +45,8 @@ export const ApprovalPanel = ({
           <>
             <div>
               <p className="text-sm font-medium">
-                {TOOL_LABELS[approval.toolName] ?? labelFor(approval.toolName)}
+                {BROWSER_TOOL_LABELS[approval.toolName] ??
+                  formatBrowserActionLabel(approval.toolName)}
               </p>
               <p className="mt-1 text-xs leading-5 text-neutral-500 dark:text-neutral-400">
                 {approval.reason}
@@ -80,10 +60,10 @@ export const ApprovalPanel = ({
                     key={key}
                   >
                     <dt className="truncate text-neutral-500 dark:text-neutral-400">
-                      {labelFor(key)}
+                      {formatBrowserActionLabel(key)}
                     </dt>
                     <dd className="wrap-break-word text-neutral-800 dark:text-neutral-200">
-                      {displayValue(value)}
+                      {formatDisplayValue(value)}
                     </dd>
                   </div>
                 ))}
