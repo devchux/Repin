@@ -16,6 +16,7 @@ import {
   getAssistantRunApprovals,
   resumeAssistantRun,
 } from "../assistant/assistant-run-client";
+import { useEventStream } from "./use-event-stream";
 
 const TERMINAL_STATUSES = new Set<WorkflowInstance["status"]>([
   "cancelled",
@@ -35,6 +36,14 @@ export const useWorkflowInstance = (instanceId?: string) => {
   const [interventionError, setInterventionError] = useState<string>();
   const [decision, setDecision] = useState<"approve" | "deny">();
   const [resuming, setResuming] = useState(false);
+  const [streamRevision, setStreamRevision] = useState(0);
+  const streamStatus = useEventStream(
+    "workflow-instance",
+    instanceId,
+    (event) => {
+      if (event.type !== "heartbeat") setStreamRevision((value) => value + 1);
+    },
+  );
 
   useEffect(() => {
     if (!instanceId) return;
@@ -82,7 +91,10 @@ export const useWorkflowInstance = (instanceId?: string) => {
           setActiveRun(undefined);
           setApprovals([]);
         }
-        if (!TERMINAL_STATUSES.has(next.status)) {
+        if (
+          !TERMINAL_STATUSES.has(next.status) &&
+          streamStatus !== "connected"
+        ) {
           timer = setTimeout(() => void poll(), POLL_INTERVAL_MS);
         }
       } catch (pollError) {
@@ -101,7 +113,7 @@ export const useWorkflowInstance = (instanceId?: string) => {
       disposed = true;
       if (timer) clearTimeout(timer);
     };
-  }, [instanceId]);
+  }, [instanceId, streamRevision, streamStatus]);
 
   const cancel = useCallback(async () => {
     if (!instanceId || cancelling) return;

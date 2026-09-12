@@ -3,7 +3,7 @@ import type {
   AssistantRun,
   BrowserActionApproval,
 } from "@repo/contracts/assistant";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   cancelAssistantRun,
@@ -17,6 +17,7 @@ import {
 } from "../assistant/assistant-run-client";
 import { extractPageContext } from "../lib/page-context";
 import { dispatchTask } from "../assistant/workflow-client";
+import { useEventStream } from "./use-event-stream";
 
 const TERMINAL_STATUSES = new Set<AssistantRun["status"]>([
   "cancelled",
@@ -55,60 +56,73 @@ export const useAssistantExecution = (
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<AssistantRunState>(initialState);
   const [workflowInstanceId, setWorkflowInstanceId] = useState<string>();
-  const pollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const pollGeneration = useRef(0);
-
-  const trackRun = useCallback(async (acceptedRun: AssistantRun) => {
-    const generation = ++pollGeneration.current;
-    let pollFailures = 0;
-    const updateRun = (run: AssistantRun) => {
-      if (generation !== pollGeneration.current) return;
-      setState((current) => ({
-        ...current,
-        approvalError: undefined,
-        approvals: run.status === "awaiting_approval" ? current.approvals : [],
-        cancelling: false,
-        decidingApproval: undefined,
-        decidingApprovalId: undefined,
-        resuming: false,
-        run,
-        starting: false,
-      }));
-    };
-    const poll = async (runId: string) => {
-      try {
-        const run = await getAssistantRun(runId);
-        pollFailures = 0;
-        updateRun(run);
-        if (!TERMINAL_STATUSES.has(run.status)) {
-          pollTimer.current = setTimeout(() => void poll(runId), 1_500);
-        }
-      } catch (error) {
-        pollFailures += 1;
-        if (generation !== pollGeneration.current) return;
-        if (pollFailures < MAX_POLL_FAILURES) {
-          pollTimer.current = setTimeout(
-            () => void poll(runId),
-            pollFailures * 1_500,
-          );
-          return;
-        }
-        setState((current) => ({
-          ...current,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Repin could not refresh this run",
-          starting: false,
-        }));
-      }
-    };
-
-    updateRun(acceptedRun);
-    if (!TERMINAL_STATUSES.has(acceptedRun.status)) void poll(acceptedRun.id);
+  const trackRun = useCallback(async (run: AssistantRun) => {
+    setState((current) => ({
+      ...current,
+      approvalError: undefined,
+      approvals: run.status === "awaiting_approval" ? current.approvals : [],
+      cancelling: false,
+      decidingApproval: undefined,
+      decidingApprovalId: undefined,
+      error: undefined,
+      resuming: false,
+      run,
+      starting: false,
+    }));
   }, []);
+
+  const streamStatus = useEventStream(
+    "assistant-run",
+    state.run?.id,
+    (event) => {
+      if (
+        event.data &&
+        typeof event.data === "object" &&
+        "id" in event.data &&
+        "status" in event.data
+      ) {
+        void trackRun(event.data as AssistantRun);
+      }
+    },
+  );
+  const activeRunId = state.run?.id;
+  const activeRunStatus = state.run?.status;
+
+  useEffect(() => {
+    if (
+      !activeRunId ||
+      (activeRunStatus && TERMINAL_STATUSES.has(activeRunStatus)) ||
+      streamStatus === "connected"
+    ) {
+      return;
+    }
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let failures = 0;
+    const poll = async () => {
+      try {
+        await trackRun(await getAssistantRun(activeRunId));
+        failures = 0;
+      } catch (error) {
+        failures += 1;
+        if (failures >= MAX_POLL_FAILURES && !disposed) {
+          setState((current) => ({
+            ...current,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Repin could not refresh this run",
+          }));
+        }
+      }
+      if (!disposed) timer = setTimeout(() => void poll(), 3_000);
+    };
+    void poll();
+    return () => {
+      disposed = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [activeRunId, activeRunStatus, streamStatus, trackRun]);
 
   useEffect(() => {
     if (!enabled || !requestId) return;
@@ -159,8 +173,6 @@ export const useAssistantExecution = (
     void start();
     return () => {
       disposed = true;
-      pollGeneration.current += 1;
-      if (pollTimer.current) clearTimeout(pollTimer.current);
     };
   }, [
     attempt,

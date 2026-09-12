@@ -23,8 +23,10 @@ import {
 } from "../lib/constants";
 import { getStoredRepinTheme, isRepinTheme } from "../lib/theme";
 import { stageFiles } from "../browser-tools/file-handle-registry";
+import { registerEventStreamManager } from "../assistant/background-event-stream-manager";
 
 export default defineBackground(() => {
+  registerEventStreamManager();
   browser.runtime.onInstalled.addListener(() => {
     console.info("Repin extension installed");
     void registerContextMenus();

@@ -42,8 +42,8 @@ export class AssistantService {
     return this.runs.findRuns(userId);
   }
 
-  watchRun(userId: number, runId: string) {
-    return this.runs.watchRun(userId, runId);
+  watchRun(userId: number, runId: string, lastEventId?: string) {
+    return this.runs.watchRun(userId, runId, lastEventId);
   }
 
   cancelRun(userId: number, runId: string) {

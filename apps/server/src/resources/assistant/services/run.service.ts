@@ -10,19 +10,23 @@ import type { MessageEvent } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import type { EntityManager } from 'typeorm';
 import { Repository } from 'typeorm';
+import { MoreThan } from 'typeorm';
 import type {
   AssistantCapability,
   AssistantExecutionLane,
 } from '@repo/contracts/assistant';
 import {
-  distinctUntilChanged,
+  concatMap,
+  defer,
+  EMPTY,
   filter,
+  from,
   interval,
   map,
   merge,
   Observable,
+  of,
   share,
-  switchMap,
   take,
   takeUntil,
   takeWhile,
@@ -30,6 +34,7 @@ import {
 } from 'rxjs';
 import { ExecutionService } from '../../agent/services/execution.service';
 import { Run } from '../../agent/entities/run.entity';
+import { RunEvent } from '../../agent/entities/run-event.entity';
 import {
   BACKGROUND_QUEUE,
   EXECUTE_JOB,
@@ -44,6 +49,8 @@ export class RunService {
   constructor(
     @InjectRepository(Run)
     private readonly repository: Repository<Run>,
+    @InjectRepository(RunEvent)
+    private readonly eventRepository: Repository<RunEvent>,
     @InjectQueue(INTERACTIVE_QUEUE) private readonly shortQueue: Queue,
     @InjectQueue(BACKGROUND_QUEUE) private readonly longQueue: Queue,
     private readonly handler: RunHandler,
@@ -72,37 +79,68 @@ export class RunService {
   async watchRun(
     userId: number,
     runId: string,
+    lastEventId?: string,
   ): Promise<Observable<MessageEvent>> {
-    await this.findUserRun(userId, runId);
-    const runs = timer(0, 1000).pipe(
-      switchMap(() => this.findUserRun(userId, runId)),
+    const initialRun = await this.findUserRun(userId, runId);
+    const initialSequence = this.parseEventSequence(lastEventId);
+    const initial = lastEventId
+      ? EMPTY
+      : of<MessageEvent>({
+          id: '0',
+          type: initialRun.status,
+          retry: 2000,
+          data: this.toResponse(initialRun),
+        });
+    const persisted = defer(() => {
+      let sequence = initialSequence;
+      return timer(0, 500).pipe(
+        concatMap(() =>
+          this.eventRepository.find({
+            where: { runId, sequence: MoreThan(sequence) },
+            order: { sequence: 'ASC' },
+          }),
+        ),
+        concatMap((events) => from(events)),
+        concatMap(async (event): Promise<MessageEvent> => {
+          sequence = event.sequence;
+          const run = await this.findUserRun(userId, runId);
+          return {
+            id: String(event.sequence),
+            type: event.type,
+            retry: 2000,
+            data: this.toResponse(run),
+          };
+        }),
+      );
+    });
+    const statusEvents = merge(initial, persisted).pipe(
+      takeWhile((event) => !this.isTerminalEvent(event), true),
       share(),
     );
-    const terminalRun = runs.pipe(
-      filter((run) => this.isTerminal(run)),
+    const terminalRun = statusEvents.pipe(
+      filter((event) => this.isTerminalEvent(event)),
       take(1),
-    );
-    const statusEvents = runs.pipe(
-      distinctUntilChanged(
-        (previous, current) =>
-          previous.status === current.status &&
-          previous.updatedAt.getTime() === current.updatedAt.getTime(),
-      ),
-      map(
-        (run): MessageEvent => ({
-          id: `${run.id}:${run.updatedAt.getTime()}`,
-          type: run.status,
-          retry: 2000,
-          data: this.toResponse(run),
-        }),
-      ),
-      takeWhile((event) => !this.isTerminalStatus(event.type), true),
     );
     const heartbeats = interval(15_000).pipe(
       map((): MessageEvent => ({ type: 'heartbeat', data: { runId } })),
       takeUntil(terminalRun),
     );
     return merge(statusEvents, heartbeats);
+  }
+
+  private parseEventSequence(lastEventId?: string): number {
+    if (!lastEventId) return 0;
+    if (!/^\d+$/.test(lastEventId)) {
+      throw new BadRequestException('Last-Event-ID must be a sequence number');
+    }
+    return Number(lastEventId);
+  }
+
+  private isTerminalEvent(event: MessageEvent): boolean {
+    return (
+      ['run.cancelled', 'run.completed', 'run.failed'].includes(event.type) ||
+      (!event.type.startsWith('run.') && this.isTerminalStatus(event.type))
+    );
   }
 
   async cancelRun(userId: number, runId: string) {
