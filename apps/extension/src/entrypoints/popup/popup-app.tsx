@@ -19,6 +19,8 @@ import { cn } from "@repo/ui/lib/utils";
 import repinLogoUrl from "@/assets/repin-logo-icon.png";
 import { PAGE_ACTIONS } from "@/lib/page-actions";
 import { openPageSidebar } from "@/lib/sidebar-activation";
+import { BrowserSessionStatusIndicator } from "@/components/browser-session-status";
+import { getAdvancedBrowserControlAvailability } from "@/browser-tools/advanced-browser-control";
 
 const actionIcons = {
   summarize: FileText,
@@ -38,6 +40,7 @@ export const PopupApp = () => {
   const [actionError, setActionError] = useState<string>();
   const [actionPending, setActionPending] = useState<AssistantCapability>();
   const [browserControlEnabled, setBrowserControlEnabled] = useState(false);
+  const advancedControl = getAdvancedBrowserControlAvailability();
 
   useEffect(() => {
     void browser.runtime
@@ -54,6 +57,10 @@ export const PopupApp = () => {
 
   async function enableBrowserControl() {
     setActionError(undefined);
+    if (!advancedControl.available) {
+      setActionError(advancedControl.reason);
+      return;
+    }
     try {
       setBrowserControlEnabled(
         await browser.permissions.request({ permissions: ["debugger"] }),
@@ -207,15 +214,30 @@ export const PopupApp = () => {
         ) : null}
 
         {auth?.authenticated && !browserControlEnabled ? (
-          <Button
-            className="mt-2 w-full"
-            onClick={() => void enableBrowserControl()}
-            size="sm"
-            variant="outline"
-          >
-            <ShieldCheck className="size-4" />
-            Enable advanced browser control
-          </Button>
+          <div className="mt-2 space-y-1.5">
+            <Button
+              className="w-full"
+              disabled={!advancedControl.available}
+              onClick={() => void enableBrowserControl()}
+              size="sm"
+              variant="outline"
+            >
+              <ShieldCheck className="size-4" />
+              Enable advanced browser control
+            </Button>
+            <p className="px-1 text-[11px] leading-4 text-neutral-500 dark:text-neutral-400">
+              {advancedControl.available
+                ? "Allows precise keyboard, mouse, dialog, and navigation control when an agent needs it."
+                : advancedControl.reason}
+            </p>
+          </div>
+        ) : null}
+
+        {auth?.authenticated ? (
+          <BrowserSessionStatusIndicator
+            className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-2 dark:border-neutral-800 dark:bg-neutral-900"
+            showDetail
+          />
         ) : null}
 
         {authError || actionError ? (

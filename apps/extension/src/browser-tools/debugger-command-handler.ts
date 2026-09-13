@@ -191,6 +191,11 @@ export const executeDebuggerCommand = async (
     }
     return { success: true, tabId: String(tabId) };
   } finally {
-    await debuggerApi.detach(target).catch(() => undefined);
+    await debuggerApi.detach(target).catch((error: unknown) => {
+      console.warn("Repin could not detach advanced browser control", {
+        error,
+        tabId,
+      });
+    });
   }
 };

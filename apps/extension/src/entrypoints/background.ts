@@ -2,6 +2,7 @@ import {
   startBrowserSession,
   stopBrowserSession,
 } from "../browser-tools/browser-session-client";
+import { registerBrowserSessionStatusManager } from "../browser-tools/browser-session-status";
 import {
   connectExtension,
   disconnectExtension,
@@ -30,6 +31,7 @@ import {
 } from "../lib/sidebar-session";
 
 export default defineBackground(() => {
+  registerBrowserSessionStatusManager();
   registerEventStreamManager();
   browser.runtime.onInstalled.addListener(() => {
     console.info("Repin extension installed");
@@ -106,10 +108,20 @@ export default defineBackground(() => {
   });
   const maintainBrowserSession = async () => {
     await initializeExtensionAuth();
+    let attemptedConnection = false;
     while (true) {
+      const auth = await getExtensionAuthState();
+      if (!auth.authenticated) {
+        attemptedConnection = false;
+        stopBrowserSession();
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+        continue;
+      }
       try {
-        await startBrowserSession();
+        await startBrowserSession(attemptedConnection);
+        attemptedConnection = true;
       } catch (error) {
+        attemptedConnection = true;
         console.warn("Repin browser session is offline", error);
       }
       await new Promise((resolve) => setTimeout(resolve, 5_000));

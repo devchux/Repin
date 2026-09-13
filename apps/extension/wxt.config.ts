@@ -4,7 +4,7 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
-  manifest: {
+  manifest: ({ browser }) => ({
     name: "Repin",
     description: "Save, annotate, and organize useful pages from anywhere.",
     permissions: [
@@ -18,7 +18,9 @@ export default defineConfig({
       "scripting",
       "webNavigation",
     ],
-    optional_permissions: ["debugger"] as never[],
+    ...(browser === "firefox"
+      ? {}
+      : { optional_permissions: ["debugger"] as never[] }),
     host_permissions: ["<all_urls>"],
     action: {
       default_title: "Repin",
@@ -44,7 +46,7 @@ export default defineConfig({
         },
       },
     },
-  },
+  }),
   vite: () => ({
     plugins: [tailwindcss()],
   }),

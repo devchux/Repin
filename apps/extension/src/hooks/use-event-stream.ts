@@ -51,6 +51,10 @@ export const useEventStream = (
       setStatus("connecting");
       try {
         const nextPort = browser.runtime.connect({ name: EVENT_STREAM_PORT });
+        if (!nextPort) {
+          scheduleReconnect();
+          return;
+        }
         port = nextPort;
         const receive = (message: EventStreamServerMessage) => {
           if (message.type === "connected") {
@@ -77,7 +81,8 @@ export const useEventStream = (
           resourceId,
           cursor,
         });
-      } catch {
+      } catch (error) {
+        console.warn("Repin could not open its event-stream channel", error);
         scheduleReconnect();
       }
     };

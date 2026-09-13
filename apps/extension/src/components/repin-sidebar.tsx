@@ -15,6 +15,7 @@ import type { RepinTheme } from "@/types/content";
 import repinLogoUrl from "@/assets/repin-logo-icon.png";
 import { AssistantRun } from "./assistant-run";
 import type { AiAssistantCapability } from "@repo/contracts/assistant";
+import { BrowserSessionStatusIndicator } from "./browser-session-status";
 
 interface RepinSidebarProps {
   mode: RepinSidebarMode;
@@ -85,6 +86,7 @@ export const RepinSidebar = ({
               <span className="block truncate text-xs text-neutral-500 dark:text-neutral-400">
                 {page.title || "Current page"}
               </span>
+              <BrowserSessionStatusIndicator className="mt-1 text-neutral-500 dark:text-neutral-400" />
             </span>
           </button>
 
