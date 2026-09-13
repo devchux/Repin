@@ -16,6 +16,7 @@ import {
   getExtensionServerUrl,
 } from "../auth/extension-auth-client";
 import { getBrowserSessionId } from "../browser-tools/browser-session-client";
+import { ASSISTANT_RUN_MESSAGE_TYPES } from "@/lib/constants";
 
 type ApiEnvelope<T> = { data: T; message: string };
 
@@ -77,20 +78,7 @@ export const isAssistantRunMessage = (
   ) {
     return false;
   }
-  return (
-    message.type === "assistant.run.create" ||
-    message.type === "assistant.run.get" ||
-    message.type === "assistant.run.cancel" ||
-    message.type === "assistant.run.resume" ||
-    message.type === "assistant.run.approvals.get" ||
-    message.type === "assistant.run.approval.approve" ||
-    message.type === "assistant.run.approval.deny" ||
-    message.type === "assistant.conversation.get" ||
-    message.type === "assistant.conversation.message.create" ||
-    message.type === "task.dispatch" ||
-    message.type === "workflow.instance.get" ||
-    message.type === "workflow.instance.cancel"
-  );
+  return ASSISTANT_RUN_MESSAGE_TYPES.includes(message.type as string);
 };
 
 export const handleAssistantRunMessage = async (

@@ -175,3 +175,18 @@ export const TARGET_LANGUAGES = [
   "Korean",
   "Hindi",
 ] as const;
+
+export const ASSISTANT_RUN_MESSAGE_TYPES = [
+  "assistant.run.create",
+  "assistant.run.get",
+  "assistant.run.cancel",
+  "assistant.run.resume",
+  "assistant.run.approvals.get",
+  "assistant.run.approval.approve",
+  "assistant.run.approval.deny",
+  "assistant.conversation.get",
+  "assistant.conversation.message.create",
+  "task.dispatch",
+  "workflow.instance.get",
+  "workflow.instance.cancel",
+];
