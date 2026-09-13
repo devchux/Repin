@@ -1,19 +1,22 @@
 import { X } from "lucide-react";
 
 import { Button } from "@repo/ui/button";
+import { getRepinThemeClass } from "@/lib/theme";
 import type { RepinSidebarMode, ToolbarPosition } from "@/types";
+import type { RepinTheme } from "@/types/content";
 import { toolbarActions } from "@/lib/constants";
 
 interface RepinToolbarProps {
   onClose: () => void;
   onModeSelect: (mode: RepinSidebarMode) => void;
   position: ToolbarPosition;
+  theme: RepinTheme;
 }
 
 export const RepinToolbar = (props: RepinToolbarProps) => {
   return (
     <div
-      className="fixed z-2147483647 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-neutral-200 bg-white/95 p-1.5 shadow-xl shadow-neutral-950/15 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95 dark:shadow-neutral-950/40"
+      className={`${getRepinThemeClass(props.theme)} fixed z-2147483647 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-neutral-200 bg-white/95 p-1.5 text-neutral-950 shadow-xl shadow-neutral-950/15 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95 dark:text-neutral-50 dark:shadow-neutral-950/40`}
       style={{
         left: props.position.left,
         top: props.position.top,

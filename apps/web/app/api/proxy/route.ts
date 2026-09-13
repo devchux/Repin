@@ -38,13 +38,16 @@ function extractErrorMessage(err: unknown): string {
     if (data.title && data.detail) return `${data.title}: ${data.detail}`;
     if (data.title) return data.title;
 
-    if (data.error) {
+    if ((!data.message || typeof data.message !== "string") && data.error) {
       return typeof data.error === "string"
         ? data.error
         : (data.error.message ?? JSON.stringify(data.error));
     }
+    if (data.message)
+      return typeof data.message === "string"
+        ? data.message
+        : JSON.stringify(data.message);
 
-    if (data.message) return data.message;
     if (data.errorMessage) return data.errorMessage;
     if (data.result?.error) return data.result.error;
     if (data.result?.message) return data.result.message;

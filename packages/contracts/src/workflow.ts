@@ -181,3 +181,58 @@ export type WorkflowDefinitionSource = "manual" | "generated";
 export interface StartWorkflowRequest {
   readonly input?: Readonly<Record<string, unknown>>;
 }
+
+export interface WorkflowDefinition {
+  readonly id: string;
+  readonly key: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly source: WorkflowDefinitionSource;
+  readonly version: number;
+  readonly activation?: WorkflowActivation;
+  readonly goal?: WorkflowGoal;
+  readonly graph: WorkflowGraph;
+  readonly createdAt: string;
+}
+
+export interface WorkflowNodeExecution {
+  readonly id: string;
+  readonly nodeId: string;
+  readonly nodeType: WorkflowNode["type"];
+  readonly status: WorkflowNodeStatus;
+  readonly runId?: string;
+  readonly output?: unknown;
+  readonly error?: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly startedAt?: string;
+  readonly completedAt?: string;
+}
+
+export interface WorkflowEvent {
+  readonly id: string;
+  readonly sequence: number;
+  readonly type: string;
+  readonly nodeId?: string;
+  readonly data?: unknown;
+  readonly createdAt: string;
+}
+
+export interface WorkflowInstance {
+  readonly id: string;
+  readonly definitionId: string;
+  readonly definition?: WorkflowDefinition;
+  readonly status: WorkflowInstanceStatus;
+  readonly currentNodeId: string;
+  readonly input: Readonly<Record<string, unknown>>;
+  readonly output: Readonly<Record<string, unknown>>;
+  readonly goalValidation?: WorkflowGoalValidation;
+  readonly error?: string;
+  readonly nodeExecutions: readonly WorkflowNodeExecution[];
+  readonly events: readonly WorkflowEvent[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly startedAt?: string;
+  readonly completedAt?: string;
+  readonly cancelledAt?: string;
+}

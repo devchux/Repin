@@ -7,8 +7,7 @@ import type { ComponentProps } from "react";
 
 import { cn } from "./lib/utils";
 
-interface RichTextEditorProps
-  extends Omit<ComponentProps<"div">, "onChange"> {
+interface RichTextEditorProps extends Omit<ComponentProps<"div">, "onChange"> {
   content?: string;
   contentClassName?: string;
   editorClassName?: string;
@@ -69,7 +68,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "max-w-none outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-neutral-500 [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
+          "max-w-none whitespace-pre-wrap outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-neutral-500 [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
           minHeightClassName,
           editorClassName,
         ),
@@ -112,7 +111,10 @@ export function RichTextEditor({
         </div>
       ) : null}
       <EditorContent
-        className={cn("px-4 py-3 text-base leading-6 max-h-40 overflow-auto", contentClassName)}
+        className={cn(
+          "px-4 py-3 text-base leading-6 max-h-40 overflow-auto",
+          contentClassName,
+        )}
         editor={editor}
       />
     </div>

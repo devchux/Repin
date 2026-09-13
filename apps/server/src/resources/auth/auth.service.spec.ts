@@ -5,6 +5,8 @@ import { CacheService } from '../cache/cache.service';
 import { AuthService } from './auth.service';
 import { MockMailService } from './mock-mail.service';
 import { UserService } from '../user/user.service';
+import { AuthTokenService } from './services/auth-token.service';
+import { ExtensionAuthService } from './services/extension-auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -13,6 +15,14 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        {
+          provide: AuthTokenService,
+          useValue: {},
+        },
+        {
+          provide: ExtensionAuthService,
+          useValue: {},
+        },
         {
           provide: CacheService,
           useValue: {

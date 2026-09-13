@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -45,8 +46,9 @@ export class AssistantController {
   async watchRun(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) runId: string,
+    @Headers('last-event-id') lastEventId?: string,
   ) {
-    return this.assistantService.watchRun(user.id, runId);
+    return this.assistantService.watchRun(user.id, runId, lastEventId);
   }
 
   @Post('runs/:id/cancel')

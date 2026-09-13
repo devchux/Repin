@@ -14,6 +14,7 @@ export type PendingAuth = {
   lastName?: string;
   mockCode?: string;
   mode: AuthMode;
+  returnTo?: string;
 };
 
 export type AuthState = {

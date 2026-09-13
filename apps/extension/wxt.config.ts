@@ -4,11 +4,23 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
-  manifest: {
+  manifest: ({ browser }) => ({
     name: "Repin",
     description: "Save, annotate, and organize useful pages from anywhere.",
-    permissions: ["storage", "tabs", "sessions", "downloads", "scripting"],
-    optional_permissions: ["debugger"] as never[],
+    permissions: [
+      "identity",
+      "contextMenus",
+      "storage",
+      "tabs",
+      "sessions",
+      "downloads",
+      "cookies",
+      "scripting",
+      "webNavigation",
+    ],
+    ...(browser === "firefox"
+      ? {}
+      : { optional_permissions: ["debugger"] as never[] }),
     host_permissions: ["<all_urls>"],
     action: {
       default_title: "Repin",
@@ -34,7 +46,7 @@ export default defineConfig({
         },
       },
     },
-  },
+  }),
   vite: () => ({
     plugins: [tailwindcss()],
   }),

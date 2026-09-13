@@ -31,10 +31,10 @@ export class RunCheckpoint {
   @Column({ type: 'integer' })
   version: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   status: AssistantRunStatus;
 
-  @Column()
+  @Column({ type: 'varchar' })
   phase: AssistantRunPhase;
 
   @Column({ type: 'jsonb', nullable: true })

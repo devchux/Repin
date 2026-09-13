@@ -63,7 +63,7 @@ export class Run {
   @Column({ nullable: true })
   browserSessionId?: string;
 
-  @Column({ default: 'extension' })
+  @Column({ type: 'varchar', default: 'extension' })
   browserExecutionTarget: 'extension' | 'managed';
 
   @Column({ type: 'enum', enum: AI_ASSISTANT_CAPABILITIES })
@@ -78,7 +78,7 @@ export class Run {
   @Column({ type: 'integer', default: 0 })
   checkpointVersion: number;
 
-  @Column({ default: 'short' })
+  @Column({ type: 'varchar', default: 'short' })
   executionLane: AssistantExecutionLane;
 
   @Column({ type: 'integer', default: 0 })

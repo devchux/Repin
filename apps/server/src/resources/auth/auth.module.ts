@@ -9,12 +9,16 @@ import { MockMailService } from './mock-mail.service';
 import { AuthGuard } from './guards/auth.guard';
 import { SelfOrSuperUserGuard } from './guards/self-or-super-user.guard';
 import { SuperUserGuard } from './guards/super-user.guard';
+import { AuthTokenService } from './services/auth-token.service';
+import { ExtensionAuthService } from './services/extension-auth.service';
 
 @Module({
   imports: [CacheModule, JwtModule.register({}), UserModule],
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthTokenService,
+    ExtensionAuthService,
     MockMailService,
     AuthGuard,
     {

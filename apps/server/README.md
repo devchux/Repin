@@ -174,3 +174,21 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
+## Browser extension authentication
+
+The extension uses an OAuth-style Authorization Code flow with PKCE. The
+background service opens `/extension/authorize` in the browser, exchanges the
+single-use code for a short-lived bearer token, and rotates an opaque refresh
+token without asking the user to sign in again.
+
+Set `EXTENSION_CLIENT_IDS` to the comma-separated IDs of the published Chrome
+extensions. It may remain empty for unpacked local development, where Chrome
+derives the extension ID dynamically. Extension authorization codes expire
+after `EXTENSION_AUTHORIZATION_CODE_TTL` (60 seconds by default), while
+extension refresh credentials use `EXTENSION_REFRESH_TOKEN_TTL` (30 days by
+default).
+
+The extension defaults to `http://localhost:3000` for the web app and
+`http://localhost:3001` for the API. Override these in `browser.storage.local`
+with `repinWebUrl` and `repinServerUrl` for other environments.

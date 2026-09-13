@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useReducerState } from "@repo/ui/hooks/use-reducer-state";
-import { getRepinThemeClass } from "@/lib/theme";
 import { RepinSidebar } from "./repin-sidebar";
 import { RepinToolbar } from "./repin-toolbar";
 import { useRepinTheme } from "@/hooks/use-theme";
@@ -12,12 +11,18 @@ import {
   isSameSelectionRange,
 } from "@/lib/utils";
 import type { RepinSidebarMode, ToolbarPosition } from "@/types";
+import {
+  REPIN_PROTOCOL_VERSION,
+  type OpenExtensionSidebarMessage,
+} from "@repo/contracts/messages";
+import type { SidebarSessionState } from "@/lib/sidebar-session";
 
 interface ContentAppState {
   selectedText: string;
   sidebarMode: RepinSidebarMode;
   sidebarOpen: boolean;
   sidebarPinned: boolean;
+  sidebarRequestId: string;
   toolbarPosition: ToolbarPosition | null;
 }
 
@@ -27,9 +32,12 @@ export const ContentApp = () => {
     sidebarMode: "summarize",
     sidebarOpen: false,
     sidebarPinned: false,
+    sidebarRequestId: "",
     toolbarPosition: null,
   });
   const dismissedSelectionRangeRef = useRef<Range | null>(null);
+  const interactionBeforeHydrationRef = useRef(false);
+  const [sessionHydrated, setSessionHydrated] = useState(false);
   const previousPageStylesRef = useRef<{
     bodyMarginRight: string;
     bodyTransition: string;
@@ -45,12 +53,90 @@ export const ContentApp = () => {
   );
 
   const openSidebar = (mode: RepinSidebarMode) => {
+    interactionBeforeHydrationRef.current = true;
     setState({
       selectedText: window.getSelection()?.toString().trim() ?? "",
       sidebarMode: mode,
       sidebarOpen: true,
+      sidebarRequestId: crypto.randomUUID(),
     });
   };
+
+  useEffect(() => {
+    let disposed = false;
+    void browser.runtime
+      .sendMessage({ type: "repin.sidebar.session.get" })
+      .then((saved: SidebarSessionState | null) => {
+        if (disposed || interactionBeforeHydrationRef.current || !saved) return;
+        setState({
+          selectedText: saved.selectedText,
+          sidebarMode: saved.mode,
+          sidebarOpen: saved.open,
+          sidebarPinned: saved.pinned,
+          sidebarRequestId: saved.requestId,
+        });
+      })
+      .catch((error: unknown) =>
+        console.warn("Repin could not restore this tab's sidebar state", error),
+      )
+      .finally(() => {
+        if (!disposed) setSessionHydrated(true);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [setState]);
+
+  useEffect(() => {
+    if (!sessionHydrated) return;
+    const saved: SidebarSessionState = {
+      mode: state.sidebarMode,
+      open: state.sidebarOpen,
+      pinned: state.sidebarPinned,
+      requestId: state.sidebarRequestId,
+      selectedText: state.selectedText,
+    };
+    void browser.runtime
+      .sendMessage({ type: "repin.sidebar.session.set", state: saved })
+      .catch((error: unknown) =>
+        console.warn("Repin could not persist this tab's sidebar state", error),
+      );
+  }, [
+    sessionHydrated,
+    state.selectedText,
+    state.sidebarMode,
+    state.sidebarOpen,
+    state.sidebarPinned,
+    state.sidebarRequestId,
+  ]);
+
+  useEffect(() => {
+    const handleSidebarMessage = (message: unknown) => {
+      if (
+        !message ||
+        typeof message !== "object" ||
+        !("protocolVersion" in message) ||
+        message.protocolVersion !== REPIN_PROTOCOL_VERSION ||
+        !("type" in message) ||
+        message.type !== "repin.sidebar.open" ||
+        !("payload" in message)
+      ) {
+        return undefined;
+      }
+      const request = message as OpenExtensionSidebarMessage;
+      interactionBeforeHydrationRef.current = true;
+      setState({
+        selectedText: "",
+        sidebarMode: request.payload.mode,
+        sidebarOpen: true,
+        sidebarRequestId: request.payload.requestId,
+      });
+      return { opened: true };
+    };
+
+    browser.runtime.onMessage.addListener(handleSidebarMessage);
+    return () => browser.runtime.onMessage.removeListener(handleSidebarMessage);
+  }, [setState]);
 
   useEffect(() => {
     let frame = 0;
@@ -154,9 +240,7 @@ export const ContentApp = () => {
   }, [state.sidebarOpen, state.sidebarPinned]);
 
   return (
-    <div
-      className={`${getRepinThemeClass(theme)} repin-extension text-neutral-950 antialiased dark:text-neutral-50`}
-    >
+    <div className="repin-extension antialiased">
       {state.toolbarPosition && (
         <RepinToolbar
           onClose={() => {
@@ -168,6 +252,7 @@ export const ContentApp = () => {
           }}
           onModeSelect={openSidebar}
           position={state.toolbarPosition}
+          theme={theme}
         />
       )}
       <RepinSidebar
@@ -176,9 +261,11 @@ export const ContentApp = () => {
         pinned={state.sidebarPinned}
         open={state.sidebarOpen}
         selectedText={state.selectedText}
+        requestId={state.sidebarRequestId}
+        theme={theme}
         onClose={() => setState({ sidebarOpen: false })}
         onPinnedChange={(sidebarPinned) => setState({ sidebarPinned })}
       />
     </div>
   );
-}
+};

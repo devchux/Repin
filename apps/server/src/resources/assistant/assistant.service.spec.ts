@@ -56,6 +56,7 @@ describe('AssistantService', () => {
   } as unknown as BrowserToolApprovalService;
   const runService = new RunService(
     runRepository,
+    { find: jest.fn().mockResolvedValue([]) } as never,
     queue,
     queue,
     runHandler,

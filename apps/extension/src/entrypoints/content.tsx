@@ -6,9 +6,11 @@ import { handleContentCommand } from "../browser-tools/content-command-handler";
 
 export default defineContentScript({
   matches: ["<all_urls>"],
+  allFrames: true,
   cssInjectionMode: "ui",
   async main(ctx) {
     browser.runtime.onMessage.addListener(handleContentCommand);
+    if (window.top !== window) return;
     const ui = await createShadowRootUi(ctx, {
       name: "repin-toolbar",
       position: "inline",

@@ -11,6 +11,8 @@ RUN corepack enable pnpm
 # Copy workspace manifests first for better dependency layer caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json apps/server/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+COPY packages/observability/package.json packages/observability/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
 
 # Install the server and its workspace dependencies
@@ -18,6 +20,8 @@ RUN pnpm install --filter server... --frozen-lockfile
 
 # Copy the source files needed by the server build
 COPY apps/server apps/server
+COPY packages/contracts packages/contracts
+COPY packages/observability packages/observability
 COPY packages/typescript-config packages/typescript-config
 
 WORKDIR /usr/src/app/apps/server

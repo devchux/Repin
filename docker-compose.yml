@@ -10,6 +10,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://repin:repin@postgres:5432/repin}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       PORT: 3001
+      SERVER_REQUEST_TIMEOUT: ${SERVER_REQUEST_TIMEOUT:-25000}
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-dev-access-secret-change-me}
       REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-dev-refresh-secret-change-me}
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-900000}
@@ -22,6 +23,11 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
       OTEL_METRIC_EXPORT_INTERVAL: ${OTEL_METRIC_EXPORT_INTERVAL:-60000}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_MODEL: ${AI_MODEL:-gpt-5-mini}
+      AI_REQUEST_TIMEOUT: ${AI_REQUEST_TIMEOUT:-120000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,7 +43,20 @@ services:
       - "${WEB_PORT:-3000}:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
+      BACKEND_API_URL: http://server:3001/api
+    depends_on:
+      server:
+        condition: service_started
     restart: always
+
+  extension:
+    profiles: ["extension"]
+    build:
+      context: .
+      dockerfile: apps/extension/Dockerfile
+      target: exporter
+    volumes:
+      - ./extension-dist:/output
 
   postgres:
     image: postgres:17-alpine

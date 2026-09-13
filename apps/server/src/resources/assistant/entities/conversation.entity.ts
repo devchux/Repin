@@ -30,7 +30,7 @@ export class Conversation {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column()
+  @Column({ type: 'varchar' })
   initialCapability: AiAssistantCapability;
 
   @Column({ type: 'jsonb' })

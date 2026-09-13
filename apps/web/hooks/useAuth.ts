@@ -27,6 +27,12 @@ type AuthCodeData = {
   mockCode?: string;
 };
 
+const currentReturnTo = () => {
+  if (typeof window === "undefined") return undefined;
+  const value = new URLSearchParams(window.location.search).get("returnTo");
+  return value?.startsWith("/") && !value.startsWith("//") ? value : undefined;
+};
+
 export const useAuth = () => {
   const router = useRouter();
   const hasHydrated = useStore((state) => state.hasHydrated);
@@ -43,8 +49,12 @@ export const useAuth = () => {
         email,
         mockCode: response.data.data.mockCode,
         mode: "login",
+        returnTo: currentReturnTo(),
       });
-      router.push("/verify?mode=login");
+      const returnTo = currentReturnTo();
+      router.push(
+        `/verify?mode=login${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`,
+      );
     },
   });
 
@@ -57,8 +67,12 @@ export const useAuth = () => {
           ...input,
           mockCode: response.data.data.mockCode,
           mode: "register",
+          returnTo: currentReturnTo(),
         });
-        router.push("/verify?mode=register");
+        const returnTo = currentReturnTo();
+        router.push(
+          `/verify?mode=register${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`,
+        );
       },
     },
   );
@@ -69,9 +83,13 @@ export const useAuth = () => {
       skipAuth: true,
       onSuccess(response) {
         setUser(response.data.data.user);
+        const returnTo = pendingAuth?.returnTo;
         resetPendingAuth();
-        router.replace("/");
-        router.refresh();
+        // Authentication sets HTTP-only cookies through the Next.js proxy.
+        // Use a document navigation so the destination starts with both the
+        // new cookies and the cleared pending-auth state. A router transition
+        // races VerifyForm's missing-pending-auth guard during registration.
+        window.location.replace(returnTo ?? "/");
       },
     },
   );
@@ -83,6 +101,7 @@ export const useAuth = () => {
         email,
         mockCode: response.data.data.mockCode,
         mode: "login",
+        returnTo: pendingAuth?.returnTo,
       });
     },
   });
@@ -96,6 +115,7 @@ export const useAuth = () => {
           ...input,
           mockCode: response.data.data.mockCode,
           mode: "register",
+          returnTo: pendingAuth?.returnTo,
         });
       },
     },

@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Repository } from 'typeorm';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, toArray } from 'rxjs';
 import type { RunHandler } from './run-handler.service';
 import { AssistantService } from './assistant.service';
 import { RunService } from './run.service';
@@ -46,6 +46,7 @@ describe('AssistantService', () => {
     update: jest.fn(),
     findOne: jest.fn(),
   } as unknown as Repository<Run>;
+  const eventRepository = { find: jest.fn() };
   const shortQueue = {
     add: jest.fn(),
     getJob: jest.fn(),
@@ -63,9 +64,11 @@ describe('AssistantService', () => {
   const approvals = {
     approve: jest.fn(),
     deny: jest.fn(),
+    findPending: jest.fn(),
   } as unknown as BrowserToolApprovalService;
   const runService = new RunService(
     runRepository,
+    eventRepository as never,
     shortQueue,
     longQueue,
     runHandler,
@@ -84,6 +87,7 @@ describe('AssistantService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    eventRepository.find.mockResolvedValue([]);
     manager.transaction.mockImplementation((callback) => callback(manager));
     manager.count.mockResolvedValue(0);
     manager.create.mockImplementation((_entity, value) => value);
@@ -258,6 +262,36 @@ describe('AssistantService', () => {
     });
   });
 
+  it('replays run events after Last-Event-ID in sequence order', async () => {
+    const completedRun = {
+      ...run,
+      status: 'completed' as const,
+      result: 'A short summary',
+      completedAt: now,
+    };
+    jest.spyOn(runRepository, 'findOne').mockResolvedValue(completedRun);
+    eventRepository.find.mockResolvedValue([
+      { runId: run.id, sequence: 3, type: 'run.running' },
+      { runId: run.id, sequence: 4, type: 'run.completed' },
+    ]);
+
+    const stream = await service.watchRun(1, run.id, '2');
+    const events = await stream.pipe(toArray()).toPromise();
+
+    expect(events?.map((event) => event.id)).toEqual(['3', '4']);
+    expect(eventRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({ order: { sequence: 'ASC' } }),
+    );
+  });
+
+  it('rejects an invalid run Last-Event-ID', async () => {
+    jest.spyOn(runRepository, 'findOne').mockResolvedValue(run);
+
+    await expect(service.watchRun(1, run.id, 'event-2')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
   it('cancels a queued run and removes its queue job', async () => {
     const cancelledRun = {
       ...run,
@@ -314,6 +348,31 @@ describe('AssistantService', () => {
       { runId: run.id },
       expect.objectContaining({
         jobId: `${run.id}:approval:9d06cd75-e508-4d25-8a0d-a018863c2187`,
+      }),
+    );
+  });
+
+  it('fails closed when an awaiting approval has expired or disappeared', async () => {
+    const awaitingRun = {
+      ...run,
+      status: 'awaiting_approval' as const,
+      phase: 'awaiting_approval' as const,
+    };
+    jest.spyOn(runRepository, 'findOne').mockResolvedValue(awaitingRun);
+    jest.spyOn(approvals, 'findPending').mockResolvedValue([]);
+
+    await expect(
+      service.findPendingApprovals(run.userId, run.id),
+    ).resolves.toEqual({
+      message: 'Pending browser action approvals found',
+      data: [],
+    });
+    expect(execution.transition).toHaveBeenCalledWith(
+      run.id,
+      expect.objectContaining({
+        expectedStatuses: ['awaiting_approval'],
+        eventType: 'approval.unavailable',
+        status: 'failed',
       }),
     );
   });

@@ -37,10 +37,10 @@ export class RunContinuation {
   @Column({ type: 'uuid' })
   idempotencyKey: string;
 
-  @Column({ default: 'prepared' })
+  @Column({ type: 'varchar', default: 'prepared' })
   reason: ContinuationReason;
 
-  @Column({ default: 'prepared' })
+  @Column({ type: 'varchar', default: 'prepared' })
   dispatchState: ContinuationDispatchState;
 
   @UpdateDateColumn()

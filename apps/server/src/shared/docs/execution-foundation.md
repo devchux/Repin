@@ -80,7 +80,27 @@ models:
 2. Domain-specific deterministic verification strategies for workflow goals.
 3. Versioned workflow definitions whose agent nodes create the same steps and
    events.
-4. Event streaming and replay APIs shared by the web app and extension.
+4. Redis-assisted stream wake-ups to remove the bounded database polling delay
+   while retaining the database as the replay source of truth.
+
+## Live event delivery
+
+Assistant runs and workflow instances expose authenticated server-sent event
+streams. Event IDs are durable database sequence numbers, so reconnecting
+clients send `Last-Event-ID` and replay every missed event in order. The stream
+closes after a terminal event and emits heartbeats while a run is active.
+
+The browser extension owns connections in its background worker and exposes a
+small typed `runtime.Port` protocol to React hooks. This keeps authentication,
+parsing, cursor tracking, deduplication, exponential reconnect backoff, and
+terminal detection outside presentation components. Hooks fall back to bounded
+HTTP polling when a stream cannot be established, so transient proxy or browser
+limitations degrade freshness rather than correctness.
+
+The database remains the durability and replay boundary. Each server instance
+currently checks for newly committed events on a short interval; a future Redis
+notification layer may wake streams immediately without changing event IDs,
+replay semantics, or client contracts.
 
 ## Workflow goal validation
 
