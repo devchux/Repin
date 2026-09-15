@@ -1,12 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { isUniqueViolation } from '../../shared/utils/database';
 import { normalizeTags, normalizeUrl } from '../../shared/utils/normalization';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
 import { FindBookmarksDto } from './dto/find-bookmarks.dto';
 import { UpdateBookmarkDto } from './dto/update-bookmark.dto';
 import { Bookmark } from './entities/bookmark.entity';
+import { bookmarkSearchVector, toBookmarkSearchHit } from './bookmark-search';
 
 @Injectable()
 export class BookmarkService {
@@ -36,6 +41,7 @@ export class BookmarkService {
       canonicalUrl: canonicalUrl || null,
       normalizedUrl,
       title: request.title.trim(),
+      saveReason: request.saveReason?.trim() || null,
       tags: normalizeTags(request.tags),
       publishedAt: request.publishedAt ? new Date(request.publishedAt) : null,
       capturedAt: request.capturedAt
@@ -63,28 +69,21 @@ export class BookmarkService {
 
   async findAll(userId: number, query: FindBookmarksDto) {
     const builder = this.bookmarks
-      .createQueryBuilder('page')
-      .where('page.userId = :userId', { userId });
+      .createQueryBuilder('bookmark')
+      .where('bookmark.userId = :userId', { userId });
     const search = query.search?.trim();
     if (search) {
       builder.andWhere(
-        new Brackets((subquery) => {
-          subquery
-            .where('page.title ILIKE :search', { search: `%${search}%` })
-            .orWhere('page.description ILIKE :search', {
-              search: `%${search}%`,
-            })
-            .orWhere('page.note ILIKE :search', { search: `%${search}%` })
-            .orWhere('page.url ILIKE :search', { search: `%${search}%` });
-        }),
+        `${bookmarkSearchVector('bookmark')} @@ websearch_to_tsquery('english', :search)`,
+        { search },
       );
     }
     const tags = normalizeTags(query.tags);
     if (tags.length) {
-      builder.andWhere('page.tags @> :tags', { tags });
+      builder.andWhere('bookmark.tags @> :tags', { tags });
     }
     const [data, total] = await builder
-      .orderBy('page.createdAt', 'DESC')
+      .orderBy('bookmark.createdAt', 'DESC')
       .skip((query.page - 1) * query.limit)
       .take(query.limit)
       .getManyAndCount();
@@ -98,6 +97,29 @@ export class BookmarkService {
         pageCount: Math.ceil(total / query.limit),
       },
     };
+  }
+
+  async search(userId: number, query: string) {
+    const search = query.trim();
+    if (!search || search.length > 200) {
+      throw new BadRequestException('Search query must be 1 to 200 characters');
+    }
+    const vector = bookmarkSearchVector('bookmark');
+    const bookmarks = await this.bookmarks
+      .createQueryBuilder('bookmark')
+      .where('bookmark.userId = :userId', { userId })
+      .andWhere(`${vector} @@ websearch_to_tsquery('english', :search)`, {
+        search,
+      })
+      .orderBy(
+        `ts_rank(${vector}, websearch_to_tsquery('english', :search))`,
+        'DESC',
+      )
+      .addOrderBy('bookmark.createdAt', 'DESC')
+      .take(5)
+      .getMany();
+
+    return bookmarks.map((bookmark) => toBookmarkSearchHit(bookmark, search));
   }
 
   async findOne(userId: number, id: string) {
@@ -114,6 +136,9 @@ export class BookmarkService {
         ...(request.tags === undefined
           ? {}
           : { tags: normalizeTags(request.tags) }),
+        ...(request.saveReason === undefined
+          ? {}
+          : { saveReason: request.saveReason?.trim() || null }),
         ...(request.publishedAt === undefined
           ? {}
           : { publishedAt: new Date(request.publishedAt) }),

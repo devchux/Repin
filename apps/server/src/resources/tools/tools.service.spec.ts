@@ -50,7 +50,38 @@ describe('ToolsService', () => {
     expect(service.getDefinitions()).toEqual(TOOL_DEFINITIONS);
     expect(service.supports('browser_navigate')).toBe(true);
     expect(service.supports('bookmark_page')).toBe(true);
+    expect(service.supports('search_bookmarks')).toBe(true);
     expect(service.supports('unknown_tool')).toBe(false);
+  });
+
+  it('searches only the tool context user and returns source-bearing matches', async () => {
+    const matches = [
+      {
+        bookmarkId: 'bookmark-1',
+        title: 'Browser agents',
+        sourceUrl: 'https://example.com/agents',
+        saveReason: null,
+        passage: 'Agents coordinate observations and actions.',
+        passageField: 'content',
+      },
+    ];
+    const bookmarks = {
+      search: jest.fn().mockResolvedValue(matches),
+    } as unknown as BookmarkService;
+    const service = new ToolsService(
+      undefined,
+      undefined,
+      undefined,
+      bookmarks,
+    );
+
+    const result = await service.execute(
+      { name: 'search_bookmarks', arguments: { query: ' browser agents ' } },
+      { userId: 7, runId: 'run-1' },
+    );
+
+    expect(bookmarks.search).toHaveBeenCalledWith(7, 'browser agents');
+    expect(result).toEqual({ query: 'browser agents', matches });
   });
 
   it('executes bookmark_page without requiring a browser session', async () => {

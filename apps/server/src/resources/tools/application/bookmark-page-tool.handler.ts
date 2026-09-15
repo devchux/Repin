@@ -8,7 +8,7 @@ import {
   readRequiredString,
 } from '../../../shared/utils/validation';
 import type {
-  ApplicationToolResult,
+  BookmarkPageToolResult,
   ToolExecutionContext,
 } from '../types/application-tool.types';
 
@@ -49,7 +49,7 @@ export const executeBookmarkPageTool = async (
   input: Record<string, unknown>,
   context: ToolExecutionContext,
   bookmarks: BookmarkService,
-): Promise<ApplicationToolResult> => {
+): Promise<BookmarkPageToolResult> => {
   const tags = readOptionalStringArray(input, 'tags', 25);
   if (tags?.some((tag) => tag.length > 50)) {
     throw new BadRequestException('tags must not exceed 50 characters each');
@@ -74,6 +74,7 @@ export const executeBookmarkPageTool = async (
     content: readOptionalBoundedText(input, 'content', 1_000_000),
     selectedText: readOptionalBoundedText(input, 'selectedText', 50_000),
     note: readOptionalBoundedText(input, 'note', 10_000),
+    saveReason: readOptionalBoundedText(input, 'saveReason', 2_000),
     tags: tags ? [...tags] : undefined,
     capturedAt: readOptionalDate(input, 'capturedAt'),
   });

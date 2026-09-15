@@ -14,6 +14,7 @@ export class UpdateBookmarkDto extends PartialType(
     'content',
     'selectedText',
     'note',
+    'saveReason',
     'tags',
   ] as const),
 ) {}

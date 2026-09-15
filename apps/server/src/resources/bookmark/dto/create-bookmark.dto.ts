@@ -100,6 +100,12 @@ export class CreateBookmarkDto {
   @MaxLength(10_000)
   note?: string;
 
+  @ApiPropertyOptional({ description: 'Why the user saved this page' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  saveReason?: string | null;
+
   @ApiPropertyOptional({ type: [String], maxItems: 25 })
   @IsOptional()
   @IsArray()

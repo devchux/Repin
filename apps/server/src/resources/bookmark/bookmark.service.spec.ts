@@ -16,7 +16,7 @@ describe('BookmarkService', () => {
       merge: jest.fn((target, value) => Object.assign(target, value)),
       save: jest.fn(async (value) => value as Bookmark),
       softDelete: jest.fn(),
-    };
+    } as unknown as jest.Mocked<Partial<Repository<Bookmark>>>;
     const module = await Test.createTestingModule({
       providers: [
         BookmarkService,
@@ -33,6 +33,7 @@ describe('BookmarkService', () => {
       url: 'https://EXAMPLE.com/story/?utm_source=newsletter&b=2&a=1#intro',
       title: '  A useful story  ',
       tags: [' Research ', 'research', 'AI'],
+      saveReason: '  Research browser agents  ',
     });
 
     expect(repository.create).toHaveBeenCalledWith(
@@ -41,9 +42,50 @@ describe('BookmarkService', () => {
         normalizedUrl: 'https://example.com/story?a=1&b=2',
         title: 'A useful story',
         tags: ['research', 'ai'],
+        saveReason: 'Research browser agents',
       }),
     );
     expect(result.created).toBe(true);
+  });
+
+  it('returns a short content passage and source for only the requesting user', async () => {
+    const queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([
+        {
+          id: 'bookmark-1',
+          title: 'Browser agents',
+          url: 'https://example.com/agents',
+          saveReason: 'Compare browser agent designs',
+          content: `${'Background context. '.repeat(40)}Browser agents coordinate observations and actions.`,
+        } as Bookmark,
+      ]),
+    };
+    repository.createQueryBuilder = jest.fn().mockReturnValue(queryBuilder);
+
+    const matches = await service.search(7, 'browser agents');
+
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'bookmark.userId = :userId',
+      { userId: 7 },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('bookmark."content"'),
+      { search: 'browser agents' },
+    );
+    expect(matches).toEqual([
+      expect.objectContaining({
+        bookmarkId: 'bookmark-1',
+        sourceUrl: 'https://example.com/agents',
+        passageField: 'content',
+        passage: expect.stringContaining('Browser agents coordinate'),
+      }),
+    ]);
+    expect(matches[0].passage.length).toBeLessThan(510);
   });
 
   it('returns the existing user page for a duplicate URL', async () => {

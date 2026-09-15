@@ -70,6 +70,9 @@ export class Bookmark {
   @Column({ type: 'text', nullable: true })
   note?: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  saveReason?: string | null;
+
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   tags: string[];
 

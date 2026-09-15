@@ -8,6 +8,7 @@ import {
 import type { AiTool } from '../ai/types/provider';
 import { BookmarkService } from '../bookmark/bookmark.service';
 import { executeBookmarkPageTool } from './application/bookmark-page-tool.handler';
+import { executeSearchBookmarksTool } from './application/search-bookmarks-tool.handler';
 import { dispatchBrowserTool } from './browser/browser-tool.dispatcher';
 import { TOOL_DEFINITIONS } from './definitions';
 import { BrowserActionPolicyService } from './policy/browser-action-policy.service';
@@ -119,6 +120,17 @@ export class ToolsService {
           );
         }
         return executeBookmarkPageTool(call.arguments, context, this.bookmarks);
+      case 'search_bookmarks':
+        if (!this.bookmarks) {
+          throw new ServiceUnavailableException(
+            'Bookmark search is not configured',
+          );
+        }
+        return executeSearchBookmarksTool(
+          call.arguments,
+          context,
+          this.bookmarks,
+        );
       default:
         throw new BadRequestException(`Unsupported tool: ${call.name}`);
     }
