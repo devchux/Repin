@@ -5,7 +5,7 @@ import { Run } from '../../agent/entities/run.entity';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 import { Definition } from '../../workflow/entities/definition.entity';
 import { Instance } from '../../workflow/entities/instance.entity';
-import { SavedPage } from '../../saved-page/entities/saved-page.entity';
+import { Bookmark } from '../../bookmark/entities/bookmark.entity';
 import { Note } from '../../note/entities/note.entity';
 
 @Entity()
@@ -37,8 +37,8 @@ export class User extends Base {
   @OneToMany(() => Instance, (instance) => instance.user)
   workflowInstances: Instance[];
 
-  @OneToMany(() => SavedPage, (savedPage) => savedPage.user)
-  savedPages: SavedPage[];
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.user)
+  bookmarks: Bookmark[];
 
   @OneToMany(() => Note, (note) => note.user)
   notes: Note[];

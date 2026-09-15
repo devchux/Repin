@@ -11,20 +11,20 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
-@Entity('saved_pages')
-@Index('IDX_saved_pages_user_normalized_url', ['userId', 'normalizedUrl'], {
+@Entity('bookmarks')
+@Index('IDX_bookmarks_user_normalized_url', ['userId', 'normalizedUrl'], {
   unique: true,
   where: '"deletedAt" IS NULL',
 })
-@Index('IDX_saved_pages_user_created', ['userId', 'createdAt'])
-export class SavedPage {
+@Index('IDX_bookmarks_user_created', ['userId', 'createdAt'])
+export class Bookmark {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   userId: number;
 
-  @ManyToOne(() => User, (user) => user.savedPages, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.bookmarks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
 

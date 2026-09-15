@@ -11,7 +11,7 @@ import { CacheModule } from './resources/cache/cache.module';
 import { AssistantModule } from './resources/assistant/assistant.module';
 import { WorkflowModule } from './resources/workflow/workflow.module';
 import { TaskModule } from './resources/task/task.module';
-import { SavedPageModule } from './resources/saved-page/saved-page.module';
+import { BookmarkModule } from './resources/bookmark/bookmark.module';
 import { NoteModule } from './resources/note/note.module';
 
 @Module({
@@ -27,7 +27,7 @@ import { NoteModule } from './resources/note/note.module';
     AssistantModule,
     WorkflowModule,
     TaskModule,
-    SavedPageModule,
+    BookmarkModule,
     NoteModule,
   ],
   controllers: [AppController],

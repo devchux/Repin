@@ -2,28 +2,28 @@ import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SavedPage } from './entities/saved-page.entity';
-import { SavedPageService } from './saved-page.service';
+import { Bookmark } from './entities/bookmark.entity';
+import { BookmarkService } from './bookmark.service';
 
-describe('SavedPageService', () => {
-  let service: SavedPageService;
-  let repository: jest.Mocked<Partial<Repository<SavedPage>>>;
+describe('BookmarkService', () => {
+  let service: BookmarkService;
+  let repository: jest.Mocked<Partial<Repository<Bookmark>>>;
 
   beforeEach(async () => {
     repository = {
-      create: jest.fn((value) => value as SavedPage),
+      create: jest.fn((value) => value as Bookmark),
       findOne: jest.fn(),
       merge: jest.fn((target, value) => Object.assign(target, value)),
-      save: jest.fn(async (value) => value as SavedPage),
+      save: jest.fn(async (value) => value as Bookmark),
       softDelete: jest.fn(),
     };
     const module = await Test.createTestingModule({
       providers: [
-        SavedPageService,
-        { provide: getRepositoryToken(SavedPage), useValue: repository },
+        BookmarkService,
+        { provide: getRepositoryToken(Bookmark), useValue: repository },
       ],
     }).compile();
-    service = module.get(SavedPageService);
+    service = module.get(BookmarkService);
   });
 
   it('normalizes URLs and tags when saving', async () => {
@@ -47,7 +47,7 @@ describe('SavedPageService', () => {
   });
 
   it('returns the existing user page for a duplicate URL', async () => {
-    const existing = { id: 'page-id', userId: 7 } as SavedPage;
+    const existing = { id: 'page-id', userId: 7 } as Bookmark;
     repository.findOne = jest.fn().mockResolvedValue(existing);
 
     const result = await service.create(7, {
@@ -57,7 +57,7 @@ describe('SavedPageService', () => {
 
     expect(repository.save).not.toHaveBeenCalled();
     expect(result).toEqual({
-      message: 'Page already saved',
+      message: 'Bookmark already saved',
       data: existing,
       created: false,
     });
@@ -77,7 +77,7 @@ describe('SavedPageService', () => {
   it('soft deletes only after verifying ownership', async () => {
     repository.findOne = jest
       .fn()
-      .mockResolvedValue({ id: 'page-id', userId: 7 } as SavedPage);
+      .mockResolvedValue({ id: 'page-id', userId: 7 } as Bookmark);
 
     await service.remove(7, 'page-id');
 

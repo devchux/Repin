@@ -6,8 +6,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { AiTool } from '../ai/types/provider';
-import { SavedPageService } from '../saved-page/saved-page.service';
-import { executeSavePageTool } from './application/save-page-tool.handler';
+import { BookmarkService } from '../bookmark/bookmark.service';
+import { executeBookmarkPageTool } from './application/bookmark-page-tool.handler';
 import { dispatchBrowserTool } from './browser/browser-tool.dispatcher';
 import { TOOL_DEFINITIONS } from './definitions';
 import { BrowserActionPolicyService } from './policy/browser-action-policy.service';
@@ -45,7 +45,7 @@ export class ToolsService {
     private readonly approvals?: BrowserToolApprovalService,
     private readonly actionPolicy?: BrowserActionPolicyService,
     @Optional()
-    private readonly savedPages?: SavedPageService,
+    private readonly bookmarks?: BookmarkService,
   ) {}
 
   getDefinitions(): readonly AiTool[] {
@@ -112,13 +112,13 @@ export class ToolsService {
     context: ToolExecutionContext,
   ): Promise<ToolResult> {
     switch (call.name) {
-      case 'save_page':
-        if (!this.savedPages) {
+      case 'bookmark_page':
+        if (!this.bookmarks) {
           throw new ServiceUnavailableException(
             'The save page capability is not configured',
           );
         }
-        return executeSavePageTool(call.arguments, context, this.savedPages);
+        return executeBookmarkPageTool(call.arguments, context, this.bookmarks);
       default:
         throw new BadRequestException(`Unsupported tool: ${call.name}`);
     }

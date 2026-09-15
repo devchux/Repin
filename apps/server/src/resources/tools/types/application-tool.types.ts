@@ -4,7 +4,7 @@ import type {
   BrowserToolResult,
 } from './browser-tool.types';
 
-export const APPLICATION_TOOL_NAMES = ['save_page'] as const;
+export const APPLICATION_TOOL_NAMES = ['bookmark_page'] as const;
 export type ApplicationToolName = (typeof APPLICATION_TOOL_NAMES)[number];
 export type ToolName = BrowserToolName | ApplicationToolName;
 
@@ -21,7 +21,7 @@ export type ToolExecutionContext = Omit<
 };
 
 export type ApplicationToolResult = {
-  readonly savedPageId: string;
+  readonly bookmarkId: string;
   readonly created: boolean;
   readonly url: string;
   readonly title: string;

@@ -16,7 +16,7 @@ const HTTP_URL_OPTIONS = {
   require_protocol: true,
 };
 
-export class CreateSavedPageDto {
+export class CreateBookmarkDto {
   @ApiProperty({ example: 'https://example.com/articles/browser-agents' })
   @IsUrl(HTTP_URL_OPTIONS)
   @MaxLength(4096)

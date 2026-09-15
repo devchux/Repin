@@ -1,8 +1,8 @@
 import { PartialType, PickType } from '@nestjs/swagger';
-import { CreateSavedPageDto } from './create-saved-page.dto';
+import { CreateBookmarkDto } from './create-bookmark.dto';
 
-export class UpdateSavedPageDto extends PartialType(
-  PickType(CreateSavedPageDto, [
+export class UpdateBookmarkDto extends PartialType(
+  PickType(CreateBookmarkDto, [
     'title',
     'description',
     'siteName',

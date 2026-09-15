@@ -156,7 +156,7 @@ describe('LoopService', () => {
           toolCalls: [
             {
               id: 'call-save',
-              name: 'save_page',
+              name: 'bookmark_page',
               arguments: {
                 url: 'https://example.com/article',
                 title: 'Example article',
@@ -176,7 +176,7 @@ describe('LoopService', () => {
       supportsBrowser: jest.fn().mockReturnValue(false),
       requiresBrowserSession: jest.fn().mockReturnValue(false),
       execute: jest.fn().mockResolvedValue({
-        savedPageId: 'saved-page-1',
+        bookmarkId: 'bookmark-1',
         created: true,
         url: 'https://example.com/article',
         title: 'Example article',
@@ -191,14 +191,14 @@ describe('LoopService', () => {
 
     expect(result.content).toBe('The page is saved.');
     expect(toolsService.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'save_page' }),
+      expect.objectContaining({ name: 'bookmark_page' }),
       expect.objectContaining({ userId: 9, runId: 'run-2' }),
     );
     expect(execution.completeStep).toHaveBeenCalledWith(
       'step-1',
       expect.objectContaining({
         success: true,
-        result: expect.objectContaining({ savedPageId: 'saved-page-1' }),
+        result: expect.objectContaining({ bookmarkId: 'bookmark-1' }),
       }),
     );
   });

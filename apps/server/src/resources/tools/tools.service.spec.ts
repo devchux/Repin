@@ -3,7 +3,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { BROWSER_TOOL_DEFINITIONS, TOOL_DEFINITIONS } from './definitions';
-import { SavedPageService } from '../saved-page/saved-page.service';
+import { BookmarkService } from '../bookmark/bookmark.service';
 import { ToolsService } from './tools.service';
 import type {
   BrowserToolExecutionContext,
@@ -49,31 +49,31 @@ describe('ToolsService', () => {
 
     expect(service.getDefinitions()).toEqual(TOOL_DEFINITIONS);
     expect(service.supports('browser_navigate')).toBe(true);
-    expect(service.supports('save_page')).toBe(true);
+    expect(service.supports('bookmark_page')).toBe(true);
     expect(service.supports('unknown_tool')).toBe(false);
   });
 
-  it('executes save_page without requiring a browser session', async () => {
-    const savedPages = {
+  it('executes bookmark_page without requiring a browser session', async () => {
+    const bookmarks = {
       create: jest.fn().mockResolvedValue({
         created: true,
         data: {
-          id: 'saved-page-1',
+          id: 'bookmark-1',
           url: 'https://example.com/article',
           title: 'Example article',
         },
       }),
-    } as unknown as SavedPageService;
+    } as unknown as BookmarkService;
     const service = new ToolsService(
       undefined,
       undefined,
       undefined,
-      savedPages,
+      bookmarks,
     );
 
     const result = await service.execute(
       {
-        name: 'save_page',
+        name: 'bookmark_page',
         arguments: {
           url: 'https://example.com/article',
           title: 'Example article',
@@ -83,7 +83,7 @@ describe('ToolsService', () => {
       { userId: 7, runId: 'run-1' },
     );
 
-    expect(savedPages.create).toHaveBeenCalledWith(
+    expect(bookmarks.create).toHaveBeenCalledWith(
       7,
       expect.objectContaining({
         url: 'https://example.com/article',
@@ -92,7 +92,7 @@ describe('ToolsService', () => {
       }),
     );
     expect(result).toEqual({
-      savedPageId: 'saved-page-1',
+      bookmarkId: 'bookmark-1',
       created: true,
       url: 'https://example.com/article',
       title: 'Example article',

@@ -10,7 +10,7 @@ const optionalUrl = { type: 'string', format: 'uri' } as const;
 
 export const APPLICATION_TOOL_DEFINITIONS = [
   {
-    name: 'save_page',
+    name: 'bookmark_page',
     description:
       'Save a web page to the authenticated user’s Repin library only when the user explicitly asks to save it. Use the canonical URL when available. Repeated saves are idempotent.',
     inputSchema: {

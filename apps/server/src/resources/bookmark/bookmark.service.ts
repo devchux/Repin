@@ -3,30 +3,34 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../shared/utils/database';
 import { normalizeTags, normalizeUrl } from '../../shared/utils/normalization';
-import { CreateSavedPageDto } from './dto/create-saved-page.dto';
-import { FindSavedPagesDto } from './dto/find-saved-pages.dto';
-import { UpdateSavedPageDto } from './dto/update-saved-page.dto';
-import { SavedPage } from './entities/saved-page.entity';
+import { CreateBookmarkDto } from './dto/create-bookmark.dto';
+import { FindBookmarksDto } from './dto/find-bookmarks.dto';
+import { UpdateBookmarkDto } from './dto/update-bookmark.dto';
+import { Bookmark } from './entities/bookmark.entity';
 
 @Injectable()
-export class SavedPageService {
+export class BookmarkService {
   constructor(
-    @InjectRepository(SavedPage)
-    private readonly savedPages: Repository<SavedPage>,
+    @InjectRepository(Bookmark)
+    private readonly bookmarks: Repository<Bookmark>,
   ) {}
 
-  async create(userId: number, request: CreateSavedPageDto) {
+  async create(userId: number, request: CreateBookmarkDto) {
     const url = request.url.trim();
     const canonicalUrl = request.canonicalUrl?.trim();
     const normalizedUrl = normalizeUrl(canonicalUrl || url);
-    const existing = await this.savedPages.findOne({
+    const existing = await this.bookmarks.findOne({
       where: { userId, normalizedUrl },
     });
     if (existing) {
-      return { message: 'Page already saved', data: existing, created: false };
+      return {
+        message: 'Bookmark already saved',
+        data: existing,
+        created: false,
+      };
     }
 
-    const page = this.savedPages.create({
+    const page = this.bookmarks.create({
       ...request,
       url,
       canonicalUrl: canonicalUrl || null,
@@ -41,20 +45,24 @@ export class SavedPageService {
     });
 
     try {
-      const data = await this.savedPages.save(page);
-      return { message: 'Page saved successfully', data, created: true };
+      const data = await this.bookmarks.save(page);
+      return { message: 'Bookmark saved successfully', data, created: true };
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
-      const duplicate = await this.savedPages.findOne({
+      const duplicate = await this.bookmarks.findOne({
         where: { userId, normalizedUrl },
       });
       if (!duplicate) throw error;
-      return { message: 'Page already saved', data: duplicate, created: false };
+      return {
+        message: 'Bookmark already saved',
+        data: duplicate,
+        created: false,
+      };
     }
   }
 
-  async findAll(userId: number, query: FindSavedPagesDto) {
-    const builder = this.savedPages
+  async findAll(userId: number, query: FindBookmarksDto) {
+    const builder = this.bookmarks
       .createQueryBuilder('page')
       .where('page.userId = :userId', { userId });
     const search = query.search?.trim();
@@ -81,7 +89,7 @@ export class SavedPageService {
       .take(query.limit)
       .getManyAndCount();
     return {
-      message: 'Saved pages found successfully',
+      message: 'Bookmarks found successfully',
       data: {
         items: data,
         page: query.page,
@@ -93,14 +101,14 @@ export class SavedPageService {
   }
 
   async findOne(userId: number, id: string) {
-    const data = await this.findUserPage(userId, id);
-    return { message: 'Saved page found successfully', data };
+    const data = await this.findUserBookmark(userId, id);
+    return { message: 'Bookmark found successfully', data };
   }
 
-  async update(userId: number, id: string, request: UpdateSavedPageDto) {
-    const page = await this.findUserPage(userId, id);
-    const data = await this.savedPages.save(
-      this.savedPages.merge(page, {
+  async update(userId: number, id: string, request: UpdateBookmarkDto) {
+    const page = await this.findUserBookmark(userId, id);
+    const data = await this.bookmarks.save(
+      this.bookmarks.merge(page, {
         ...request,
         ...(request.title === undefined ? {} : { title: request.title.trim() }),
         ...(request.tags === undefined
@@ -111,18 +119,18 @@ export class SavedPageService {
           : { publishedAt: new Date(request.publishedAt) }),
       }),
     );
-    return { message: 'Saved page updated successfully', data };
+    return { message: 'Bookmark updated successfully', data };
   }
 
   async remove(userId: number, id: string) {
-    await this.findUserPage(userId, id);
-    await this.savedPages.softDelete({ id, userId });
-    return { message: 'Saved page deleted successfully' };
+    await this.findUserBookmark(userId, id);
+    await this.bookmarks.softDelete({ id, userId });
+    return { message: 'Bookmark deleted successfully' };
   }
 
-  private async findUserPage(userId: number, id: string) {
-    const page = await this.savedPages.findOne({ where: { id, userId } });
-    if (!page) throw new NotFoundException('Saved page not found');
+  private async findUserBookmark(userId: number, id: string) {
+    const page = await this.bookmarks.findOne({ where: { id, userId } });
+    if (!page) throw new NotFoundException('Bookmark not found');
     return page;
   }
 }

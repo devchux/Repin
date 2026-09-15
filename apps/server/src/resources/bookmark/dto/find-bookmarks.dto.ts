@@ -9,7 +9,7 @@ import {
   Min,
 } from 'class-validator';
 
-export class FindSavedPagesDto {
+export class FindBookmarksDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

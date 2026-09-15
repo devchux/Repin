@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import type { SavedPageService } from '../../saved-page/saved-page.service';
+import type { BookmarkService } from '../../bookmark/bookmark.service';
 import {
   parseHttpUrl,
   readHttpUrl,
@@ -45,10 +45,10 @@ const readOptionalDate = (
   return value;
 };
 
-export const executeSavePageTool = async (
+export const executeBookmarkPageTool = async (
   input: Record<string, unknown>,
   context: ToolExecutionContext,
-  savedPages: SavedPageService,
+  bookmarks: BookmarkService,
 ): Promise<ApplicationToolResult> => {
   const tags = readOptionalStringArray(input, 'tags', 25);
   if (tags?.some((tag) => tag.length > 50)) {
@@ -60,7 +60,7 @@ export const executeSavePageTool = async (
     throw new BadRequestException('title must not exceed 500 characters');
   }
 
-  const result = await savedPages.create(context.userId, {
+  const result = await bookmarks.create(context.userId, {
     url: readHttpUrl(input, 'url'),
     canonicalUrl: readOptionalHttpUrl(input, 'canonicalUrl'),
     title,
@@ -79,7 +79,7 @@ export const executeSavePageTool = async (
   });
 
   return {
-    savedPageId: result.data.id,
+    bookmarkId: result.data.id,
     created: result.created,
     url: result.data.url,
     title: result.data.title,
