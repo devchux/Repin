@@ -7,6 +7,7 @@ import { Definition } from '../../workflow/entities/definition.entity';
 import { Instance } from '../../workflow/entities/instance.entity';
 import { Bookmark } from '../../bookmark/entities/bookmark.entity';
 import { Note } from '../../note/entities/note.entity';
+import { Highlight } from '../../highlight/entities/highlight.entity';
 
 @Entity()
 export class User extends Base {
@@ -42,4 +43,7 @@ export class User extends Base {
 
   @OneToMany(() => Note, (note) => note.user)
   notes: Note[];
+
+  @OneToMany(() => Highlight, (highlight) => highlight.user)
+  highlights: Highlight[];
 }

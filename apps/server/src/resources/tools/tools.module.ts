@@ -16,11 +16,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BrowserToolApproval } from './policy/browser-tool-approval.entity';
 import { BrowserActionPolicyService } from './policy/browser-action-policy.service';
 import { BookmarkModule } from '../bookmark/bookmark.module';
+import { HighlightModule } from '../highlight/highlight.module';
 
 @Module({
   imports: [
     AuthModule,
     BookmarkModule,
+    HighlightModule,
     TypeOrmModule.forFeature([BrowserToolApproval]),
   ],
   controllers: [BrowserSessionController],

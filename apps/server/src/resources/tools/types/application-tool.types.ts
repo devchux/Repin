@@ -8,6 +8,7 @@ import type { BookmarkSearchHit } from '../../bookmark/bookmark-search';
 export const APPLICATION_TOOL_NAMES = [
   'bookmark_page',
   'search_bookmarks',
+  'highlight_selection',
 ] as const;
 export type ApplicationToolName = (typeof APPLICATION_TOOL_NAMES)[number];
 export type ToolName = BrowserToolName | ApplicationToolName;
@@ -36,8 +37,15 @@ export type SearchBookmarksToolResult = {
   readonly matches: readonly BookmarkSearchHit[];
 };
 
+export type HighlightSelectionToolResult = {
+  readonly highlightId: string;
+  readonly created: boolean;
+  readonly url: string;
+};
+
 export type ApplicationToolResult =
   | BookmarkPageToolResult
-  | SearchBookmarksToolResult;
+  | SearchBookmarksToolResult
+  | HighlightSelectionToolResult;
 
 export type ToolResult = BrowserToolResult | ApplicationToolResult;

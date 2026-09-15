@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { BROWSER_TOOL_DEFINITIONS, TOOL_DEFINITIONS } from './definitions';
 import { BookmarkService } from '../bookmark/bookmark.service';
+import { HighlightService } from '../highlight/highlight.service';
 import { ToolsService } from './tools.service';
 import type {
   BrowserToolExecutionContext,
@@ -51,7 +52,59 @@ describe('ToolsService', () => {
     expect(service.supports('browser_navigate')).toBe(true);
     expect(service.supports('bookmark_page')).toBe(true);
     expect(service.supports('search_bookmarks')).toBe(true);
+    expect(service.supports('highlight_selection')).toBe(true);
     expect(service.supports('unknown_tool')).toBe(false);
+  });
+
+  it('saves a highlight for the tool context user without a browser session', async () => {
+    const highlights = {
+      create: jest.fn().mockResolvedValue({
+        created: true,
+        data: {
+          id: 'highlight-1',
+          url: 'https://example.com/story',
+          quote: 'The selected passage',
+        },
+      }),
+    } as unknown as HighlightService;
+    const service = new ToolsService(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      highlights,
+    );
+
+    const result = await service.execute(
+      {
+        name: 'highlight_selection',
+        arguments: {
+          url: 'https://example.com/story',
+          pageTitle: 'Story',
+          quote: 'The selected passage',
+          prefix: 'Before it.',
+        },
+      },
+      {
+        userId: 7,
+        runId: 'run-1',
+        idempotencyKey: '84557b41-b5f1-4d92-a596-435a9f93f27f',
+      },
+    );
+
+    expect(highlights.create).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        clientId: '84557b41-b5f1-4d92-a596-435a9f93f27f',
+        quote: 'The selected passage',
+        prefix: 'Before it.',
+      }),
+    );
+    expect(result).toEqual({
+      highlightId: 'highlight-1',
+      created: true,
+      url: 'https://example.com/story',
+    });
   });
 
   it('searches only the tool context user and returns source-bearing matches', async () => {

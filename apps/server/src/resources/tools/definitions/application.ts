@@ -65,4 +65,27 @@ export const APPLICATION_TOOL_DEFINITIONS = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'highlight_selection',
+    description:
+      'Save selected page text as a highlight only when the user explicitly asks. Use the exact quote and current page URL. Nearby prefix and suffix help locate the quote again; do not invent them.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', format: 'uri' },
+        pageTitle: { type: 'string', minLength: 1, maxLength: 500 },
+        quote: { type: 'string', minLength: 1, maxLength: 50_000 },
+        prefix: { type: 'string', maxLength: 300 },
+        suffix: { type: 'string', maxLength: 300 },
+        note: { type: 'string', maxLength: 10_000 },
+        color: {
+          type: 'string',
+          enum: ['yellow', 'orange', 'blue', 'green', 'pink'],
+        },
+        capturedAt: { type: 'string', format: 'date-time' },
+      },
+      required: ['url', 'pageTitle', 'quote'],
+      additionalProperties: false,
+    },
+  },
 ] as const satisfies readonly ApplicationToolDefinition[];

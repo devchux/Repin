@@ -7,7 +7,9 @@ import {
 } from '@nestjs/common';
 import type { AiTool } from '../ai/types/provider';
 import { BookmarkService } from '../bookmark/bookmark.service';
+import { HighlightService } from '../highlight/highlight.service';
 import { executeBookmarkPageTool } from './application/bookmark-page-tool.handler';
+import { executeHighlightSelectionTool } from './application/highlight-selection-tool.handler';
 import { executeSearchBookmarksTool } from './application/search-bookmarks-tool.handler';
 import { dispatchBrowserTool } from './browser/browser-tool.dispatcher';
 import { TOOL_DEFINITIONS } from './definitions';
@@ -47,6 +49,8 @@ export class ToolsService {
     private readonly actionPolicy?: BrowserActionPolicyService,
     @Optional()
     private readonly bookmarks?: BookmarkService,
+    @Optional()
+    private readonly highlights?: HighlightService,
   ) {}
 
   getDefinitions(): readonly AiTool[] {
@@ -130,6 +134,17 @@ export class ToolsService {
           call.arguments,
           context,
           this.bookmarks,
+        );
+      case 'highlight_selection':
+        if (!this.highlights) {
+          throw new ServiceUnavailableException(
+            'Highlight capability is not configured',
+          );
+        }
+        return executeHighlightSelectionTool(
+          call.arguments,
+          context,
+          this.highlights,
         );
       default:
         throw new BadRequestException(`Unsupported tool: ${call.name}`);
