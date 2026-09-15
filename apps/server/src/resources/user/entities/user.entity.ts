@@ -6,6 +6,7 @@ import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.en
 import { Definition } from '../../workflow/entities/definition.entity';
 import { Instance } from '../../workflow/entities/instance.entity';
 import { SavedPage } from '../../saved-page/entities/saved-page.entity';
+import { Note } from '../../note/entities/note.entity';
 
 @Entity()
 export class User extends Base {
@@ -38,4 +39,7 @@ export class User extends Base {
 
   @OneToMany(() => SavedPage, (savedPage) => savedPage.user)
   savedPages: SavedPage[];
+
+  @OneToMany(() => Note, (note) => note.user)
+  notes: Note[];
 }

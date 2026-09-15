@@ -14,6 +14,10 @@ import {
   isAssistantRunMessage,
 } from "../assistant/background-run-handler";
 import {
+  handleCreateNoteMessage,
+  isCreateNoteMessage,
+} from "../assistant/background-note-handler";
+import {
   handleContextMenuClick,
   registerContextMenus,
 } from "../lib/context-menus";
@@ -78,6 +82,9 @@ export default defineBackground(() => {
     }
     if (isAssistantRunMessage(message)) {
       return handleAssistantRunMessage(message);
+    }
+    if (isCreateNoteMessage(message)) {
+      return handleCreateNoteMessage(message);
     }
     if (!message || typeof message !== "object" || !("type" in message)) return;
     if (message.type === "repin.files.stage" && "payload" in message) {

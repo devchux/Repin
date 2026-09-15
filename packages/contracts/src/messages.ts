@@ -8,11 +8,17 @@ import type {
 } from "./assistant";
 import type { DispatchTaskRequest, TaskDispatchResult } from "./task";
 import type { WorkflowInstance } from "./workflow";
+import type { CreateNoteRequest, Note } from "./note";
 
 export const REPIN_PROTOCOL_VERSION = 1 as const;
 
 /** Messages exchanged between extension contexts, not server transport DTOs. */
 export type ExtensionRequestMessage =
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "note.create";
+      readonly payload: CreateNoteRequest;
+    }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "assistant.run.create";
@@ -62,6 +68,16 @@ export type ExtensionRequestMessage =
     };
 
 export type ExtensionResponseMessage =
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "note.created";
+      readonly payload: Note;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "note.rejected";
+      readonly payload: { readonly message: string };
+    }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "assistant.run.accepted";
