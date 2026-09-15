@@ -134,7 +134,11 @@ export const RepinSidebar = ({
         </section>
 
         {mode === "note" ? (
-          <TakeNotePanel key={requestId} page={page} selectedText={selectedText} />
+          <TakeNotePanel
+            key={requestId}
+            page={page}
+            selectedText={selectedText}
+          />
         ) : isAssistantMode ? (
           <AssistantRun
             capability={mode as AiAssistantCapability}
