@@ -2,7 +2,8 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { BROWSER_TOOL_DEFINITIONS } from './definitions';
+import { BROWSER_TOOL_DEFINITIONS, TOOL_DEFINITIONS } from './definitions';
+import { SavedPageService } from '../saved-page/saved-page.service';
 import { ToolsService } from './tools.service';
 import type {
   BrowserToolExecutionContext,
@@ -46,9 +47,56 @@ describe('ToolsService', () => {
   it('exposes the browser tools to AI providers', () => {
     const service = new ToolsService();
 
-    expect(service.getDefinitions()).toEqual(BROWSER_TOOL_DEFINITIONS);
+    expect(service.getDefinitions()).toEqual(TOOL_DEFINITIONS);
     expect(service.supports('browser_navigate')).toBe(true);
+    expect(service.supports('save_page')).toBe(true);
     expect(service.supports('unknown_tool')).toBe(false);
+  });
+
+  it('executes save_page without requiring a browser session', async () => {
+    const savedPages = {
+      create: jest.fn().mockResolvedValue({
+        created: true,
+        data: {
+          id: 'saved-page-1',
+          url: 'https://example.com/article',
+          title: 'Example article',
+        },
+      }),
+    } as unknown as SavedPageService;
+    const service = new ToolsService(
+      undefined,
+      undefined,
+      undefined,
+      savedPages,
+    );
+
+    const result = await service.execute(
+      {
+        name: 'save_page',
+        arguments: {
+          url: 'https://example.com/article',
+          title: 'Example article',
+          tags: ['Research'],
+        },
+      },
+      { userId: 7, runId: 'run-1' },
+    );
+
+    expect(savedPages.create).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        url: 'https://example.com/article',
+        title: 'Example article',
+        tags: ['Research'],
+      }),
+    );
+    expect(result).toEqual({
+      savedPageId: 'saved-page-1',
+      created: true,
+      url: 'https://example.com/article',
+      title: 'Example article',
+    });
   });
 
   it('composes every tool exactly once across definition categories', () => {

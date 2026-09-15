@@ -15,9 +15,14 @@ import { PlaywrightBrowserSessionRegistry } from './executors/playwright-browser
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BrowserToolApproval } from './policy/browser-tool-approval.entity';
 import { BrowserActionPolicyService } from './policy/browser-action-policy.service';
+import { SavedPageModule } from '../saved-page/saved-page.module';
 
 @Module({
-  imports: [AuthModule, TypeOrmModule.forFeature([BrowserToolApproval])],
+  imports: [
+    AuthModule,
+    SavedPageModule,
+    TypeOrmModule.forFeature([BrowserToolApproval]),
+  ],
   controllers: [BrowserSessionController],
   providers: [
     BrowserSessionRegistry,
