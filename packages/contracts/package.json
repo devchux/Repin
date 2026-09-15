@@ -9,6 +9,7 @@
     "./browser-session": "./src/browser-session.ts",
     "./messages": "./src/messages.ts",
     "./note": "./src/note.ts",
+    "./highlight": "./src/highlight.ts",
     "./workflow": "./src/workflow.ts",
     "./task": "./src/task.ts",
     "./schema": "./src/schema.ts"

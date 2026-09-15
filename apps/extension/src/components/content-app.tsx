@@ -16,6 +16,9 @@ import {
   type OpenExtensionSidebarMessage,
 } from "@repo/contracts/messages";
 import type { SidebarSessionState } from "@/lib/sidebar-session";
+import type { HighlightColor } from "@repo/contracts/highlight";
+import { createHighlight } from "@/lib/highlight-client";
+import { indexPageText, selectionQuote } from "@/lib/page-highlight-ranges";
 
 interface ContentAppState {
   selectedText: string;
@@ -36,8 +39,14 @@ export const ContentApp = () => {
     toolbarPosition: null,
   });
   const dismissedSelectionRangeRef = useRef<Range | null>(null);
+  const pendingHighlightRequestRef = useRef<{
+    range: Range;
+    id: string;
+  } | null>(null);
   const interactionBeforeHydrationRef = useRef(false);
   const [sessionHydrated, setSessionHydrated] = useState(false);
+  const [highlightSaving, setHighlightSaving] = useState(false);
+  const [highlightError, setHighlightError] = useState<string | null>(null);
   const previousPageStylesRef = useRef<{
     bodyMarginRight: string;
     bodyTransition: string;
@@ -60,6 +69,47 @@ export const ContentApp = () => {
       sidebarOpen: true,
       sidebarRequestId: crypto.randomUUID(),
     });
+  };
+
+  const saveSelectionHighlight = async (color: HighlightColor) => {
+    const range = getCurrentSelectionRange();
+    if (!range || !document.body) return;
+    const captured = selectionQuote(indexPageText(document.body), range);
+    if (!captured.quote.trim() || captured.quote.length > 50_000) {
+      setHighlightError("Select a shorter passage to highlight");
+      return;
+    }
+    setHighlightSaving(true);
+    setHighlightError(null);
+    const pending = pendingHighlightRequestRef.current;
+    const clientId =
+      pending && isSameSelectionRange(range, pending.range)
+        ? pending.id
+        : crypto.randomUUID();
+    pendingHighlightRequestRef.current = {
+      range: range.cloneRange(),
+      id: clientId,
+    };
+    try {
+      await createHighlight({
+        clientId,
+        url: window.location.href,
+        pageTitle: document.title || window.location.hostname,
+        quote: captured.quote,
+        prefix: captured.prefix,
+        suffix: captured.suffix,
+        color,
+      });
+      dismissedSelectionRangeRef.current = range.cloneRange();
+      pendingHighlightRequestRef.current = null;
+      setState({ toolbarPosition: null });
+    } catch (error) {
+      setHighlightError(
+        error instanceof Error ? error.message : "Highlight could not be saved",
+      );
+    } finally {
+      setHighlightSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -251,6 +301,9 @@ export const ContentApp = () => {
             });
           }}
           onModeSelect={openSidebar}
+          onHighlightSelect={(color) => void saveSelectionHighlight(color)}
+          highlightSaving={highlightSaving}
+          highlightError={highlightError}
           position={state.toolbarPosition}
           theme={theme}
         />

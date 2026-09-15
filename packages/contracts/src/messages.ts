@@ -9,6 +9,11 @@ import type {
 import type { DispatchTaskRequest, TaskDispatchResult } from "./task";
 import type { WorkflowInstance } from "./workflow";
 import type { CreateNoteRequest, Note } from "./note";
+import type {
+  CreateHighlightRequest,
+  HighlightsPage,
+  SavedHighlight,
+} from "./highlight";
 
 export const REPIN_PROTOCOL_VERSION = 1 as const;
 
@@ -18,6 +23,16 @@ export type ExtensionRequestMessage =
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "note.create";
       readonly payload: CreateNoteRequest;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "highlight.create";
+      readonly payload: CreateHighlightRequest;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "highlight.list";
+      readonly payload: { readonly url: string; readonly page: number };
     }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
@@ -72,6 +87,21 @@ export type ExtensionResponseMessage =
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "note.created";
       readonly payload: Note;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "highlight.created";
+      readonly payload: SavedHighlight;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "highlight.listed";
+      readonly payload: HighlightsPage;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "highlight.rejected";
+      readonly payload: { readonly message: string };
     }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;

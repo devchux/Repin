@@ -34,10 +34,12 @@ Run `CreateHighlights1789660800000` before using this resource.
 
 ## Current limitations
 
-- The extension currently captures selected text but does not submit highlights
-  to this API or render saved highlights back onto pages.
+- The extension saves selected text from its toolbar and restores saved colors
+  on revisit or refresh through the CSS Custom Highlight API. Older browsers
+  without that API cannot render the color.
 - The web highlights page still uses sample data rather than this API.
 - Prefix and suffix improve relocation but do not guarantee a match after the
-  source page changes.
+  source page changes. The extension skips a quote when its saved surrounding
+  text no longer matches, avoiding a misleading color on a different passage.
 - Highlight search is lexical; unified search across notes, bookmarks, and
   highlights remains future work.

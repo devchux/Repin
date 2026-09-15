@@ -10,15 +10,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { HIGHLIGHT_COLORS } from '@repo/contracts/highlight';
+import type { HighlightColor } from '@repo/contracts/highlight';
 
-export const HIGHLIGHT_COLORS = [
-  'yellow',
-  'orange',
-  'blue',
-  'green',
-  'pink',
-] as const;
-export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
+export { HIGHLIGHT_COLORS };
+export type { HighlightColor };
 
 @Entity('highlights')
 @Index('IDX_highlights_user_created', ['userId', 'createdAt'])
