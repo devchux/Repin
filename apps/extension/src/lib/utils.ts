@@ -1,4 +1,4 @@
-import { ToolbarPosition } from "@/types";
+import { EncodedFile, ToolbarPosition } from "@/types";
 import {
   REPIN_SIDEBAR_MAX_WIDTH,
   REPIN_SIDEBAR_VIEWPORT_GAP,
@@ -75,3 +75,20 @@ export const getDockedSidebarWidth = () => {
     Math.max(0, window.innerWidth - REPIN_SIDEBAR_VIEWPORT_GAP),
   );
 };
+
+export const encodeFileAsBase64 = async (file: File): Promise<EncodedFile> => {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("File could not be read"));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(file);
+  });
+
+  return {
+    dataBase64: dataUrl.slice(dataUrl.indexOf(",") + 1),
+    name: file.name,
+    type: file.type,
+  };
+};
+

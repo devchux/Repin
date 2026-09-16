@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@repo/ui/button";
-import { createNote } from "@/lib/note-client";
+import { createNote } from "@/lib/client/note-client";
 
 export const TakeNotePanel = ({
   page,

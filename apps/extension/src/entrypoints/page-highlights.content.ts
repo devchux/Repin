@@ -1,7 +1,7 @@
 import type { SavedHighlight } from "@repo/contracts/highlight";
 import { REPIN_PROTOCOL_VERSION } from "@repo/contracts/messages";
-import { listHighlights } from "../lib/highlight-client";
-import { PageHighlightRenderer } from "../lib/page-highlight-renderer";
+import { listHighlights } from "../lib/client/highlight-client";
+import { PageHighlightRenderer } from "../lib/page/page-highlight-renderer";
 
 export default defineContentScript({
   matches: ["<all_urls>"],

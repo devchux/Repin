@@ -10,6 +10,7 @@
     "./messages": "./src/messages.ts",
     "./note": "./src/note.ts",
     "./highlight": "./src/highlight.ts",
+    "./bookmark": "./src/bookmark.ts",
     "./workflow": "./src/workflow.ts",
     "./task": "./src/task.ts",
     "./schema": "./src/schema.ts"

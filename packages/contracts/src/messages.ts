@@ -14,11 +14,20 @@ import type {
   HighlightsPage,
   SavedHighlight,
 } from "./highlight";
+import type {
+  CreateBookmarkRequest,
+  CreateBookmarkResult,
+} from "./bookmark";
 
 export const REPIN_PROTOCOL_VERSION = 1 as const;
 
 /** Messages exchanged between extension contexts, not server transport DTOs. */
 export type ExtensionRequestMessage =
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "bookmark.create";
+      readonly payload: CreateBookmarkRequest;
+    }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "note.create";
@@ -83,6 +92,16 @@ export type ExtensionRequestMessage =
     };
 
 export type ExtensionResponseMessage =
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "bookmark.created";
+      readonly payload: CreateBookmarkResult;
+    }
+  | {
+      readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
+      readonly type: "bookmark.rejected";
+      readonly payload: { readonly message: string };
+    }
   | {
       readonly protocolVersion: typeof REPIN_PROTOCOL_VERSION;
       readonly type: "note.created";

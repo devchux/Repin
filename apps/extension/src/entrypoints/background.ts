@@ -22,6 +22,10 @@ import {
   isHighlightMessage,
 } from "../assistant/background-highlight-handler";
 import {
+  handleCreateBookmarkMessage,
+  isCreateBookmarkMessage,
+} from "../assistant/background-bookmark-handler";
+import {
   handleContextMenuClick,
   registerContextMenus,
 } from "../lib/context-menus";
@@ -89,6 +93,9 @@ export default defineBackground(() => {
     }
     if (isCreateNoteMessage(message)) {
       return handleCreateNoteMessage(message);
+    }
+    if (isCreateBookmarkMessage(message)) {
+      return handleCreateBookmarkMessage(message);
     }
     if (isHighlightMessage(message)) {
       return handleHighlightMessage(message, sender.tab?.id);

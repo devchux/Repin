@@ -17,8 +17,8 @@ import {
 } from "@repo/contracts/messages";
 import type { SidebarSessionState } from "@/lib/sidebar-session";
 import type { HighlightColor } from "@repo/contracts/highlight";
-import { createHighlight } from "@/lib/highlight-client";
-import { indexPageText, selectionQuote } from "@/lib/page-highlight-ranges";
+import { createHighlight } from "@/lib/client/highlight-client";
+import { indexPageText, selectionQuote } from "@/lib/page/page-highlight-ranges";
 
 interface ContentAppState {
   selectedText: string;
