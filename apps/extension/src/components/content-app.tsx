@@ -74,6 +74,11 @@ export const ContentApp = () => {
   const saveSelectionHighlight = async (color: HighlightColor) => {
     const range = getCurrentSelectionRange();
     if (!range || !document.body) return;
+    const url = window.location.href;
+    if (!/^https?:\/\//i.test(url) || url.length > 4096) {
+      setHighlightError("This page cannot be highlighted");
+      return;
+    }
     const captured = selectionQuote(indexPageText(document.body), range);
     if (!captured.quote.trim() || captured.quote.length > 50_000) {
       setHighlightError("Select a shorter passage to highlight");
@@ -93,8 +98,8 @@ export const ContentApp = () => {
     try {
       await createHighlight({
         clientId,
-        url: window.location.href,
-        pageTitle: document.title || window.location.hostname,
+        url,
+        pageTitle: (document.title.trim() || window.location.hostname).slice(0, 500),
         quote: captured.quote,
         prefix: captured.prefix,
         suffix: captured.suffix,

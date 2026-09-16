@@ -73,7 +73,7 @@ export default defineContentScript({
       const highlight = message.payload as SavedHighlight;
       if (highlight.url !== window.location.href) return;
       saved = [...saved.filter((item) => item.id !== highlight.id), highlight];
-      scheduleRender();
+      render();
     };
 
     browser.runtime.onMessage.addListener(onMessage);
