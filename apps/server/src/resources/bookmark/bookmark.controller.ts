@@ -49,6 +49,14 @@ export class BookmarkController {
     return this.bookmarks.update(user.id, id, request);
   }
 
+  @Post(':id/enrich')
+  enrich(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.bookmarks.enrich(user.id, id);
+  }
+
   @Delete(':id')
   remove(
     @CurrentUser() user: AuthUser,

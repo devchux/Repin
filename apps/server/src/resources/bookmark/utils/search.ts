@@ -1,4 +1,5 @@
-import type { Bookmark } from './entities/bookmark.entity';
+import type { Bookmark } from '../entities/bookmark.entity';
+import { BookmarkSearchHit } from './types';
 
 const SEARCH_FIELDS = [
   'title',
@@ -14,21 +15,12 @@ const SEARCH_FIELDS = [
 export const bookmarkSearchVector = (alias: string): string =>
   `to_tsvector('english', ${SEARCH_FIELDS.map((field) => `coalesce(${alias}."${field}", '')`).join(" || ' ' || ")})`;
 
-export interface BookmarkSearchHit {
-  readonly bookmarkId: string;
-  readonly title: string;
-  readonly sourceUrl: string;
-  readonly saveReason: string | null;
-  readonly passage: string;
-  readonly passageField:
-    | 'selectedText'
-    | 'excerpt'
-    | 'content'
-    | 'note'
-    | 'description'
-    | 'saveReason'
-    | 'title';
-}
+const passageUrl = (sourceUrl: string, text: string): string => {
+  const url = new URL(sourceUrl);
+  url.hash = '';
+  const exact = text.replace(/\s+/g, ' ').trim().slice(0, 220);
+  return `${url.href}#:~:text=${encodeURIComponent(exact)}`;
+};
 
 const PASSAGE_FIELDS = [
   'selectedText',
@@ -75,6 +67,7 @@ export function toBookmarkSearchHit(
     sourceUrl: bookmark.url,
     saveReason: bookmark.saveReason ?? null,
     passage: `${start ? '…' : ''}${excerpt}${start + 500 < passage.length ? '…' : ''}`,
+    passageUrl: passageUrl(bookmark.url, excerpt),
     passageField,
   };
 }

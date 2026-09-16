@@ -135,6 +135,39 @@ messages together with the original browsing context.
 $ pnpm install
 ```
 
+## PostgreSQL and pgvector
+
+Local Docker development uses the official pgvector PostgreSQL 17 image. The
+bookmark intelligence migration enables the extension with:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+Start or upgrade the local database, then let the server run its migrations:
+
+```bash
+docker compose pull postgres
+docker compose up -d postgres redis
+docker compose up --build server
+```
+
+An existing PostgreSQL 17 data volume can be reused because the image keeps the
+same database major version. Do not delete `postgres_data` when changing the
+image. Verify installation with:
+
+```bash
+docker compose exec postgres psql -U repin -d repin \
+  -c "SELECT extversion FROM pg_extension WHERE extname = 'vector';"
+```
+
+For a managed database, enable the provider's `vector`/`pgvector` extension or
+run `CREATE EXTENSION IF NOT EXISTS vector` as a role with extension privileges
+before deploying the server. The application migration then creates the
+`vector(1536)` column and HNSW index. If the application role cannot create
+extensions, a database administrator must perform only that extension step;
+the normal application role can run the remaining migration afterward.
+
 ## Running the app
 
 ```bash

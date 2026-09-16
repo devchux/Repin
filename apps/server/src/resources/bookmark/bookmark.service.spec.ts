@@ -83,6 +83,7 @@ describe('BookmarkService', () => {
         sourceUrl: 'https://example.com/agents',
         passageField: 'content',
         passage: expect.stringContaining('Browser agents coordinate'),
+        passageUrl: expect.stringContaining('#:~:text='),
       }),
     ]);
     expect(matches[0].passage.length).toBeLessThan(510);

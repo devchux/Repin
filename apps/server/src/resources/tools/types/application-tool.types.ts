@@ -1,9 +1,9 @@
+import { BookmarkSearchHit } from 'src/resources/bookmark/utils/types';
 import type {
   BrowserToolExecutionContext,
   BrowserToolName,
   BrowserToolResult,
 } from './browser-tool.types';
-import type { BookmarkSearchHit } from '../../bookmark/bookmark-search';
 
 export const APPLICATION_TOOL_NAMES = [
   'bookmark_page',

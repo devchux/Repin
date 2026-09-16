@@ -76,6 +76,24 @@ export class Bookmark {
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   tags: string[];
 
+  @Column({ type: 'text', nullable: true })
+  aiSummary?: string | null;
+
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  aiTopics: string[];
+
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  enrichmentStatus: 'pending' | 'processing' | 'complete' | 'failed';
+
+  @Column({ type: 'text', nullable: true })
+  enrichmentError?: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  enrichedAt?: Date | null;
+
+  @Column({ type: 'vector', length: 1536, nullable: true, select: false })
+  embedding?: number[] | null;
+
   @Column({ type: 'timestamptz' })
   capturedAt: Date;
 

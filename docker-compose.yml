@@ -27,6 +27,7 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
       AI_MODEL: ${AI_MODEL:-gpt-5-mini}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
       AI_REQUEST_TIMEOUT: ${AI_REQUEST_TIMEOUT:-120000}
     depends_on:
       postgres:
@@ -59,7 +60,7 @@ services:
       - ./extension-dist:/output
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:0.8.6-pg17-trixie
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     environment:

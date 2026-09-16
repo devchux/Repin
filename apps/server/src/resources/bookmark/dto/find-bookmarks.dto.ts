@@ -3,6 +3,8 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsInt,
+  IsIn,
+  IsUUID,
   IsOptional,
   IsString,
   MaxLength,
@@ -25,6 +27,19 @@ export class FindBookmarksDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @ApiPropertyOptional({
+    enum: ['lexical', 'semantic', 'hybrid'],
+    default: 'hybrid',
+  })
+  @IsOptional()
+  @IsIn(['lexical', 'semantic', 'hybrid'])
+  searchMode: 'lexical' | 'semantic' | 'hybrid' = 'hybrid';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  collectionId?: string;
 
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
