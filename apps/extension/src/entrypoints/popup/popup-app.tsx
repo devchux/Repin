@@ -17,7 +17,7 @@ import { useRepinTheme } from "@/hooks/use-theme";
 import { repinThemes } from "@/types/content";
 import { cn } from "@repo/ui/lib/utils";
 import repinLogoUrl from "@/assets/repin-logo-icon.png";
-import { PAGE_ACTIONS } from "@/lib/page-actions";
+import { PAGE_ACTIONS } from "@/lib/page/page-actions";
 import { openPageSidebar } from "@/lib/sidebar-activation";
 import { BrowserSessionStatusIndicator } from "@/components/browser-session-status";
 import { getAdvancedBrowserControlAvailability } from "@/browser-tools/advanced-browser-control";

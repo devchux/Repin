@@ -27,6 +27,7 @@ export type Configuration = {
     apiKey: string;
     baseUrl: string;
     model: string;
+    embeddingModel: string;
     requestTimeout: number;
   };
   assistantQueue: {

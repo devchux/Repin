@@ -16,6 +16,8 @@ import repinLogoUrl from "@/assets/repin-logo-icon.png";
 import { AssistantRun } from "./assistant-run";
 import type { AiAssistantCapability } from "@repo/contracts/assistant";
 import { BrowserSessionStatusIndicator } from "./browser-session-status";
+import { TakeNotePanel } from "./take-note-panel";
+import { BookmarkPanel } from "./bookmark-panel";
 
 interface RepinSidebarProps {
   mode: RepinSidebarMode;
@@ -132,7 +134,15 @@ export const RepinSidebar = ({
           </p>
         </section>
 
-        {isAssistantMode ? (
+        {mode === "note" ? (
+          <TakeNotePanel
+            key={requestId}
+            page={page}
+            selectedText={selectedText}
+          />
+        ) : mode === "save" ? (
+          <BookmarkPanel key={requestId} selectedText={selectedText} />
+        ) : isAssistantMode ? (
           <AssistantRun
             capability={mode as AiAssistantCapability}
             enabled={open}
@@ -159,7 +169,7 @@ export const RepinSidebar = ({
         )}
       </main>
 
-      {!isAssistantMode ? (
+      {!isAssistantMode && mode !== "note" && mode !== "save" ? (
         <footer className="relative border-t border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950">
           {recording ? (
             <div className="flex items-center gap-2 rounded-3xl border border-neutral-200 bg-white p-2.5 dark:border-neutral-800 dark:bg-neutral-900">

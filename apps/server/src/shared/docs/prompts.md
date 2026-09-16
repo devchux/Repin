@@ -6,8 +6,8 @@ not embed system or user prompt templates directly.
 
 Each prompt family has an explicit identifier in `PROMPT_VERSIONS`:
 
-- `assistant.v1`
-- `conversation.v1`
+- `assistant.v2`
+- `conversation.v2`
 - `workflow-selection.v1`
 - `workflow-generation.v1`
 

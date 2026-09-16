@@ -61,12 +61,12 @@ export const modeConfig = {
     primaryAction: "Save note",
   },
   save: {
-    title: "Save page",
-    description: "Save this page with optional selected text as context.",
+    title: "Repin bookmark",
+    description: "Save this page to your searchable Repin workspace.",
     icon: BookmarkPlus,
     emptyState: "Save the page with any selection or extra context.",
     prompt: "Add context",
-    primaryAction: "Save pin",
+    primaryAction: "Save bookmark",
   },
   chat: {
     title: "Chat",
@@ -99,7 +99,7 @@ export const toolbarActions = [
     mode: "summarize",
   },
   {
-    label: "Save page",
+    label: "Repin bookmark",
     icon: BookmarkPlus,
     mode: "save",
   },

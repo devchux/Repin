@@ -77,6 +77,24 @@ export class OpenAiCompatibleProvider implements AiProvider {
     };
   }
 
+  async embed(
+    input: readonly string[],
+    model?: string,
+  ): Promise<readonly number[][]> {
+    if (!this.options.apiKey) {
+      throw new Error(`${this.options.provider} API key is not configured`);
+    }
+    const response = await this.client.embeddings.create({
+      model: model || this.options.embeddingModel,
+      input: [...input],
+      dimensions: 1536,
+      encoding_format: 'float',
+    });
+    return response.data
+      .sort((left, right) => left.index - right.index)
+      .map((item) => item.embedding);
+  }
+
   private toChatMessage(message: AiMessage): ChatCompletionMessageParam {
     if (message.role === 'tool') {
       if (!message.toolCallId) {

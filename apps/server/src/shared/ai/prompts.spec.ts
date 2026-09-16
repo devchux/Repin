@@ -38,6 +38,14 @@ describe('shared AI prompts', () => {
     });
   });
 
+  it('directs chat to cite retrieved bookmark sources', () => {
+    const messages = buildAssistantPrompt({ capability: 'chat', context });
+
+    expect(messages[0].content).toContain('search_bookmarks');
+    expect(messages[0].content).toContain('source URL');
+    expect(messages[0].content).toContain('untrusted data');
+  });
+
   it('serializes workflow candidates without allowing them into system instructions', () => {
     const messages = buildWorkflowSelectionPrompt({
       task: {

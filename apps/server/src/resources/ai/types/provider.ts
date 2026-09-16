@@ -42,5 +42,9 @@ export interface AiGenerateResult {
 
 export interface AiProvider {
   generate(options: AiGenerateOptions): Promise<AiGenerateResult>;
+  embed?(
+    input: readonly string[],
+    model?: string,
+  ): Promise<readonly number[][]>;
   stream?(options: AiGenerateOptions): AsyncIterable<string>;
 }

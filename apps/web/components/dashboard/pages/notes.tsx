@@ -2,7 +2,8 @@
 
 import { LibraryToolbar } from "@/components/dashboard/features/common/library-toolbar";
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
-import { notes } from "@/lib/library-data";
+import { useFetch } from "@/hooks/useFetch";
+import type { Note, NotesPage as NotesPageData } from "@repo/contracts/note";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
 import { FileText, MoreHorizontal, Plus } from "@repo/ui/icons";
@@ -12,14 +13,18 @@ import { WorkspacePage } from "../layout/workspace-page";
 
 export function NotesPage() {
   const [query, setQuery] = useState("");
+  const request = useFetch<NotesPageData>("/notes", {
+    hideToast: "all",
+    params: { limit: 100 },
+  });
   const filtered = useMemo(
     () =>
-      notes.filter((note) =>
+      (request.data?.data.data.items ?? []).filter((note) =>
         `${note.title} ${note.body} ${note.tags.join(" ")}`
           .toLowerCase()
           .includes(query.toLowerCase()),
       ),
-    [query],
+    [request.data, query],
   );
   return (
     <WorkspacePage>
@@ -46,11 +51,16 @@ export function NotesPage() {
         </Button>
       </LibraryToolbar>
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-        <span>{filtered.length} notes</span>
+        <span>{request.isLoading ? "Loading notes…" : `${filtered.length} notes`}</span>
         <span>Updated across web and extension</span>
       </div>
       <section className="mt-4 grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((note) => (
+        {request.isError ? (
+          <div className="bg-card p-5 text-sm text-destructive">
+            Notes could not be loaded. <Button variant="link" onClick={() => void request.refetch()}>Try again</Button>
+          </div>
+        ) : null}
+        {filtered.map((note: Note) => (
           <article
             key={note.id}
             className="group flex min-h-64 flex-col bg-card p-5 transition-colors hover:bg-muted/30"
@@ -85,8 +95,8 @@ export function NotesPage() {
               ))}
             </div>
             <div className="mt-4 flex justify-between border-t pt-4 text-xs text-muted-foreground">
-              <span>{note.sourceLabel ?? "Personal note"}</span>
-              <time>{note.updatedAt}</time>
+              <span>{note.sourceUrl ? new URL(note.sourceUrl).hostname : "Personal note"}</span>
+              <time dateTime={note.updatedAt}>{new Date(note.updatedAt).toLocaleDateString()}</time>
             </div>
           </article>
         ))}
