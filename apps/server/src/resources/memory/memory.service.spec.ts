@@ -4,12 +4,22 @@ import { Memory } from './entities/memory.entity';
 import { MemoryService } from './memory.service';
 import { MemorySource } from './entities/memory-source.entity';
 import type { LibraryService } from '../library/library.service';
+import type { AiService } from '../ai/ai.service';
 
 describe('MemoryService', () => {
+  const memoryQuery = {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    whereInIds: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getMany: jest.fn(),
+  };
   const repository = {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => ({ id: 'memory-1', ...value })),
+    update: jest.fn(),
     delete: jest.fn(),
+    query: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(memoryQuery),
   } as unknown as jest.Mocked<Repository<Memory>>;
   const sourceQuery = {
     innerJoin: jest.fn().mockReturnThis(),
@@ -23,10 +33,14 @@ describe('MemoryService', () => {
   const library = {
     findOwned: jest.fn(),
   } as unknown as jest.Mocked<LibraryService>;
-  const service = new MemoryService(repository, sourceRepository, library);
+  const ai = {
+    embed: jest.fn().mockResolvedValue([[0.1, 0.2]]),
+  } as unknown as jest.Mocked<AiService>;
+  const service = new MemoryService(repository, sourceRepository, library, ai);
 
   beforeEach(() => {
     jest.clearAllMocks();
+    ai.embed.mockResolvedValue([[0.1, 0.2]]);
     sourceQuery.getOne.mockResolvedValue(null);
   });
 
@@ -47,6 +61,61 @@ describe('MemoryService', () => {
       }),
     );
     expect(result.data).toEqual(expect.objectContaining({ id: 'memory-1' }));
+    expect(repository.update).toHaveBeenCalledWith('memory-1', {
+      embedding: [0.1, 0.2],
+    });
+  });
+
+  it('keeps a memory searchable by full text when embedding fails', async () => {
+    ai.embed.mockRejectedValueOnce(new Error('provider unavailable'));
+
+    await expect(
+      service.create(7, { content: 'Prefers dark mode' }),
+    ).resolves.toEqual(expect.objectContaining({ data: expect.any(Object) }));
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it('ranks context with semantic, full-text, scope, and user filters', async () => {
+    repository.query.mockResolvedValueOnce([
+      { id: 'domain-memory', relevanceScore: '0.87' },
+      { id: 'global-memory', relevanceScore: '0.74' },
+    ]);
+    memoryQuery.getMany.mockResolvedValueOnce([
+      { id: 'global-memory', sources: [] },
+      { id: 'domain-memory', sources: [] },
+    ]);
+
+    const result = await service.getContext(7, {
+      query: 'Which response style do I prefer?',
+      kind: 'user',
+      scope: 'domain',
+      scopeId: 'example.com',
+      limit: 5,
+    });
+
+    expect(repository.query).toHaveBeenCalledWith(
+      expect.stringContaining(`memory."userId" = $1`),
+      expect.arrayContaining([
+        7,
+        'Which response style do I prefer?',
+        'user',
+        'domain',
+        'example.com',
+        '[0.1,0.2]',
+        5,
+      ]),
+    );
+    expect(repository.query.mock.calls[0]?.[0]).toContain(
+      `to_tsvector('english', coalesce(memory."content", ''))`,
+    );
+    expect(repository.query.mock.calls[0]?.[0]).toContain(
+      `memory."embedding" <=>`,
+    );
+    expect(result.map((memory) => memory.id)).toEqual([
+      'domain-memory',
+      'global-memory',
+    ]);
+    expect(result[0]?.relevanceScore).toBe(0.87);
   });
 
   it('marks webpage provenance as untrusted', async () => {

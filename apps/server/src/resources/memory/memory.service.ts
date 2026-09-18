@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,6 +15,8 @@ import { MemorySource } from './entities/memory-source.entity';
 import { LibraryService } from '../library/library.service';
 import { CreateMemoryFromSourceDto } from './dto/create-memory-from-source.dto';
 import type { LibraryItemType } from '@repo/contracts/library';
+import { AiService } from '../ai/ai.service';
+import type { MemoryKind, MemoryScope } from '@repo/contracts/memory';
 
 const UNTRUSTED_SOURCES = new Set<MemorySourceType>([
   'webpage',
@@ -30,12 +33,15 @@ const LIBRARY_MEMORY_SOURCE: Record<LibraryItemType, MemorySourceType> = {
 
 @Injectable()
 export class MemoryService {
+  private readonly logger = new Logger(MemoryService.name);
+
   constructor(
     @InjectRepository(Memory)
     private readonly memories: Repository<Memory>,
     @InjectRepository(MemorySource)
     private readonly sources: Repository<MemorySource>,
     private readonly library: LibraryService,
+    private readonly ai: AiService,
   ) {}
 
   async create(userId: number, request: CreateMemoryDto) {
@@ -59,11 +65,23 @@ export class MemoryService {
       ],
     });
     const saved = await this.memories.save(memory);
+    await this.addEmbedding(saved.id, saved.content);
     return { message: 'Memory created successfully', data: saved };
   }
 
   async findAll(userId: number, request: FindMemoriesDto) {
     this.validateOptionalScope(request.scope, request.scopeId);
+    if (request.query) {
+      const data = await this.retrieve(userId, {
+        query: request.query,
+        kind: request.kind,
+        scope: request.scope,
+        scopeId: request.scopeId,
+        includeGlobal: false,
+        limit: request.limit ?? 20,
+      });
+      return { message: 'Memories found successfully', data };
+    }
     const query = this.memories
       .createQueryBuilder('memory')
       .leftJoinAndSelect('memory.sources', 'source')
@@ -77,12 +95,6 @@ export class MemoryService {
       query.andWhere('memory.scope = :scope', { scope: request.scope });
     if (request.scopeId)
       query.andWhere('memory.scopeId = :scopeId', { scopeId: request.scopeId });
-    if (request.query) {
-      query.andWhere('memory.content ILIKE :query', {
-        query: `%${request.query}%`,
-      });
-    }
-
     const data = await query.getMany();
     return { message: 'Memories found successfully', data };
   }
@@ -125,6 +137,16 @@ export class MemoryService {
   }
 
   async getContext(userId: number, request: FindMemoryContextDto) {
+    if (request.query) {
+      return this.retrieve(userId, {
+        query: request.query,
+        kind: request.kind,
+        scope: request.scope,
+        scopeId: request.scopeId,
+        includeGlobal: true,
+        limit: request.limit ?? 10,
+      });
+    }
     const query = this.memories
       .createQueryBuilder('memory')
       .leftJoinAndSelect('memory.sources', 'source')
@@ -146,6 +168,104 @@ export class MemoryService {
       .take(request.limit ?? 10);
 
     return query.getMany();
+  }
+
+  private async addEmbedding(id: string, content: string): Promise<void> {
+    try {
+      const [embedding] = await this.ai.embed([content]);
+      if (!embedding) throw new Error('Embedding provider returned no result');
+      await this.memories.update(id, { embedding: [...embedding] });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Memory ${id} was saved without a semantic embedding: ${message}`,
+      );
+    }
+  }
+
+  private async retrieve(
+    userId: number,
+    request: {
+      readonly query: string;
+      readonly kind?: MemoryKind;
+      readonly scope?: MemoryScope;
+      readonly scopeId?: string;
+      readonly includeGlobal: boolean;
+      readonly limit: number;
+    },
+  ): Promise<Memory[]> {
+    let embedding: readonly number[] | undefined;
+    try {
+      [embedding] = await this.ai.embed([request.query]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Semantic memory retrieval unavailable: ${message}`);
+    }
+
+    const parameters: unknown[] = [userId, request.query];
+    const conditions = ['memory."userId" = $1'];
+    if (request.kind) {
+      parameters.push(request.kind);
+      conditions.push(`memory."kind" = $${parameters.length}`);
+    }
+    if (request.scope) {
+      parameters.push(request.scope, request.scopeId ?? null);
+      const scopeParameter = parameters.length - 1;
+      const scopeIdParameter = parameters.length;
+      conditions.push(
+        request.includeGlobal
+          ? `(memory."scope" = 'global' OR (memory."scope" = $${scopeParameter} AND memory."scopeId" = $${scopeIdParameter}))`
+          : `memory."scope" = $${scopeParameter} AND memory."scopeId" IS NOT DISTINCT FROM $${scopeIdParameter}`,
+      );
+    } else if (request.includeGlobal) {
+      conditions.push(`memory."scope" = 'global'`);
+    }
+
+    const lexical = `to_tsvector('english', coalesce(memory."content", ''))`;
+    const lexicalScore = `ts_rank_cd(${lexical}, websearch_to_tsquery('english', $2), 32)`;
+    const semanticScore = embedding
+      ? `GREATEST(0, 1 - (memory."embedding" <=> $${parameters.length + 1}::vector))`
+      : '0';
+    if (embedding) parameters.push(`[${embedding.join(',')}]`);
+    parameters.push(request.scope ?? null, request.scopeId ?? null);
+    const rankingScopeParameter = parameters.length - 1;
+    const rankingScopeIdParameter = parameters.length;
+    parameters.push(request.limit);
+    const limitParameter = parameters.length;
+
+    const rows = (await this.memories.query(
+      `SELECT memory."id",
+        (${lexicalScore} * 0.4
+          + ${semanticScore} * 0.5
+          + CASE
+              WHEN memory."scope" = $${rankingScopeParameter} AND memory."scopeId" IS NOT DISTINCT FROM $${rankingScopeIdParameter} THEN 0.07
+              WHEN memory."scope" = 'global' THEN 0.04
+              ELSE 0
+            END
+          + (1.0 / (1.0 + EXTRACT(EPOCH FROM (now() - memory."updatedAt")) / 2592000.0)) * 0.03
+        ) AS "relevanceScore"
+       FROM "memories" memory
+       WHERE ${conditions.join(' AND ')}
+         AND (${lexical} @@ websearch_to_tsquery('english', $2)${embedding ? ' OR memory."embedding" IS NOT NULL' : ''})
+       ORDER BY "relevanceScore" DESC, memory."updatedAt" DESC
+       LIMIT $${limitParameter}`,
+      parameters,
+    )) as Array<{ id: string; relevanceScore: string }>;
+    if (!rows.length) return [];
+
+    const memories = await this.memories
+      .createQueryBuilder('memory')
+      .leftJoinAndSelect('memory.sources', 'source')
+      .whereInIds(rows.map((row) => row.id))
+      .andWhere('memory.userId = :userId', { userId })
+      .getMany();
+    const byId = new Map(memories.map((memory) => [memory.id, memory]));
+    return rows.flatMap((row) => {
+      const memory = byId.get(row.id);
+      if (!memory) return [];
+      memory.relevanceScore = Number(row.relevanceScore);
+      return [memory];
+    });
   }
 
   async forget(userId: number, id: string) {

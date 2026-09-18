@@ -183,7 +183,10 @@ export class LoopService {
     } catch {
       domain = undefined;
     }
+    const query = this.latestUserMessage(messages);
+    if (!query) return [...messages];
     const memories = await this.memoryService.getContext(run.userId, {
+      query,
       scope: domain ? 'domain' : undefined,
       scopeId: domain,
       limit: 10,
@@ -215,6 +218,18 @@ export class LoopService {
       },
       ...messages.slice(insertionIndex),
     ];
+  }
+
+  private latestUserMessage(
+    messages: readonly AiMessage[],
+  ): string | undefined {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message?.role === 'user' && message.content.trim()) {
+        return message.content.trim().slice(0, 2000);
+      }
+    }
+    return undefined;
   }
 
   private async executeTool(

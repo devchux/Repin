@@ -32,6 +32,11 @@ export class Memory {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'vector', length: 1536, nullable: true, select: false })
+  embedding?: number[] | null;
+
+  relevanceScore?: number;
+
   @Column({ type: 'varchar', default: 'global' })
   scope: MemoryScope;
 

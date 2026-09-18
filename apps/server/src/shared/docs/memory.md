@@ -9,17 +9,21 @@ The first version deliberately supports only:
 - explicit user and agent memories;
 - global, project, domain, and conversation scopes;
 - source provenance with server-assigned trust;
-- bounded lexical listing and context retrieval;
+- hybrid semantic and full-text retrieval with structured filters;
 - permanent deletion through the forget endpoint.
 
-`GET /api/memories/context` returns global memories plus an optional exact
-scope match. Its maximum of 20 records is an intentional context-size boundary.
+`GET /api/memories/context` ranks global memories plus an optional exact scope
+match against `query`. Ranking combines full-text relevance, embedding cosine
+similarity, exact-scope preference, and a small recency tie-breaker. Its maximum
+of 10 records is an intentional context-size boundary.
 Browser-page sources are always marked `untrusted`; this metadata does not turn
 page content into an instruction or grant permission to perform an action.
 
-At the start of an agent run, the harness loads at most ten global and
-current-domain memories into one compact system message. It does not repeat the
-lookup on every tool iteration and does not inject full source documents.
+At the start of an agent run, the harness retrieves the global and
+current-domain memories most relevant to the latest user message and puts at
+most ten into one compact system message. It does not repeat the lookup on every
+tool iteration and does not inject full source documents. If embeddings are
+temporarily unavailable, full-text retrieval continues to work.
 
 The harness also exposes `memory_remember`, `memory_search`, and
 `memory_forget`. Search is read-only. Remember and forget execute only when the
@@ -32,5 +36,5 @@ to the user, derives trust from its type, and prevents the same source from
 creating an identical memory twice. Forgetting a memory does not delete its
 library source.
 
-Semantic embeddings, automatic extraction, conflict resolution, consolidation,
-and knowledge graphs are deferred until usage data shows they are necessary.
+Automatic extraction, conflict resolution, consolidation, and knowledge graphs
+are deferred until usage data shows they are necessary.

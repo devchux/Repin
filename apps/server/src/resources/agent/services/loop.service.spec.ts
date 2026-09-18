@@ -227,6 +227,7 @@ describe('LoopService', () => {
     ).run(run, [{ role: 'user', content: 'Help me' }]);
 
     expect(memoryService.getContext).toHaveBeenCalledWith(9, {
+      query: 'Help me',
       scope: 'domain',
       scopeId: 'docs.example.com',
       limit: 10,

@@ -6,9 +6,14 @@ import { MemoryController } from './memory.controller';
 import { MemoryService } from './memory.service';
 import { MemoryToolsService } from './memory-tools.service';
 import { LibraryModule } from '../library/library.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
-  imports: [LibraryModule, TypeOrmModule.forFeature([Memory, MemorySource])],
+  imports: [
+    AiModule,
+    LibraryModule,
+    TypeOrmModule.forFeature([Memory, MemorySource]),
+  ],
   controllers: [MemoryController],
   providers: [MemoryService, MemoryToolsService],
   exports: [MemoryService, MemoryToolsService],

@@ -47,6 +47,16 @@ export class FindMemoriesDto {
 
 export class FindMemoryContextDto {
   @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  query?: string;
+
+  @IsOptional()
+  @IsIn(MEMORY_KINDS)
+  kind?: MemoryKind;
+
+  @IsOptional()
   @IsIn(MEMORY_SCOPES.filter((scope) => scope !== 'global'))
   scope?: Exclude<MemoryScope, 'global'>;
 
@@ -60,6 +70,6 @@ export class FindMemoryContextDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(20)
+  @Max(10)
   limit = 10;
 }
