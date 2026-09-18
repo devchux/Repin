@@ -240,7 +240,7 @@ describe('LoopService', () => {
           }),
           { role: 'user', content: 'Help me' },
         ],
-        }),
+      }),
     );
   });
   it('records application tools without requiring a browser session', async () => {
@@ -286,6 +286,8 @@ describe('LoopService', () => {
       aiService,
       toolsService,
       execution,
+      memoryService,
+      memoryTools,
     ).run(runWithoutBrowser, []);
 
     expect(result.content).toBe('The page is saved.');

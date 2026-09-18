@@ -123,6 +123,7 @@ export interface BrowserSnapshotElement {
   readonly focused?: boolean;
   readonly checked?: boolean | 'mixed';
   readonly expanded?: boolean;
+  readonly groundingStatus?: 'grounded' | 'ambiguous' | 'unavailable';
 }
 
 export interface BrowserPageSnapshot {

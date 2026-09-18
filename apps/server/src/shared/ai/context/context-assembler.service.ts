@@ -6,6 +6,7 @@ import type {
   PageObservation,
 } from '@repo/contracts/context';
 import type { PageContext } from '@repo/contracts/browser';
+import { classifyContextIntent, isInteractionIntent } from './context-intent';
 
 const DEFAULT_CONTEXT_TOKEN_BUDGET = 12_000;
 const APPROXIMATE_CHARACTERS_PER_TOKEN = 4;
@@ -28,6 +29,7 @@ export class ContextAssemblerService {
     );
     const maximumCharacters = maximumTokens * APPROXIMATE_CHARACTERS_PER_TOKEN;
     const candidates = this.candidates(input, observation);
+    const intent = classifyContextIntent(input.capability, input.userInput);
     const items: ContextItem[] = [];
     let remainingCharacters = maximumCharacters;
 
@@ -56,6 +58,7 @@ export class ContextAssemblerService {
       items,
       manifest: {
         strategy: this.strategy(input, observation),
+        intent,
         includedItemIds: items.map((item) => item.id),
         omittedItemCount: Math.max(0, candidates.length - items.length),
         truncated,
@@ -83,7 +86,8 @@ export class ContextAssemblerService {
     }
 
     if (observation) {
-      return this.rankBlocks(input, observation)
+      const intent = classifyContextIntent(input.capability, input.userInput);
+      const blocks = this.rankBlocks(input, observation)
         .filter((block) => block.visible && block.text.trim())
         .map((block) => ({
           id: block.id,
@@ -92,7 +96,58 @@ export class ContextAssemblerService {
           untrusted: true,
           blockKind: block.kind,
           headingPath: block.headingPath,
+          structure: block.structure,
         }));
+      const controls = this.rankInteractiveElements(input, observation).map(
+        (element): ContextItem => {
+          const ambiguous = this.isAmbiguousControl(element, observation);
+          const actionRef = ambiguous ? undefined : element.actionRef;
+          return {
+            id: element.id,
+            provenance: 'webpage',
+            content: this.describeInteractiveElement(element),
+            untrusted: true,
+            headingPath: element.headingPath,
+            interactiveElement: {
+              kind: element.kind,
+              role: element.role,
+              name: element.name,
+              description: element.description,
+              value: element.value,
+              inputType: element.inputType,
+              href: element.href,
+              headingPath: element.headingPath,
+              disabled: element.disabled,
+              checked: element.checked,
+              expanded: element.expanded,
+              required: element.required,
+              validationMessage: element.validationMessage,
+              invalid: element.invalid,
+              selected: element.selected,
+              formId: element.formId,
+              dialogId: element.dialogId,
+              regionRole: element.regionRole,
+            },
+            actionRef,
+            documentRevision: actionRef
+              ? observation.documentRevision
+              : undefined,
+            groundingStatus: ambiguous
+              ? 'ambiguous'
+              : actionRef
+                ? 'grounded'
+                : 'unavailable',
+            riskTags: this.interactiveRiskTags(element),
+          };
+        },
+      );
+      const rankedBlocks = blocks.map((block) => ({
+        ...block,
+        riskTags: this.contentRiskTags(block.content),
+      }));
+      return this.shouldPrioritizeControls(intent, input.userInput)
+        ? [...controls, ...rankedBlocks]
+        : [...rankedBlocks, ...controls];
     }
 
     return input.page.pageContent
@@ -158,6 +213,7 @@ export class ContextAssemblerService {
     }
 
     const queryTerms = this.queryTerms(input.userInput);
+    const intent = classifyContextIntent(input.capability, input.userInput);
     if (
       queryTerms.length === 0 ||
       (input.capability !== 'chat' && input.capability !== 'explain')
@@ -170,19 +226,128 @@ export class ContextAssemblerService {
         block,
         index,
         score:
-          queryTerms.reduce((score, term) => {
-            const text = `${block.headingPath?.join(' ') ?? ''} ${block.text}`
-              .toLocaleLowerCase()
-              .split(term).length;
-            return score + Math.max(0, text - 1);
-          }, 0) +
+          this.termScore(
+            `${block.headingPath?.join(' ') ?? ''} ${block.text}`,
+            queryTerms,
+          ) +
           (block.inViewport ? 1 : 0) +
-          (block.kind === 'heading' ? 0.5 : 0),
+          (block.kind === 'heading' ? 0.5 : 0) +
+          (intent === 'extract' && ['table', 'list'].includes(block.kind)
+            ? 3
+            : 0) +
+          (intent === 'compare' && block.kind === 'heading' ? 2 : 0),
       }))
       .sort(
         (left, right) => right.score - left.score || left.index - right.index,
       )
       .map(({ block }) => block);
+  }
+
+  private rankInteractiveElements(
+    input: AssembleContextInput,
+    observation: PageObservation,
+  ): NonNullable<PageObservation['interactiveElements']> {
+    const queryTerms = this.queryTerms(input.userInput);
+    return [...(observation.interactiveElements ?? [])]
+      .filter((element) => element.visible && (element.name || element.value))
+      .map((element, index) => ({
+        element,
+        index,
+        score:
+          this.termScore(
+            `${element.headingPath?.join(' ') ?? ''} ${element.name} ${element.value ?? ''} ${element.role}`,
+            queryTerms,
+          ) +
+          (element.inViewport ? 1 : 0) +
+          (element.disabled ? -2 : 0),
+      }))
+      .sort(
+        (left, right) => right.score - left.score || left.index - right.index,
+      )
+      .map(({ element }) => element);
+  }
+
+  private describeInteractiveElement(
+    element: NonNullable<PageObservation['interactiveElements']>[number],
+  ): string {
+    const state = [
+      element.inputType ? `type=${element.inputType}` : undefined,
+      element.description
+        ? `description=${JSON.stringify(element.description)}`
+        : undefined,
+      element.value ? `value=${JSON.stringify(element.value)}` : undefined,
+      element.disabled ? 'disabled' : undefined,
+      element.checked !== undefined ? `checked=${element.checked}` : undefined,
+      element.expanded !== undefined
+        ? `expanded=${element.expanded}`
+        : undefined,
+      element.required ? 'required' : undefined,
+      element.invalid && element.validationMessage
+        ? `validation=${JSON.stringify(element.validationMessage)}`
+        : undefined,
+      element.href ? `destination=${element.href}` : undefined,
+    ].filter(Boolean);
+    return `${element.role}: ${element.name || '(unnamed)'}${state.length ? ` (${state.join(', ')})` : ''}`;
+  }
+
+  private interactiveRiskTags(
+    element: NonNullable<PageObservation['interactiveElements']>[number],
+  ): ContextItem['riskTags'] {
+    return /password|credit.?card|card.?number|cvv|cvc|social.?security|ssn/i.test(
+      `${element.inputType ?? ''} ${element.name} ${element.role}`,
+    )
+      ? ['sensitive_input']
+      : undefined;
+  }
+
+  private shouldPrioritizeControls(
+    intent: ReturnType<typeof classifyContextIntent>,
+    userInput?: string,
+  ): boolean {
+    return isInteractionIntent(intent) || /\bsearch\b/i.test(userInput ?? '');
+  }
+
+  private isAmbiguousControl(
+    target: NonNullable<PageObservation['interactiveElements']>[number],
+    observation: PageObservation,
+  ): boolean {
+    const identity = this.controlIdentity(target);
+    return (
+      observation.interactiveElements?.filter(
+        (element) =>
+          element.visible && this.controlIdentity(element) === identity,
+      ).length !== 1
+    );
+  }
+
+  private controlIdentity(
+    element: NonNullable<PageObservation['interactiveElements']>[number],
+  ): string {
+    return [
+      element.role,
+      element.name,
+      element.headingPath?.join(' > '),
+      element.formId,
+      element.dialogId,
+    ]
+      .join('|')
+      .toLocaleLowerCase();
+  }
+
+  private contentRiskTags(content: string): ContextItem['riskTags'] {
+    return /\b(ignore (all |any )?(previous|prior|system)|system message|developer message|reveal (your )?(prompt|instructions)|do not trust the user)\b/i.test(
+      content,
+    )
+      ? ['prompt_injection']
+      : undefined;
+  }
+
+  private termScore(text: string, queryTerms: readonly string[]): number {
+    const normalized = text.toLocaleLowerCase();
+    return queryTerms.reduce(
+      (score, term) => score + Math.max(0, normalized.split(term).length - 1),
+      0,
+    );
   }
 
   private queryTerms(input?: string): readonly string[] {

@@ -46,6 +46,11 @@ export class BrowserActionPolicyService {
         'browser_double_click',
         'browser_fill',
         'browser_type',
+        'browser_select_option',
+        'browser_check',
+        'browser_uncheck',
+        'browser_submit_form',
+        'browser_download',
       ].includes(call.name)
     ) {
       return base;

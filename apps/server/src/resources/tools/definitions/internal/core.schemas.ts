@@ -57,7 +57,7 @@ export const BROWSER_TOOL_DEFINITIONS = [
   {
     name: 'browser_get_snapshot',
     description:
-      'Capture the current page as a structured accessibility snapshot for inspection and subsequent browser actions.',
+      'Capture the current page as a structured accessibility snapshot for inspection and subsequent browser actions. Act directly only on elements marked grounded; inspect or clarify ambiguous targets first.',
     inputSchema: objectSchema({
       tabId,
       includeText: {

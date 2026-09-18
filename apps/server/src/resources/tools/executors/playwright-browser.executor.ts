@@ -89,6 +89,8 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
           ({ currentTabId, revision }) => {
             const selector =
               'h1,h2,h3,h4,h5,h6,p,li,pre,blockquote,table,form,nav';
+            const interactiveSelector =
+              'a[href],button,input,select,textarea,[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="switch"],[role="combobox"],[role="textbox"],[role="searchbox"],[role="tab"],[role="menuitem"],[role="option"],[role="slider"],[role="spinbutton"],[contenteditable="true"]';
             const root =
               document.querySelector<HTMLElement>(
                 'main, article, [role="main"]',
@@ -97,9 +99,18 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
               element: Element;
               sourceFrameUrl?: string;
             }> = [];
+            const interactiveNodes: Array<{
+              element: Element;
+              sourceFrameUrl?: string;
+            }> = [];
             const collect = (source: ParentNode, sourceFrameUrl?: string) => {
               for (const element of source.querySelectorAll(selector)) {
                 nodes.push({ element, sourceFrameUrl });
+              }
+              for (const element of source.querySelectorAll(
+                interactiveSelector,
+              )) {
+                interactiveNodes.push({ element, sourceFrameUrl });
               }
               for (const host of source.querySelectorAll('*')) {
                 if (host.shadowRoot) collect(host.shadowRoot, sourceFrameUrl);
@@ -137,6 +148,12 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
               visible: boolean;
               inViewport: boolean;
               sourceFrameUrl?: string;
+              structure?: {
+                itemCount?: number;
+                rowCount?: number;
+                columnCount?: number;
+                headers?: string[];
+              };
             }>;
 
             for (const node of nodes) {
@@ -192,6 +209,40 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
               truncated ||= boundedText.length < text.length;
               const bounds = element.getBoundingClientRect();
               const view = element.ownerDocument.defaultView ?? window;
+              const structure =
+                kind === 'table'
+                  ? {
+                      rowCount: element.querySelectorAll('tr').length,
+                      columnCount: Math.max(
+                        0,
+                        ...Array.from(element.querySelectorAll('tr')).map(
+                          (row) => row.querySelectorAll('th,td').length,
+                        ),
+                      ),
+                      headers: Array.from(element.querySelectorAll('th'))
+                        .map((header) =>
+                          (header.textContent ?? '')
+                            .replace(/\s+/g, ' ')
+                            .trim()
+                            .slice(0, 500),
+                        )
+                        .filter(Boolean)
+                        .slice(0, 50),
+                    }
+                  : kind === 'list'
+                    ? {
+                        itemCount:
+                          element
+                            .closest('ul,ol')
+                            ?.querySelectorAll(':scope > li').length ?? 1,
+                      }
+                    : kind === 'form'
+                      ? {
+                          itemCount:
+                            element.querySelectorAll(interactiveSelector)
+                              .length,
+                        }
+                      : undefined;
               blocks.push({
                 id: `b${blocks.length + 1}`,
                 kind,
@@ -204,9 +255,141 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
                   bounds.top < view.innerHeight &&
                   bounds.left < view.innerWidth,
                 sourceFrameUrl: node.sourceFrameUrl,
+                structure,
               });
               total += boundedText.length;
             }
+
+            const interactiveElements = interactiveNodes
+              .filter(({ element }) => {
+                const htmlElement = element as HTMLElement;
+                const style =
+                  element.ownerDocument.defaultView?.getComputedStyle(
+                    htmlElement,
+                  ) ?? getComputedStyle(htmlElement);
+                return (
+                  style.display !== 'none' &&
+                  style.visibility !== 'hidden' &&
+                  style.opacity !== '0' &&
+                  htmlElement.getClientRects().length > 0
+                );
+              })
+              .slice(0, 500)
+              .map(({ element, sourceFrameUrl }, index) => {
+                const htmlElement = element as HTMLElement;
+                const input = element as HTMLInputElement;
+                const tag = element.tagName.toLowerCase();
+                const bounds = element.getBoundingClientRect();
+                const view = element.ownerDocument.defaultView ?? window;
+                const type = element.getAttribute('type')?.toLowerCase();
+                const kind =
+                  tag === 'a'
+                    ? ('link' as const)
+                    : tag === 'button'
+                      ? ('button' as const)
+                      : tag === 'input'
+                        ? ('input' as const)
+                        : tag === 'select'
+                          ? ('select' as const)
+                          : tag === 'textarea'
+                            ? ('textarea' as const)
+                            : element.getAttribute('contenteditable') === 'true'
+                              ? ('contenteditable' as const)
+                              : ('control' as const);
+                const name = (
+                  element.getAttribute('aria-label') ??
+                  element.getAttribute('title') ??
+                  element.getAttribute('placeholder') ??
+                  htmlElement.innerText ??
+                  ''
+                )
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                  .slice(0, 1_000);
+                return {
+                  id: `i${index + 1}`,
+                  kind,
+                  role: element.getAttribute('role') ?? tag,
+                  name,
+                  description:
+                    element
+                      .getAttribute('aria-describedby')
+                      ?.split(/\s+/)
+                      .map((id) =>
+                        element.ownerDocument
+                          .getElementById(id)
+                          ?.textContent?.trim(),
+                      )
+                      .filter(Boolean)
+                      .join(' ')
+                      .slice(0, 1_000) || undefined,
+                  value:
+                    'value' in input && type !== 'password'
+                      ? String(input.value).slice(0, 1_000) || undefined
+                      : undefined,
+                  inputType: type,
+                  href:
+                    element instanceof HTMLAnchorElement
+                      ? element.href.slice(0, 2_048)
+                      : undefined,
+                  visible: true,
+                  inViewport:
+                    bounds.bottom > 0 &&
+                    bounds.right > 0 &&
+                    bounds.top < view.innerHeight &&
+                    bounds.left < view.innerWidth,
+                  disabled:
+                    'disabled' in input ? Boolean(input.disabled) : undefined,
+                  checked:
+                    'checked' in input ? Boolean(input.checked) : undefined,
+                  expanded: element.hasAttribute('aria-expanded')
+                    ? element.getAttribute('aria-expanded') === 'true'
+                    : undefined,
+                  required:
+                    'required' in input ? Boolean(input.required) : undefined,
+                  validationMessage:
+                    'validationMessage' in input
+                      ? input.validationMessage.slice(0, 1_000) || undefined
+                      : undefined,
+                  invalid: element.hasAttribute('aria-invalid')
+                    ? element.getAttribute('aria-invalid') === 'true'
+                    : 'validity' in input
+                      ? !input.validity.valid
+                      : undefined,
+                  selected: element.hasAttribute('aria-selected')
+                    ? element.getAttribute('aria-selected') === 'true'
+                    : undefined,
+                  actionRef: htmlElement.dataset.repinAgentRef,
+                  formId: element.closest('form')?.id || undefined,
+                  dialogId:
+                    element.closest(
+                      'dialog,[role="dialog"],[role="alertdialog"]',
+                    )?.id || undefined,
+                  regionRole:
+                    element
+                      .closest(
+                        'nav,main,aside,header,footer,section,[role="region"],[role="navigation"],[role="main"],[role="complementary"]',
+                      )
+                      ?.getAttribute('role') ?? undefined,
+                  sourceFrameUrl,
+                };
+              });
+            const identityCounts = new Map<string, number>();
+            const identity = (element: (typeof interactiveElements)[number]) =>
+              [element.role, element.name, element.formId, element.dialogId]
+                .join('|')
+                .toLocaleLowerCase();
+            for (const element of interactiveElements) {
+              const key = identity(element);
+              identityCounts.set(key, (identityCounts.get(key) ?? 0) + 1);
+            }
+            const groundedInteractiveElements = interactiveElements.map(
+              (element) =>
+                identityCounts.get(identity(element)) === 1
+                  ? element
+                  : { ...element, actionRef: undefined },
+            );
+            truncated ||= groundedInteractiveElements.length >= 500;
 
             return {
               schemaVersion: 1 as const,
@@ -218,12 +401,28 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
               title: document.title.trim() || location.hostname,
               language: document.documentElement.lang || undefined,
               blocks,
+              interactiveElements: groundedInteractiveElements,
               truncated,
             };
           },
           { currentTabId: tabId, revision: documentRevision },
         )
       : undefined;
+    const groundedRefs = new Set(
+      observation?.interactiveElements?.flatMap(({ actionRef }) =>
+        actionRef ? [actionRef] : [],
+      ) ?? [],
+    );
+    const observedRefs = new Set(
+      observation?.interactiveElements?.flatMap((observedElement) =>
+        elements
+          .filter(
+            ({ role, name }) =>
+              role === observedElement.role && name === observedElement.name,
+          )
+          .map(({ ref }) => ref),
+      ) ?? [],
+    );
     return {
       tabId,
       documentRevision,
@@ -231,7 +430,16 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
       title: await page.title(),
       capturedAt: new Date().toISOString(),
       viewport: { ...viewport, ...position },
-      elements,
+      elements: elements.map((element) => ({
+        ...element,
+        groundingStatus: observation
+          ? groundedRefs.has(element.ref)
+            ? ('grounded' as const)
+            : observedRefs.has(element.ref)
+              ? ('ambiguous' as const)
+              : ('unavailable' as const)
+          : ('unavailable' as const),
+      })),
       text: input.includeText
         ? (await page.locator('body').innerText()).slice(0, 100_000)
         : undefined,
@@ -798,6 +1006,22 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
         state.observer.observe(document.documentElement, {
           childList: true,
           subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: [
+            'aria-label',
+            'aria-hidden',
+            'aria-expanded',
+            'aria-invalid',
+            'aria-selected',
+            'checked',
+            'disabled',
+            'hidden',
+            'href',
+            'role',
+            'style',
+            'value',
+          ],
         });
         scope.__repinDocumentRevision = state;
       }
