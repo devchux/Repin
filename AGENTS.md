@@ -80,6 +80,21 @@ When making engineering decisions, prioritize:
 
 Every feature should be designed with future AI agent capabilities in mind.
 
+## Implementation Discipline
+
+- Always follow clean-code and clean-architecture principles while preserving
+  the repository's established boundaries and conventions.
+- Do not over-engineer implementations or introduce abstractions without a
+  concrete need.
+- Move domain-agnostic server functions to
+  `apps/server/src/shared/utils/helper.ts`; keep domain-specific behavior close
+  to the feature that owns it.
+- Select and implement the architecture that best fits the feature's actual
+  requirements. Avoid speculative architectures and unnecessary alternatives.
+- Keep services, functions, and components focused and appropriately sized.
+  Split them when they accumulate unrelated responsibilities, but do not
+  fragment cohesive logic merely to reduce line count.
+
 ---
 
 # Repository Structure
@@ -678,6 +693,7 @@ Before writing code:
 
 When implementing features:
 
+- Follow the Implementation Discipline rules above.
 - Keep functions focused.
 - Write readable code.
 - Favor composition.
