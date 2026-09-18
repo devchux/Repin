@@ -12,13 +12,32 @@ action. Models decide what to do, typed tools describe what can be done, and
 the Repin runtime owns execution, approvals, browser state, retries, memory,
 and observability.
 
-## What is implemented
+## Product direction
+
+Repin is organized around three connected capabilities:
+
+1. **Understand** — use the active page, selected text, conversation, and user
+   intent to provide relevant assistance in context.
+2. **Remember** — preserve useful pages, notes, highlights, conversations, and
+   trusted memories in a workspace the user controls.
+3. **Act** — use explicit, typed browser tools to complete work with clear
+   permission boundaries, observable execution, and human approval for
+   consequential actions.
+
+The browser extension is Repin's contextual surface, while the web application
+is its durable workspace. Knowledge, conversations, preferences, and execution
+history should follow the authenticated user across both surfaces. The current
+system provides the foundation for this direction; fully autonomous operation
+remains an incremental product goal.
+
+## Current foundation
 
 - Contextual AI actions for explaining, summarizing, translating, and chatting
   about pages or selected text
-- Page bookmarks, notes, highlights, library items, and durable memories
+- A persistent library for pages, bookmarks, notes, and highlights
+- Scoped, source-aware memories that can be retrieved as agent context
 - Persistent assistant conversations with resumable run history
-- Browser automation through a connected extension or a managed Playwright
+- Browser-tool execution through a connected extension or a managed Playwright
   session
 - Typed browser tools, human approval boundaries, cancellation, retries, and
   post-action verification
@@ -31,18 +50,18 @@ and observability.
 
 ## Repository structure
 
-| Path | Responsibility |
-| --- | --- |
-| `apps/server` | NestJS API, authentication, AI orchestration, agent runs, browser tools, workflows, queues, and persistence |
-| `apps/web` | Next.js web application for conversations, activity, saved content, settings, and extension authorization |
-| `apps/extension` | WXT React extension with contextual UI, background coordination, browser tools, and browser-session transport |
-| `apps/docs` | Next.js documentation application |
-| `packages/client` | Shared HTTP, React Query, authentication, and client-state utilities |
-| `packages/contracts` | Framework-neutral wire contracts and Zod schemas |
-| `packages/ui` | Shared React UI components and rich-content primitives |
-| `packages/observability` | Provider-neutral telemetry names, attributes, events, and helpers |
-| `packages/eslint-config` | Shared ESLint configuration |
-| `packages/typescript-config` | Shared TypeScript configuration |
+| Path                         | Responsibility                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `apps/server`                | NestJS API, authentication, AI orchestration, agent runs, browser tools, workflows, queues, and persistence   |
+| `apps/web`                   | Next.js web application for conversations, activity, saved content, settings, and extension authorization     |
+| `apps/extension`             | WXT React extension with contextual UI, background coordination, browser tools, and browser-session transport |
+| `apps/docs`                  | Next.js documentation application                                                                             |
+| `packages/client`            | Shared HTTP, React Query, authentication, and client-state utilities                                          |
+| `packages/contracts`         | Framework-neutral wire contracts and Zod schemas                                                              |
+| `packages/ui`                | Shared React UI components and rich-content primitives                                                        |
+| `packages/observability`     | Provider-neutral telemetry names, attributes, events, and helpers                                             |
+| `packages/eslint-config`     | Shared ESLint configuration                                                                                   |
+| `packages/typescript-config` | Shared TypeScript configuration                                                                               |
 
 ## Architecture
 
