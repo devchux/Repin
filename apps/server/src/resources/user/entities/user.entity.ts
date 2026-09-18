@@ -5,6 +5,8 @@ import { Run } from '../../agent/entities/run.entity';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 import { Definition } from '../../workflow/entities/definition.entity';
 import { Instance } from '../../workflow/entities/instance.entity';
+import { Memory } from '../../memory/entities/memory.entity';
+import { LibraryItem } from '../../library/entities/library-item.entity';
 import { Bookmark } from '../../bookmark/entities/bookmark.entity';
 import { Note } from '../../note/entities/note.entity';
 import { Highlight } from '../../highlight/entities/highlight.entity';
@@ -37,6 +39,12 @@ export class User extends Base {
 
   @OneToMany(() => Instance, (instance) => instance.user)
   workflowInstances: Instance[];
+
+  @OneToMany(() => Memory, (memory) => memory.user)
+  memories: Memory[];
+
+  @OneToMany(() => LibraryItem, (item) => item.user)
+  libraryItems: LibraryItem[];
 
   @OneToMany(() => Bookmark, (bookmark) => bookmark.user)
   bookmarks: Bookmark[];

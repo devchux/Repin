@@ -13,6 +13,12 @@ import {
 import { AiService } from '../../ai/ai.service';
 import { buildWorkflowGoalValidationPrompt } from '../../../shared/ai/prompts';
 import { isDeepStrictEqual } from 'node:util';
+import {
+  containsValue,
+  describeValue,
+  isNonEmpty,
+  readPath,
+} from '../../../shared/utils/helper';
 
 @Injectable()
 export class GoalValidatorService {
@@ -108,26 +114,26 @@ export class GoalValidatorService {
     }
     const strategy = criterion.verification;
     const root = strategy.source === 'input' ? input : output;
-    const value = this.readPath(root, strategy.path);
+    const value = readPath(root, strategy.path);
     let satisfied = false;
     switch (strategy.operator) {
       case 'exists':
         satisfied = value !== undefined;
         break;
       case 'non_empty':
-        satisfied = this.isNonEmpty(value);
+        satisfied = isNonEmpty(value);
         break;
       case 'equals':
         satisfied = isDeepStrictEqual(value, strategy.expected);
         break;
       case 'contains':
-        satisfied = this.contains(value, strategy.expected);
+        satisfied = containsValue(value, strategy.expected);
         break;
     }
     return {
       criterionId: criterion.id,
       satisfied,
-      evidence: `${strategy.source}.${strategy.path} ${satisfied ? 'satisfied' : 'did not satisfy'} ${strategy.operator}; observed ${this.describe(value)}`,
+      evidence: `${strategy.source}.${strategy.path} ${satisfied ? 'satisfied' : 'did not satisfy'} ${strategy.operator}; observed ${describeValue(value)}`,
     };
   }
 
@@ -156,40 +162,5 @@ export class GoalValidatorService {
       criteria,
       validatedAt: new Date().toISOString(),
     };
-  }
-
-  private readPath(root: unknown, path: string): unknown {
-    return path
-      .split('.')
-      .reduce<unknown>(
-        (current, part) =>
-          current !== null && typeof current === 'object'
-            ? (current as Record<string, unknown>)[part]
-            : undefined,
-        root,
-      );
-  }
-
-  private isNonEmpty(value: unknown): boolean {
-    if (typeof value === 'string') return value.trim().length > 0;
-    if (Array.isArray(value)) return value.length > 0;
-    if (value !== null && typeof value === 'object') {
-      return Object.keys(value).length > 0;
-    }
-    return value !== undefined && value !== null;
-  }
-
-  private contains(value: unknown, expected: unknown): boolean {
-    if (typeof value === 'string' && typeof expected === 'string') {
-      return value.includes(expected);
-    }
-    return Array.isArray(value)
-      ? value.some((item) => isDeepStrictEqual(item, expected))
-      : false;
-  }
-
-  private describe(value: unknown): string {
-    const serialized = JSON.stringify(value);
-    return (serialized ?? String(value)).slice(0, 500);
   }
 }

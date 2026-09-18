@@ -13,7 +13,10 @@
     "./bookmark": "./src/bookmark.ts",
     "./workflow": "./src/workflow.ts",
     "./task": "./src/task.ts",
-    "./schema": "./src/schema.ts"
+    "./memory": "./src/memory.ts",
+    "./library": "./src/library.ts",
+    "./schema": "./src/schema.ts",
+    "./context": "./src/context.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

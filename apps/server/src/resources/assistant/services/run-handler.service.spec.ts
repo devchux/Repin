@@ -13,6 +13,8 @@ import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.en
 import { BrowserSessionUnavailableError } from '../../tools/executors/browser-execution.errors';
 import type { ConfigService } from '@nestjs/config';
 import type { Configuration } from '../../../shared/types';
+import { ContextAssemblerService } from '../../../shared/ai/context/context-assembler.service';
+import type { ObservationStoreService } from '../../../shared/ai/context/observation-store.service';
 
 describe('RunHandler', () => {
   const run: Run = {
@@ -52,7 +54,16 @@ describe('RunHandler', () => {
       key.endsWith('longRunTimeout') ? 1_800_000 : 180_000,
     ),
   } as unknown as ConfigService<Configuration>;
-  const processor = new RunHandler(runRepository, agentLoop, execution, config);
+  const processor = new RunHandler(
+    runRepository,
+    agentLoop,
+    execution,
+    config,
+    new ContextAssemblerService(),
+    {
+      get: jest.fn().mockResolvedValue(undefined),
+    } as unknown as ObservationStoreService,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -183,6 +194,10 @@ describe('RunHandler', () => {
       chatRun,
       expect.any(Array),
       expect.any(AbortSignal),
+      expect.objectContaining({
+        strategy: 'selection',
+        includedItemIds: ['selection'],
+      }),
     );
   });
 

@@ -5,3 +5,6 @@ export * from "./bookmark";
 export * from "./messages";
 export * from "./workflow";
 export * from "./task";
+export * from "./memory";
+export * from "./library";
+export * from "./context";

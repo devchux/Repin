@@ -3,11 +3,14 @@ import type { ToolsService } from '../../tools/tools.service';
 import { LoopService } from './loop.service';
 import type { Run } from '../entities/run.entity';
 import type { ExecutionService } from './execution.service';
+import type { MemoryService } from '../../memory/memory.service';
+import type { MemoryToolsService } from '../../memory/memory-tools.service';
 
 const run = {
   id: 'run-1',
   userId: 9,
   browserSessionId: 'browser-session-1',
+  context: { url: 'https://docs.example.com/guide', title: 'Guide' },
 } as Run;
 
 describe('LoopService', () => {
@@ -21,8 +24,51 @@ describe('LoopService', () => {
     markContinuation: jest.fn().mockResolvedValue(undefined),
     clearContinuation: jest.fn().mockResolvedValue(undefined),
   } as unknown as ExecutionService;
+  const memoryService = {
+    getContext: jest.fn().mockResolvedValue([]),
+  } as unknown as MemoryService;
+  const memoryTools = {
+    getDefinitions: jest.fn().mockReturnValue([]),
+    supports: jest.fn().mockReturnValue(false),
+    execute: jest.fn(),
+  } as unknown as MemoryToolsService;
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('records the context manifest on model steps for replay', async () => {
+    const aiService = {
+      generate: jest.fn().mockResolvedValue({
+        provider: 'test',
+        model: 'model',
+        content: 'Done',
+      }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+    } as unknown as ToolsService;
+    const manifest = {
+      strategy: 'retrieval' as const,
+      includedItemIds: ['b2'],
+      omittedItemCount: 3,
+      truncated: true,
+      estimatedTokens: 20,
+      sourceObservationIds: ['observation-1'],
+    };
+
+    await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+    ).run(run, [{ role: 'user', content: 'Question' }], undefined, manifest);
+
+    expect(execution.startStep).toHaveBeenCalledWith(
+      run.id,
+      'model',
+      expect.objectContaining({ contextManifest: manifest }),
+    );
+  });
 
   it('executes tool calls and returns the final model response', async () => {
     const aiService = {
@@ -69,7 +115,13 @@ describe('LoopService', () => {
         },
       ]),
     } as unknown as ToolsService;
-    const loop = new LoopService(aiService, toolsService, execution);
+    const loop = new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+    );
 
     const result = await loop.run(run, [
       { role: 'user', content: 'List tabs' },
@@ -129,6 +181,8 @@ describe('LoopService', () => {
       aiService,
       toolsService,
       execution,
+      memoryService,
+      memoryTools,
     ).run(run, []);
 
     expect(result.content).toBe('I cannot do that.');
@@ -144,6 +198,51 @@ describe('LoopService', () => {
     );
   });
 
+  it('adds only bounded global and current-domain memory to the model context', async () => {
+    jest.spyOn(memoryService, 'getContext').mockResolvedValueOnce([
+      {
+        kind: 'user',
+        content: 'Prefer concise answers',
+        scope: 'global',
+        sources: [{ type: 'explicit_user', trust: 'trusted' }],
+      },
+    ] as never);
+    const aiService = {
+      generate: jest.fn().mockResolvedValue({
+        provider: 'test',
+        model: 'model',
+        content: 'Concise answer.',
+      }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+    } as unknown as ToolsService;
+
+    await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+    ).run(run, [{ role: 'user', content: 'Help me' }]);
+
+    expect(memoryService.getContext).toHaveBeenCalledWith(9, {
+      scope: 'domain',
+      scopeId: 'docs.example.com',
+      limit: 10,
+    });
+    expect(aiService.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringContaining('Prefer concise answers'),
+          }),
+          { role: 'user', content: 'Help me' },
+        ],
+        }),
+    );
+  });
   it('records application tools without requiring a browser session', async () => {
     const runWithoutBrowser = { id: 'run-2', userId: 9 } as Run;
     const aiService = {
@@ -250,6 +349,8 @@ describe('LoopService', () => {
       aiService,
       toolsService,
       execution,
+      memoryService,
+      memoryTools,
     ).run(run, []);
 
     expect(result.content).toBe('Resumed successfully.');

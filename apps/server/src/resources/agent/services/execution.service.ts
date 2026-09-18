@@ -17,6 +17,11 @@ import { RunStep } from '../entities/run-step.entity';
 import { REPEATED_ACTION_LIMIT } from '../constants';
 import { RunContinuation } from '../entities/run-continuation.entity';
 import type { AiMessage, AiToolCall } from '../../ai/types/provider';
+import {
+  isRecord,
+  redactProperties,
+  stableStringify,
+} from '../../../shared/utils/helper';
 
 interface TransitionInput {
   readonly expectedStatuses: readonly AssistantRunStatus[];
@@ -46,6 +51,8 @@ const ALLOWED_STATUS_TRANSITIONS: Readonly<
   failed: [],
   cancelled: [],
 };
+
+const TEXT_PROPERTIES = new Set(['text']);
 
 @Injectable()
 export class ExecutionService {
@@ -174,7 +181,8 @@ export class ExecutionService {
           sequence: Number(maximum) + 1,
           type,
           status: 'running',
-          input: type === 'tool' ? this.redactTextFields(input) : input,
+          input:
+            type === 'tool' ? redactProperties(input, TEXT_PROPERTIES) : input,
         }),
       );
       await this.appendEvent(manager, runId, 'step.started', {
@@ -242,8 +250,8 @@ export class ExecutionService {
       await this.lockRun(manager, runId);
       const steps = await manager.find(RunStep, { where: { runId } });
       for (const step of steps) {
-        step.input = this.redactTextFields(step.input);
-        step.output = this.redactTextFields(step.output);
+        step.input = redactProperties(step.input, TEXT_PROPERTIES);
+        step.output = redactProperties(step.output, TEXT_PROPERTIES);
       }
       await manager.save(steps);
       await manager.delete(RunContinuation, { runId });
@@ -275,7 +283,9 @@ export class ExecutionService {
       }
       step.status = status;
       step.output =
-        step.type === 'model' ? this.redactTextFields(output) : output;
+        step.type === 'model'
+          ? redactProperties(output, TEXT_PROPERTIES)
+          : output;
       step.error = error;
       step.completedAt = new Date();
       await manager.save(step);
@@ -308,7 +318,9 @@ export class ExecutionService {
       take: REPEATED_ACTION_LIMIT - 1,
     });
     if (recent.length < REPEATED_ACTION_LIMIT - 1) return;
-    const signature = this.actionSignature(this.redactTextFields(input));
+    const signature = this.actionSignature(
+      redactProperties(input, TEXT_PROPERTIES),
+    );
     if (
       recent.every((step) => this.actionSignature(step.input) === signature)
     ) {
@@ -317,41 +329,10 @@ export class ExecutionService {
   }
 
   private actionSignature(input: unknown): string {
-    if (!input || typeof input !== 'object') return this.stableStringify(input);
-    const action = { ...(input as Record<string, unknown>) };
+    if (!isRecord(input)) return stableStringify(input) ?? '';
+    const action = { ...input };
     delete action.toolCallId;
-    return this.stableStringify(action);
-  }
-
-  private stableStringify(value: unknown): string {
-    if (Array.isArray(value)) {
-      return `[${value.map((item) => this.stableStringify(item)).join(',')}]`;
-    }
-    if (value && typeof value === 'object') {
-      return `{${Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(
-          ([key, item]) =>
-            `${JSON.stringify(key)}:${this.stableStringify(item)}`,
-        )
-        .join(',')}}`;
-    }
-    return JSON.stringify(value);
-  }
-
-  private redactTextFields(value: unknown): unknown {
-    if (Array.isArray(value)) {
-      return value.map((item) => this.redactTextFields(item));
-    }
-    if (value && typeof value === 'object') {
-      return Object.fromEntries(
-        Object.entries(value as Record<string, unknown>).map(([key, item]) => [
-          key,
-          key === 'text' ? '[REDACTED]' : this.redactTextFields(item),
-        ]),
-      );
-    }
-    return value;
+    return stableStringify(action) ?? '';
   }
 
   private async appendEvent(

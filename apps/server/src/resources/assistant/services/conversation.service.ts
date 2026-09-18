@@ -12,12 +12,15 @@ import { ExecuteDto } from '../dto/execute.dto';
 import { ConversationMessage } from '../entities/conversation-message.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { RunService } from './run.service';
+import { truncateText } from '../../../shared/utils/helper';
+import { ObservationStoreService } from '../../../shared/ai/context/observation-store.service';
 
 @Injectable()
 export class ConversationService {
   constructor(
     @InjectRepository(Run) private readonly repository: Repository<Run>,
     private readonly runs: RunService,
+    private readonly observations: ObservationStoreService,
   ) {}
 
   async createRun(
@@ -26,6 +29,10 @@ export class ConversationService {
     idempotencyKey?: string,
   ) {
     this.runs.validateRequest(request);
+    const retainedContext = await this.observations.retain(
+      userId,
+      request.context,
+    );
     const run = await this.repository.manager.transaction(async (manager) => {
       await manager.query('SELECT pg_advisory_xact_lock($1)', [userId]);
       if (idempotencyKey) {
@@ -40,7 +47,7 @@ export class ConversationService {
         manager.create(Conversation, {
           userId,
           initialCapability: request.capability,
-          context: request.context,
+          context: retainedContext,
           options: request.options,
         }),
       );
@@ -50,7 +57,7 @@ export class ConversationService {
           userId,
           conversationId: conversation.id,
           capability: request.capability,
-          context: request.context,
+          context: retainedContext,
           input: request.input,
           options: request.options,
           browserSessionId: request.browserSessionId,
@@ -134,8 +141,8 @@ export class ConversationService {
         return {
           id: conversation.id,
           initialCapability: conversation.initialCapability,
-          title: this.truncate(firstUserMessage?.content || fallbackTitle, 80),
-          preview: this.truncate(lastMessage?.content || fallbackTitle, 180),
+          title: truncateText(firstUserMessage?.content || fallbackTitle, 80),
+          preview: truncateText(lastMessage?.content || fallbackTitle, 180),
           messageCount: conversation.messages.length,
           createdAt: conversation.createdAt,
           updatedAt: conversation.updatedAt,
@@ -220,12 +227,5 @@ export class ConversationService {
     if (!conversation)
       throw new NotFoundException('Assistant conversation not found');
     return conversation;
-  }
-
-  private truncate(value: string, length: number) {
-    const normalized = value.replace(/\s+/g, ' ').trim();
-    return normalized.length > length
-      ? `${normalized.slice(0, length - 1).trimEnd()}…`
-      : normalized;
   }
 }

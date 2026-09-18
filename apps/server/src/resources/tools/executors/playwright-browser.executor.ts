@@ -56,6 +56,8 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
   ) {
     const page = await this.page(context, input);
     const maximum = input.maxElements ?? 500;
+    const tabId = await this.tabId(context, page);
+    const documentRevision = await this.revision(page);
     const elements = await page
       .locator('a,button,input,select,textarea,[role],[contenteditable="true"]')
       .evaluateAll(
@@ -82,9 +84,149 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
       );
     const viewport = page.viewportSize() ?? { width: 0, height: 0 };
     const position = await page.evaluate(() => ({ scrollX, scrollY }));
+    const observation = input.includeText
+      ? await page.evaluate(
+          ({ currentTabId, revision }) => {
+            const selector =
+              'h1,h2,h3,h4,h5,h6,p,li,pre,blockquote,table,form,nav';
+            const root =
+              document.querySelector<HTMLElement>(
+                'main, article, [role="main"]',
+              ) ?? document.body;
+            const nodes: Array<{
+              element: Element;
+              sourceFrameUrl?: string;
+            }> = [];
+            const collect = (source: ParentNode, sourceFrameUrl?: string) => {
+              for (const element of source.querySelectorAll(selector)) {
+                nodes.push({ element, sourceFrameUrl });
+              }
+              for (const host of source.querySelectorAll('*')) {
+                if (host.shadowRoot) collect(host.shadowRoot, sourceFrameUrl);
+                if (host.tagName.toLowerCase() === 'iframe') {
+                  try {
+                    const frameDocument = (host as HTMLIFrameElement)
+                      .contentDocument;
+                    if (frameDocument?.body) {
+                      collect(frameDocument.body, frameDocument.location.href);
+                    }
+                  } catch {
+                    // Cross-origin frame content is intentionally inaccessible.
+                  }
+                }
+              }
+            };
+            collect(root);
+            const headings: string[] = [];
+            let total = 0;
+            let truncated = nodes.length > 500;
+            const blocks = [] as Array<{
+              id: string;
+              kind:
+                | 'heading'
+                | 'paragraph'
+                | 'list'
+                | 'table'
+                | 'code'
+                | 'quote'
+                | 'form'
+                | 'navigation'
+                | 'other';
+              text: string;
+              headingPath: string[];
+              visible: boolean;
+              inViewport: boolean;
+              sourceFrameUrl?: string;
+            }>;
+
+            for (const node of nodes) {
+              if (blocks.length >= 500 || total >= 100_000) {
+                truncated = true;
+                break;
+              }
+              const element = node.element as HTMLElement;
+              const containingSemanticElement =
+                element.parentElement?.closest('table, form, nav');
+              if (containingSemanticElement) continue;
+              const style =
+                element.ownerDocument.defaultView?.getComputedStyle(element) ??
+                getComputedStyle(element);
+              if (
+                style.display === 'none' ||
+                style.visibility === 'hidden' ||
+                style.opacity === '0' ||
+                element.getClientRects().length === 0
+              ) {
+                continue;
+              }
+              const text = element.innerText
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim()
+                .slice(0, 10_000);
+              if (!text) continue;
+              const tag = element.tagName.toLowerCase();
+              const kind = /^h[1-6]$/.test(tag)
+                ? 'heading'
+                : tag === 'p'
+                  ? 'paragraph'
+                  : tag === 'li'
+                    ? 'list'
+                    : tag === 'table'
+                      ? 'table'
+                      : tag === 'pre'
+                        ? 'code'
+                        : tag === 'blockquote'
+                          ? 'quote'
+                          : tag === 'form'
+                            ? 'form'
+                            : tag === 'nav'
+                              ? 'navigation'
+                              : 'other';
+              if (kind === 'heading') {
+                const level = Number(tag.slice(1));
+                headings.splice(level - 1);
+                headings[level - 1] = text;
+              }
+              const boundedText = text.slice(0, 100_000 - total);
+              truncated ||= boundedText.length < text.length;
+              const bounds = element.getBoundingClientRect();
+              const view = element.ownerDocument.defaultView ?? window;
+              blocks.push({
+                id: `b${blocks.length + 1}`,
+                kind,
+                text: boundedText,
+                headingPath: headings.filter(Boolean),
+                visible: true,
+                inViewport:
+                  bounds.bottom > 0 &&
+                  bounds.right > 0 &&
+                  bounds.top < view.innerHeight &&
+                  bounds.left < view.innerWidth,
+                sourceFrameUrl: node.sourceFrameUrl,
+              });
+              total += boundedText.length;
+            }
+
+            return {
+              schemaVersion: 1 as const,
+              observationId: crypto.randomUUID(),
+              tabId: currentTabId,
+              documentRevision: revision,
+              capturedAt: new Date().toISOString(),
+              url: location.href,
+              title: document.title.trim() || location.hostname,
+              language: document.documentElement.lang || undefined,
+              blocks,
+              truncated,
+            };
+          },
+          { currentTabId: tabId, revision: documentRevision },
+        )
+      : undefined;
     return {
-      tabId: await this.tabId(context, page),
-      documentRevision: await this.revision(page),
+      tabId,
+      documentRevision,
       url: page.url(),
       title: await page.title(),
       capturedAt: new Date().toISOString(),
@@ -93,6 +235,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
       text: input.includeText
         ? (await page.locator('body').innerText()).slice(0, 100_000)
         : undefined,
+      observation,
       truncated: elements.length >= maximum,
     };
   }

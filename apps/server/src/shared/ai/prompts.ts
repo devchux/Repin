@@ -16,6 +16,21 @@ export const PROMPT_VERSIONS = {
   workflowGoalValidation: 'workflow-goal-validation.v1',
 } as const;
 
+function serializeForPrompt(value: unknown) {
+  // Escape markup-significant characters after JSON serialization so webpage
+  // data cannot close its envelope or manufacture trusted-looking tags.
+  return JSON.stringify(value).replace(/[<>&]/g, (character) => {
+    switch (character) {
+      case '<':
+        return '\\u003c';
+      case '>':
+        return '\\u003e';
+      default:
+        return '\\u0026';
+    }
+  });
+}
+
 const capabilityInstructions: Record<AiAssistantCapability, string> = {
   summarize:
     'Summarize the supplied browsing context clearly and concisely. Preserve important facts and avoid adding unsupported claims.',
@@ -27,7 +42,7 @@ const capabilityInstructions: Record<AiAssistantCapability, string> = {
 };
 
 export function buildAssistantPrompt(input: AssistantPromptInput): AiMessage[] {
-  const context = input.context.selectedText || input.context.pageContent;
+  const context = serializeForPrompt(input.assembledContext.items);
   const targetLanguage = input.options?.targetLanguage;
   const userInput = input.input?.trim();
 
@@ -49,7 +64,8 @@ export function buildAssistantPrompt(input: AssistantPromptInput): AiMessage[] {
       content: [
         `Page title: ${input.context.title}`,
         `Page URL: ${input.context.url}`,
-        `<page_context>${context}</page_context>`,
+        `<browser_context>${context}</browser_context>`,
+        `<context_manifest>${serializeForPrompt(input.assembledContext.manifest)}</context_manifest>`,
         userInput ? `<user_request>${userInput}</user_request>` : '',
       ]
         .filter(Boolean)
@@ -62,8 +78,7 @@ export function buildConversationPrompt(
   conversation: ConversationPromptInput,
   history: readonly ConversationPromptMessage[],
 ): AiMessage[] {
-  const context =
-    conversation.context.selectedText || conversation.context.pageContent;
+  const context = serializeForPrompt(conversation.assembledContext.items);
 
   return [
     {
@@ -79,7 +94,8 @@ export function buildConversationPrompt(
           : '',
         `Page title: ${conversation.context.title}`,
         `Page URL: ${conversation.context.url}`,
-        `<page_context>${context}</page_context>`,
+        `<browser_context>${context}</browser_context>`,
+        `<context_manifest>${serializeForPrompt(conversation.assembledContext.manifest)}</context_manifest>`,
       ]
         .filter(Boolean)
         .join('\n\n'),

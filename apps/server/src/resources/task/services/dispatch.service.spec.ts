@@ -22,7 +22,9 @@ describe('DispatchService', () => {
       data: { id: 'workflow-1', status: 'queued' },
     }),
   } as unknown as WorkflowService;
-  const service = new DispatchService(selector, planner, assistant, workflows);
+  const service = new DispatchService(selector, planner, assistant, workflows, {
+    retain: jest.fn((_userId, context) => context),
+  } as never);
   const request = {
     capability: 'chat' as const,
     context: {

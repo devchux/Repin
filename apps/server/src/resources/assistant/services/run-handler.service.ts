@@ -30,6 +30,8 @@ import {
   BrowserCommandOutcomeUnknownError,
   BrowserSessionUnavailableError,
 } from '../../tools/executors/browser-execution.errors';
+import { ContextAssemblerService } from '../../../shared/ai/context/context-assembler.service';
+import { ObservationStoreService } from '../../../shared/ai/context/observation-store.service';
 
 interface AssistantJobData {
   runId: string;
@@ -54,6 +56,8 @@ export class RunHandler {
     private readonly agentLoop: LoopService,
     private readonly execution: ExecutionService,
     private readonly config: ConfigService<Configuration>,
+    private readonly contextAssembler: ContextAssemblerService,
+    private readonly observations: ObservationStoreService,
   ) {}
 
   async process(
@@ -167,12 +171,13 @@ export class RunHandler {
         eventType: 'run.started',
         checkpointState: { queueJobId: String(job.id ?? '') },
       });
-      const messages = await this.createMessages(run);
+      const { messages, contextManifest } = await this.createMessages(run);
       const result = await this.runAgentUntilDeadline(
         run,
         messages,
         abortController,
         deadlineAt,
+        contextManifest,
       );
       const currentRun = await this.runRepository.findOne({
         where: { id: run.id },
@@ -311,9 +316,12 @@ export class RunHandler {
 
   private runAgentUntilDeadline(
     run: Run,
-    messages: Awaited<ReturnType<RunHandler['createMessages']>>,
+    messages: Awaited<ReturnType<RunHandler['createMessages']>>['messages'],
     abortController: AbortController,
     deadlineAt: Date,
+    contextManifest: Awaited<
+      ReturnType<RunHandler['createMessages']>
+    >['contextManifest'],
   ) {
     return new Promise<Awaited<ReturnType<LoopService['run']>>>(
       (resolve, reject) => {
@@ -327,7 +335,7 @@ export class RunHandler {
         );
 
         void this.agentLoop
-          .run(run, messages, abortController.signal)
+          .run(run, messages, abortController.signal, contextManifest)
           .then(resolve, reject)
           .finally(() => clearTimeout(timer));
       },
@@ -335,8 +343,21 @@ export class RunHandler {
   }
 
   private async createMessages(run: Run) {
+    const observation = await this.observations.get(
+      run.userId,
+      run.context.observationId,
+    );
+    const assembledContext = this.contextAssembler.assemble({
+      capability: run.capability,
+      page: run.context,
+      userInput: run.input,
+      observation,
+    });
     if (!run.conversationId) {
-      return buildAssistantPrompt(run);
+      return {
+        messages: buildAssistantPrompt({ ...run, assembledContext }),
+        contextManifest: assembledContext.manifest,
+      };
     }
 
     const conversation = await this.runRepository.manager.findOne(
@@ -356,8 +377,28 @@ export class RunHandler {
       (message) => message.role === 'assistant',
     );
 
-    return hasPreviousAssistantResponse
-      ? buildConversationPrompt(conversation, history.reverse())
-      : buildAssistantPrompt(run);
+    if (!hasPreviousAssistantResponse) {
+      return {
+        messages: buildAssistantPrompt({ ...run, assembledContext }),
+        contextManifest: assembledContext.manifest,
+      };
+    }
+
+    const conversationContext = this.contextAssembler.assemble({
+      capability: run.capability,
+      page: conversation.context,
+      userInput: run.input,
+      observation: await this.observations.get(
+        run.userId,
+        conversation.context.observationId,
+      ),
+    });
+    return {
+      messages: buildConversationPrompt(
+        { ...conversation, assembledContext: conversationContext },
+        history.reverse(),
+      ),
+      contextManifest: conversationContext.manifest,
+    };
   }
 }
