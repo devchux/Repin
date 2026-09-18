@@ -10,6 +10,7 @@ import { BrowserToolApproval } from './browser-tool-approval.entity';
 import { getBrowserToolDescriptor } from './browser-tool-descriptors';
 import type { BrowserToolName } from '../types/browser-tool.types';
 import type { BrowserActionPolicyDecision } from './browser-action-policy.service';
+import { stableStringify } from '../../../shared/utils/helper';
 
 export const APPROVAL_REQUIRED_BROWSER_TOOLS = [
   'browser_upload_files',
@@ -145,23 +146,7 @@ export class BrowserToolApprovalService {
     argumentsValue: Readonly<Record<string, unknown>>,
   ): string {
     return createHash('sha256')
-      .update(`${toolName}:${this.stableStringify(argumentsValue)}`)
+      .update(`${toolName}:${stableStringify(argumentsValue)}`)
       .digest('hex');
-  }
-
-  private stableStringify(value: unknown): string {
-    if (Array.isArray(value)) {
-      return `[${value.map((item) => this.stableStringify(item)).join(',')}]`;
-    }
-    if (value && typeof value === 'object') {
-      return `{${Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(
-          ([key, item]) =>
-            `${JSON.stringify(key)}:${this.stableStringify(item)}`,
-        )
-        .join(',')}}`;
-    }
-    return JSON.stringify(value);
   }
 }

@@ -10,6 +10,7 @@
     "./messages": "./src/messages.ts",
     "./workflow": "./src/workflow.ts",
     "./task": "./src/task.ts",
+    "./memory": "./src/memory.ts",
     "./schema": "./src/schema.ts"
   },
   "scripts": {

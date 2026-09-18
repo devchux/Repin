@@ -12,6 +12,7 @@ import { ExecuteDto } from '../dto/execute.dto';
 import { ConversationMessage } from '../entities/conversation-message.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { RunService } from './run.service';
+import { truncateText } from '../../../shared/utils/helper';
 
 @Injectable()
 export class ConversationService {
@@ -134,8 +135,8 @@ export class ConversationService {
         return {
           id: conversation.id,
           initialCapability: conversation.initialCapability,
-          title: this.truncate(firstUserMessage?.content || fallbackTitle, 80),
-          preview: this.truncate(lastMessage?.content || fallbackTitle, 180),
+          title: truncateText(firstUserMessage?.content || fallbackTitle, 80),
+          preview: truncateText(lastMessage?.content || fallbackTitle, 180),
           messageCount: conversation.messages.length,
           createdAt: conversation.createdAt,
           updatedAt: conversation.updatedAt,
@@ -220,12 +221,5 @@ export class ConversationService {
     if (!conversation)
       throw new NotFoundException('Assistant conversation not found');
     return conversation;
-  }
-
-  private truncate(value: string, length: number) {
-    const normalized = value.replace(/\s+/g, ' ').trim();
-    return normalized.length > length
-      ? `${normalized.slice(0, length - 1).trimEnd()}…`
-      : normalized;
   }
 }

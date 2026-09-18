@@ -5,6 +5,7 @@ import { Run } from '../../agent/entities/run.entity';
 import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.entity';
 import { Definition } from '../../workflow/entities/definition.entity';
 import { Instance } from '../../workflow/entities/instance.entity';
+import { Memory } from '../../memory/entities/memory.entity';
 
 @Entity()
 export class User extends Base {
@@ -34,4 +35,7 @@ export class User extends Base {
 
   @OneToMany(() => Instance, (instance) => instance.user)
   workflowInstances: Instance[];
+
+  @OneToMany(() => Memory, (memory) => memory.user)
+  memories: Memory[];
 }

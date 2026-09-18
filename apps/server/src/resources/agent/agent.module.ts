@@ -9,11 +9,13 @@ import { RunEvent } from './entities/run-event.entity';
 import { RunStep } from './entities/run-step.entity';
 import { ExecutionService } from './services/execution.service';
 import { LoopService } from './services/loop.service';
+import { MemoryModule } from '../memory/memory.module';
 
 @Module({
   imports: [
     AiModule,
     ToolsModule,
+    MemoryModule,
     TypeOrmModule.forFeature([
       Run,
       RunStep,

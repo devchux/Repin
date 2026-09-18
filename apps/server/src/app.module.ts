@@ -11,6 +11,7 @@ import { CacheModule } from './resources/cache/cache.module';
 import { AssistantModule } from './resources/assistant/assistant.module';
 import { WorkflowModule } from './resources/workflow/workflow.module';
 import { TaskModule } from './resources/task/task.module';
+import { MemoryModule } from './resources/memory/memory.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TaskModule } from './resources/task/task.module';
     AssistantModule,
     WorkflowModule,
     TaskModule,
+    MemoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
