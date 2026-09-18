@@ -11,7 +11,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from 'src/shared/types';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { BookmarkCollectionService } from './collection.service';
+import { BookmarkCollectionService } from '../services/collection.service';
 import { CreateBookmarkCollectionDto } from '../dto/create-bookmark-collection.dto';
 import { UpdateBookmarkCollectionDto } from '../dto/update-bookmark-collection.dto';
 

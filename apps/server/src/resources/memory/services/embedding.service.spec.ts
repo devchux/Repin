@@ -1,7 +1,7 @@
 import type { AiService } from '../../ai/ai.service';
 import type { Repository } from 'typeorm';
 import { Memory } from '../entities/memory.entity';
-import { MemoryEmbeddingService } from '../embedding.service';
+import { MemoryEmbeddingService } from './embedding.service';
 
 describe('MemoryEmbeddingService', () => {
   const memories = {

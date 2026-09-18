@@ -10,7 +10,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { MemorySourceType, MemoryTrust } from '@repo/contracts/memory';
 import { Brackets, Repository } from 'typeorm';
 import { CreateMemoryDto } from '../dto/create-memory.dto';
-import { FindMemoriesDto, FindMemoryContextDto } from '../dto/find-memories.dto';
+import {
+  FindMemoriesDto,
+  FindMemoryContextDto,
+} from '../dto/find-memories.dto';
 import { Memory } from '../entities/memory.entity';
 import { MemorySource } from '../entities/memory-source.entity';
 import { LibraryService } from '../../library/library.service';

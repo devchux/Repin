@@ -4,7 +4,7 @@ import type { Queue } from 'bullmq';
 import {
   BACKFILL_MEMORY_EMBEDDINGS_JOB,
   MEMORY_EMBEDDING_QUEUE,
-} from './memory.constants';
+} from '../constants';
 
 @Injectable()
 export class MemoryEmbeddingScheduler implements OnModuleInit {

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AiService } from '../ai/ai.service';
-import { Bookmark } from './entities/bookmark.entity';
+import { AiService } from '../../ai/ai.service';
+import { Bookmark } from '../entities/bookmark.entity';
 
 const schema = {
   type: 'object',

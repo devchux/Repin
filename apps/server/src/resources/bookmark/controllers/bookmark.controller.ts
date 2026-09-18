@@ -15,7 +15,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CreateBookmarkDto } from '../dto/create-bookmark.dto';
 import { FindBookmarksDto } from '../dto/find-bookmarks.dto';
 import { UpdateBookmarkDto } from '../dto/update-bookmark.dto';
-import { BookmarkService } from './bookmark.service';
+import { BookmarkService } from '../services/bookmark.service';
 
 @ApiTags('Bookmarks')
 @Controller('bookmarks')

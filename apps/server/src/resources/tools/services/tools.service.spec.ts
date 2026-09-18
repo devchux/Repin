@@ -3,9 +3,9 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { BROWSER_TOOL_DEFINITIONS, TOOL_DEFINITIONS } from '../definitions';
-import { BookmarkService } from '../bookmark/bookmark.service';
+import { BookmarkService } from '../../bookmark/services/bookmark.service';
 import { HighlightService } from '../../highlight/highlight.service';
-import { ToolsService } from '../tools.service';
+import { ToolsService } from './tools.service';
 import type {
   BrowserToolExecutionContext,
   BrowserToolExecutor,

@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateBookmarkCollectionDto } from './dto/create-bookmark-collection.dto';
-import { UpdateBookmarkCollectionDto } from './dto/update-bookmark-collection.dto';
-import { Bookmark } from './entities/bookmark.entity';
-import { BookmarkCollection } from './entities/collection.entity';
-import { BookmarkCollectionItem } from './entities/collection-item.entity';
+import { CreateBookmarkCollectionDto } from '../dto/create-bookmark-collection.dto';
+import { UpdateBookmarkCollectionDto } from '../dto/update-bookmark-collection.dto';
+import { Bookmark } from '../entities/bookmark.entity';
+import { BookmarkCollection } from '../entities/collection.entity';
+import { BookmarkCollectionItem } from '../entities/collection-item.entity';
 
 @Injectable()
 export class BookmarkCollectionService {

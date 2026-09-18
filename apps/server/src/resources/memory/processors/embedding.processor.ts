@@ -4,8 +4,8 @@ import {
   BACKFILL_MEMORY_EMBEDDINGS_JOB,
   EMBED_MEMORY_JOB,
   MEMORY_EMBEDDING_QUEUE,
-} from './memory.constants';
-import { MemoryEmbeddingService } from './embedding.service';
+} from '../constants';
+import { MemoryEmbeddingService } from '../services/embedding.service';
 
 interface MemoryEmbeddingJob {
   readonly memoryId: string;

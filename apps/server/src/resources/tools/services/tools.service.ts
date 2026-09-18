@@ -6,7 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { AiTool } from '../../ai/types/provider';
-import { BookmarkService } from '../bookmark/bookmark.service';
+import { BookmarkService } from '../../bookmark/services/bookmark.service';
 import { HighlightService } from '../../highlight/highlight.service';
 import { executeBookmarkPageTool } from '../application/bookmark-page-tool.handler';
 import { executeHighlightSelectionTool } from '../application/highlight-selection-tool.handler';
