@@ -12,7 +12,8 @@
     "./task": "./src/task.ts",
     "./memory": "./src/memory.ts",
     "./library": "./src/library.ts",
-    "./schema": "./src/schema.ts"
+    "./schema": "./src/schema.ts",
+    "./context": "./src/context.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

@@ -1,9 +1,13 @@
+import type { PageObservation } from "./context";
+
 export interface PageContext {
   readonly url: string;
   readonly title: string;
   readonly selectedText?: string;
   readonly pageContent?: string;
   readonly selection?: SelectionAnchor;
+  readonly observation?: PageObservation;
+  readonly observationId?: string;
 }
 
 /**

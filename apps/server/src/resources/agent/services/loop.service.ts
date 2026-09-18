@@ -25,6 +25,7 @@ import {
 } from '@repo/observability';
 import { MemoryService } from '../../memory/memory.service';
 import { MemoryToolsService } from '../../memory/memory-tools.service';
+import type { ContextManifest } from '@repo/contracts/context';
 
 @Injectable()
 export class LoopService {
@@ -40,6 +41,7 @@ export class LoopService {
     run: Run,
     initialMessages: AiMessage[],
     signal?: AbortSignal,
+    contextManifest?: ContextManifest,
   ): Promise<AiGenerateResult> {
     return traceOperation(
       AgentTelemetryEvents.run,
@@ -50,7 +52,7 @@ export class LoopService {
         [TelemetryAttributes.browser.executionTarget]:
           run.browserExecutionTarget ?? 'unknown',
       },
-      () => this.executeLoop(run, initialMessages, signal),
+      () => this.executeLoop(run, initialMessages, signal, contextManifest),
     );
   }
 
@@ -58,6 +60,7 @@ export class LoopService {
     run: Run,
     initialMessages: AiMessage[],
     signal?: AbortSignal,
+    contextManifest?: ContextManifest,
   ): Promise<AiGenerateResult> {
     let messages = await this.withMemoryContext(run, initialMessages);
     let inputTokens = 0;
@@ -117,6 +120,7 @@ export class LoopService {
       const modelStep = await this.execution.startStep(run.id, 'model', {
         iteration,
         messageCount: messages.length,
+        ...(contextManifest ? { contextManifest } : {}),
       });
       let result: AiGenerateResult;
       try {

@@ -65,6 +65,7 @@ describe('AssistantService', () => {
   const conversationService = new ConversationService(
     runRepository,
     runService,
+    { retain: jest.fn((_userId, context) => context) } as never,
   );
   const approvalService = new ApprovalService(runService, execution, approvals);
   const service = new AssistantService(

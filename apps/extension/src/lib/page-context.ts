@@ -1,4 +1,5 @@
 import type { PageContext } from "@repo/contracts/browser";
+import { extractPageObservation } from "./page-observation";
 
 const MAX_PAGE_CONTENT_LENGTH = 100_000;
 const MAX_SELECTED_TEXT_LENGTH = 20_000;
@@ -33,10 +34,12 @@ export const extractPageContext = (selectedText?: string): PageContext => {
   if (!pageContent) {
     throw new Error("Repin could not find readable content on this page");
   }
+  const observation = extractPageObservation();
 
   return {
     url: window.location.href,
     title: document.title.trim() || window.location.hostname,
-    pageContent,
+    pageContent: observation.blocks.length > 0 ? undefined : pageContent,
+    observation,
   };
 };

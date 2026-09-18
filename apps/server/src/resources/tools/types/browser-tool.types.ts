@@ -1,3 +1,5 @@
+import type { PageObservation } from '@repo/contracts/context';
+
 export const BROWSER_TOOL_EXECUTOR = Symbol('BROWSER_TOOL_EXECUTOR');
 
 export const BROWSER_TOOL_NAMES = [
@@ -137,6 +139,7 @@ export interface BrowserPageSnapshot {
   };
   readonly elements: readonly BrowserSnapshotElement[];
   readonly text?: string;
+  readonly observation?: PageObservation;
   readonly truncated: boolean;
 }
 

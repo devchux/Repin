@@ -279,10 +279,28 @@ export class RunService {
   }
 
   validateRequest(request: ExecuteDto): void {
+    const observation = request.context.observation;
+    if (observation) {
+      if (observation.url !== request.context.url) {
+        throw new BadRequestException(
+          'Page observation URL must match the page context URL',
+        );
+      }
+      const observationTextLength = observation.blocks.reduce(
+        (total, block) => total + block.text.length,
+        0,
+      );
+      if (observationTextLength > 100_000) {
+        throw new BadRequestException(
+          'Page observation content exceeds the supported size',
+        );
+      }
+    }
     if (
       request.capability !== 'chat' &&
       !request.context.selectedText &&
-      !request.context.pageContent
+      !request.context.pageContent &&
+      !request.context.observation?.blocks.length
     ) {
       throw new BadRequestException(
         'Selected text or page content is required',

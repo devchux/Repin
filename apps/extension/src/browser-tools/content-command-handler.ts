@@ -1,3 +1,5 @@
+import { extractPageObservation } from "../lib/page-observation";
+
 interface ContentCommand {
   readonly type: "repin.browser.command";
   readonly name: string;
@@ -90,23 +92,66 @@ const invalidateDocument = () => {
   elements.clear();
 };
 
-new MutationObserver(invalidateDocument).observe(document.documentElement, {
+let scheduledInvalidation: ReturnType<typeof setTimeout> | undefined;
+const scheduleDocumentInvalidation = () => {
+  if (scheduledInvalidation) return;
+  scheduledInvalidation = setTimeout(() => {
+    scheduledInvalidation = undefined;
+    invalidateDocument();
+  }, 50);
+};
+
+new MutationObserver((mutations) => {
+  if (
+    mutations.some(
+      (mutation) =>
+        mutation.type === "childList" ||
+        mutation.type === "characterData" ||
+        mutation.type === "attributes",
+    )
+  ) {
+    scheduleDocumentInvalidation();
+  }
+}).observe(document.documentElement, {
   childList: true,
   subtree: true,
+  characterData: true,
+  attributes: true,
+  attributeFilter: [
+    "aria-label",
+    "aria-hidden",
+    "aria-expanded",
+    "aria-disabled",
+    "checked",
+    "disabled",
+    "hidden",
+    "href",
+    "role",
+    "style",
+    "value",
+  ],
 });
+
+const invalidateNavigation = () => {
+  if (scheduledInvalidation) {
+    clearTimeout(scheduledInvalidation);
+    scheduledInvalidation = undefined;
+  }
+  invalidateDocument();
+};
 
 const originalPushState = history.pushState.bind(history);
 history.pushState = (data, unused, url) => {
   originalPushState(data, unused, url);
-  invalidateDocument();
+  invalidateNavigation();
 };
 const originalReplaceState = history.replaceState.bind(history);
 history.replaceState = (data, unused, url) => {
   originalReplaceState(data, unused, url);
-  invalidateDocument();
+  invalidateNavigation();
 };
-addEventListener("popstate", invalidateDocument);
-addEventListener("hashchange", invalidateDocument);
+addEventListener("popstate", invalidateNavigation);
+addEventListener("hashchange", invalidateNavigation);
 
 const refFor = (element: Element, index: number) => {
   const ref = `e${index + 1}`;
@@ -131,8 +176,12 @@ const snapshot = (input: Readonly<Record<string, unknown>>) => {
       "a,button,input,select,textarea,[role],[contenteditable='true']",
     ),
   );
+  const tabId = String(input.tabId ?? "");
+  const observation = input.includeText
+    ? { ...extractPageObservation(documentRevision), tabId }
+    : undefined;
   return {
-    tabId: String(input.tabId ?? ""),
+    tabId,
     documentRevision,
     url: location.href,
     title: document.title,
@@ -158,6 +207,7 @@ const snapshot = (input: Readonly<Record<string, unknown>>) => {
     text: input.includeText
       ? document.body.innerText.slice(0, 100_000)
       : undefined,
+    observation,
     truncated: candidates.length > maximum,
   };
 };

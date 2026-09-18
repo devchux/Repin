@@ -35,6 +35,41 @@ describe('LoopService', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
+  it('records the context manifest on model steps for replay', async () => {
+    const aiService = {
+      generate: jest.fn().mockResolvedValue({
+        provider: 'test',
+        model: 'model',
+        content: 'Done',
+      }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+    } as unknown as ToolsService;
+    const manifest = {
+      strategy: 'retrieval' as const,
+      includedItemIds: ['b2'],
+      omittedItemCount: 3,
+      truncated: true,
+      estimatedTokens: 20,
+      sourceObservationIds: ['observation-1'],
+    };
+
+    await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+    ).run(run, [{ role: 'user', content: 'Question' }], undefined, manifest);
+
+    expect(execution.startStep).toHaveBeenCalledWith(
+      run.id,
+      'model',
+      expect.objectContaining({ contextManifest: manifest }),
+    );
+  });
+
   it('executes tool calls and returns the final model response', async () => {
     const aiService = {
       generate: jest

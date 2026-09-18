@@ -3,10 +3,12 @@ import {
   AssistantRunOptions,
 } from '@repo/contracts/assistant';
 import { PageContext } from '@repo/contracts/browser';
+import type { ContextBundle } from '@repo/contracts/context';
 
 export interface AssistantPromptInput {
   capability: AiAssistantCapability;
   context: PageContext;
+  assembledContext: ContextBundle;
   input?: string;
   options?: AssistantRunOptions;
 }
@@ -14,6 +16,7 @@ export interface AssistantPromptInput {
 export interface ConversationPromptInput {
   initialCapability: AiAssistantCapability;
   context: PageContext;
+  assembledContext: ContextBundle;
   options?: AssistantRunOptions;
 }
 

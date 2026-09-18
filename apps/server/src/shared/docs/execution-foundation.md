@@ -133,6 +133,38 @@ judgment for outcomes that cannot be expressed as typed assertions.
 
 ## Safe browser loop
 
+Browser reading and interaction share a versioned page observation. Extension
+and managed-browser snapshots segment visible content into bounded semantic
+blocks (headings, paragraphs, lists, tables, code, quotes, forms, and
+navigation) while retaining the document revision used for element actions.
+Assistant requests may attach the same observation to `PageContext`; the shared
+context assembler then selects and budgets untrusted blocks before prompt
+construction. The legacy flattened `pageContent` field remains only as a
+fallback for pages without extractable semantic blocks.
+
+Assembly is capability-aware. Explicit selections always take precedence;
+chat and explanation requests rank blocks using bounded lexical relevance,
+viewport state, and heading context; summaries prioritize headings and initial
+content from every section before consuming remaining blocks; translation
+preserves document order. Every model step stores the resulting context
+manifest in its input, including observation IDs, included block IDs, strategy,
+estimated tokens, omissions, and truncation state, so executions can be audited
+without coupling replay to a particular model provider.
+
+Observation payloads are validated at the API boundary, capped at 500 blocks
+and 100,000 aggregate text characters, and required to match the enclosing page
+URL. Hidden blocks are excluded from model context. Raw form-control values are
+not part of semantic block extraction.
+
+Structural observations are retained in Redis for 30 minutes under keys scoped
+to the authenticated user and observation ID. Runs and conversations persist
+only the reference plus a bounded flattened reading fallback. This keeps live
+browser structure ephemeral while allowing a conversation to remain useful
+after its tab disconnects or the observation expires. Open shadow roots and
+same-origin frames participate in semantic extraction; cross-origin frame
+content remains inaccessible and is never bypassed. Blocks extracted from a
+frame retain their source URL as provenance.
+
 The browser loop applies safety before execution rather than relying on model
 instructions:
 

@@ -17,11 +17,15 @@ import { ConversationService } from './services/conversation.service';
 import { ApprovalService } from './services/approval.service';
 import { Conversation } from './entities/conversation.entity';
 import { ConversationMessage } from './entities/conversation-message.entity';
+import { ContextAssemblerService } from '../../shared/ai/context/context-assembler.service';
+import { ObservationStoreService } from '../../shared/ai/context/observation-store.service';
+import { CacheModule } from '../cache/cache.module';
 
 @Module({
   imports: [
     AgentModule,
     ToolsModule,
+    CacheModule,
     TypeOrmModule.forFeature([Conversation, ConversationMessage]),
     BullModule.forRootAsync({
       inject: [ConfigService],
@@ -56,7 +60,9 @@ import { ConversationMessage } from './entities/conversation-message.entity';
     ShortProcessor,
     LongProcessor,
     QueueScaler,
+    ContextAssemblerService,
+    ObservationStoreService,
   ],
-  exports: [AssistantService],
+  exports: [AssistantService, ObservationStoreService],
 })
 export class AssistantModule {}

@@ -4,6 +4,7 @@ import { WorkflowService } from '../../workflow/services/workflow.service';
 import { DispatchDto } from '../dto/dispatch.dto';
 import { PlannerService } from './planner.service';
 import { SelectorService } from './selector.service';
+import { ObservationStoreService } from '../../../shared/ai/context/observation-store.service';
 
 @Injectable()
 export class DispatchService {
@@ -12,9 +13,14 @@ export class DispatchService {
     private readonly planner: PlannerService,
     private readonly assistant: AssistantService,
     private readonly workflows: WorkflowService,
+    private readonly observations: ObservationStoreService,
   ) {}
 
   async dispatch(userId: number, request: DispatchDto) {
+    request = {
+      ...request,
+      context: await this.observations.retain(userId, request.context),
+    };
     if (request.selectionMode === 'assistant') {
       return this.startAssistant(userId, request, 'explicit_assistant');
     }
