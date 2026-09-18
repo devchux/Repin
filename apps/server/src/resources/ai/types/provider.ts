@@ -5,6 +5,10 @@ export type AiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
 export interface AiMessage {
   role: AiMessageRole;
   content: string;
+  image?: {
+    readonly mimeType: 'image/png' | 'image/jpeg';
+    readonly dataBase64: string;
+  };
   toolCallId?: string;
   toolCalls?: AiToolCall[];
 }

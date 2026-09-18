@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import type { BookmarkService } from '../../bookmark/bookmark.service';
+import type { BookmarkService } from '../../bookmark/services/bookmark.service';
 import type {
   SearchBookmarksToolResult,
   ToolExecutionContext,

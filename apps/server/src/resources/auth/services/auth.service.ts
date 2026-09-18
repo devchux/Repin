@@ -22,17 +22,17 @@ import {
   isHashMatch,
   normalizeEmail,
 } from 'src/shared/utils/helper';
-import { CacheService } from '../cache/cache.service';
-import { UserService } from '../user/user.service';
-import { AuthorizeExtensionDto } from './dto/authorize-extension.dto';
-import { ExchangeExtensionCodeDto } from './dto/exchange-extension-code.dto';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { VerifyCodeDto } from './dto/verify-code.dto';
+import { CacheService } from '../../cache/cache.service';
+import { UserService } from '../../user/user.service';
+import { AuthorizeExtensionDto } from '../dto/authorize-extension.dto';
+import { ExchangeExtensionCodeDto } from '../dto/exchange-extension-code.dto';
+import { LoginDto } from '../dto/login.dto';
+import { RegisterDto } from '../dto/register.dto';
+import { VerifyCodeDto } from '../dto/verify-code.dto';
 import { MockMailService } from './mock-mail.service';
-import { AuthTokenService } from './services/auth-token.service';
-import { ExtensionAuthService } from './services/extension-auth.service';
-import { AUTH_CODE_TTL_MS, createAuthCodeResponse } from './utils/auth.utils';
+import { AuthTokenService } from './auth-token.service';
+import { ExtensionAuthService } from './extension-auth.service';
+import { AUTH_CODE_TTL_MS, createAuthCodeResponse } from '../utils/auth.utils';
 
 @Injectable()
 export class AuthService {

@@ -123,6 +123,21 @@ export class OpenAiCompatibleProvider implements AiProvider {
       };
     }
 
+    if (message.role === 'user' && message.image) {
+      return {
+        role: 'user',
+        content: [
+          { type: 'text', text: message.content },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${message.image.mimeType};base64,${message.image.dataBase64}`,
+            },
+          },
+        ],
+      };
+    }
+
     return {
       role: message.role,
       content: message.content,

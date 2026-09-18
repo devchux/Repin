@@ -1,5 +1,5 @@
 import type { PageContext } from "@repo/contracts/browser";
-import { extractPageObservation } from "./page-observation";
+import { extractPageObservation } from "../page-observation";
 
 const MAX_PAGE_CONTENT_LENGTH = 100_000;
 const MAX_SELECTED_TEXT_LENGTH = 20_000;

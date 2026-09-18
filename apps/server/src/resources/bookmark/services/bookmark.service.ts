@@ -6,21 +6,24 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { isUniqueViolation } from '../../shared/utils/database';
-import { normalizeTags, normalizeUrl } from '../../shared/utils/normalization';
-import { CreateBookmarkDto } from './dto/create-bookmark.dto';
-import { FindBookmarksDto } from './dto/find-bookmarks.dto';
-import { UpdateBookmarkDto } from './dto/update-bookmark.dto';
-import { Bookmark } from './entities/bookmark.entity';
-import { bookmarkSearchVector, toBookmarkSearchHit } from './utils/search';
-import { AiService } from '../ai/ai.service';
+import { isUniqueViolation } from '../../../shared/utils/database';
+import {
+  normalizeTags,
+  normalizeUrl,
+} from '../../../shared/utils/normalization';
+import { CreateBookmarkDto } from '../dto/create-bookmark.dto';
+import { FindBookmarksDto } from '../dto/find-bookmarks.dto';
+import { UpdateBookmarkDto } from '../dto/update-bookmark.dto';
+import { Bookmark } from '../entities/bookmark.entity';
+import { bookmarkSearchVector, toBookmarkSearchHit } from '../utils/search';
+import { AiService } from '../../ai/ai.service';
 import { BookmarkEnrichmentService } from './enrichment.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import {
   BOOKMARK_ENRICHMENT_QUEUE,
   ENRICH_BOOKMARK_JOB,
-} from './utils/constants';
+} from '../utils/constants';
 
 @Injectable()
 export class BookmarkService {

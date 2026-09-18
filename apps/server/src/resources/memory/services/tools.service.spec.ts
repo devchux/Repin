@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { MemoryService } from './memory.service';
-import { MemoryToolsService } from './memory-tools.service';
+import { MemoryToolsService } from './tools.service';
 
 describe('MemoryToolsService', () => {
   const memories = {

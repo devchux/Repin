@@ -177,9 +177,54 @@ const snapshot = (input: Readonly<Record<string, unknown>>) => {
     ),
   );
   const tabId = String(input.tabId ?? "");
+  const references = new Map<Element, string>();
+  const snapshotElements = candidates
+    .slice(0, maximum)
+    .map((element, index) => {
+      const ref = refFor(element, index);
+      references.set(element, ref);
+      return {
+        ref,
+        role: element.getAttribute("role") ?? element.tagName.toLowerCase(),
+        name:
+          element.getAttribute("aria-label") ??
+          (element as HTMLElement).innerText?.trim() ??
+          undefined,
+        value:
+          "value" in element &&
+          (element as HTMLInputElement).type !== "password"
+            ? String((element as HTMLInputElement).value)
+            : undefined,
+        disabled:
+          "disabled" in element
+            ? Boolean((element as HTMLInputElement).disabled)
+            : undefined,
+        focused: document.activeElement === element,
+      };
+    });
   const observation = input.includeText
-    ? { ...extractPageObservation(documentRevision), tabId }
+    ? {
+        ...extractPageObservation(documentRevision, (element) =>
+          references.get(element),
+        ),
+        tabId,
+      }
     : undefined;
+  const groundedRefs = new Set(
+    observation?.interactiveElements?.flatMap(({ actionRef }) =>
+      actionRef ? [actionRef] : [],
+    ) ?? [],
+  );
+  const observedRefs = new Set(
+    observation?.interactiveElements?.flatMap((observedElement) =>
+      snapshotElements
+        .filter(
+          ({ role, name }) =>
+            role === observedElement.role && name === observedElement.name,
+        )
+        .map(({ ref }) => ref),
+    ) ?? [],
+  );
   return {
     tabId,
     documentRevision,
@@ -187,22 +232,15 @@ const snapshot = (input: Readonly<Record<string, unknown>>) => {
     title: document.title,
     capturedAt: new Date().toISOString(),
     viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY },
-    elements: candidates.slice(0, maximum).map((element, index) => ({
-      ref: refFor(element, index),
-      role: element.getAttribute("role") ?? element.tagName.toLowerCase(),
-      name:
-        element.getAttribute("aria-label") ??
-        (element as HTMLElement).innerText?.trim() ??
-        undefined,
-      value:
-        "value" in element && (element as HTMLInputElement).type !== "password"
-          ? String((element as HTMLInputElement).value)
-          : undefined,
-      disabled:
-        "disabled" in element
-          ? Boolean((element as HTMLInputElement).disabled)
-          : undefined,
-      focused: document.activeElement === element,
+    elements: snapshotElements.map((element) => ({
+      ...element,
+      groundingStatus: !observation
+        ? "unavailable"
+        : groundedRefs.has(element.ref)
+          ? "grounded"
+          : observedRefs.has(element.ref)
+            ? "ambiguous"
+            : "unavailable",
     })),
     text: input.includeText
       ? document.body.innerText.slice(0, 100_000)

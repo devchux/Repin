@@ -1,10 +1,10 @@
 import type { AiService } from '../../ai/ai.service';
-import type { ToolsService } from '../../tools/tools.service';
+import type { ToolsService } from '../../tools/services/tools.service';
 import { LoopService } from './loop.service';
 import type { Run } from '../entities/run.entity';
 import type { ExecutionService } from './execution.service';
-import type { MemoryService } from '../../memory/memory.service';
-import type { MemoryToolsService } from '../../memory/memory-tools.service';
+import type { MemoryService } from '../../memory/services/memory.service';
+import type { MemoryToolsService } from '../../memory/services/tools.service';
 
 const run = {
   id: 'run-1',
@@ -224,9 +224,14 @@ describe('LoopService', () => {
       execution,
       memoryService,
       memoryTools,
-    ).run(run, [{ role: 'user', content: 'Help me' }]);
+    ).run(run, [
+      { role: 'user', content: 'I am drafting an API guide' },
+      { role: 'assistant', content: 'What should it cover?' },
+      { role: 'user', content: 'Help me' },
+    ]);
 
     expect(memoryService.getContext).toHaveBeenCalledWith(9, {
+      query: 'I am drafting an API guide\nHelp me',
       scope: 'domain',
       scopeId: 'docs.example.com',
       limit: 10,
@@ -238,9 +243,11 @@ describe('LoopService', () => {
             role: 'system',
             content: expect.stringContaining('Prefer concise answers'),
           }),
+          { role: 'user', content: 'I am drafting an API guide' },
+          { role: 'assistant', content: 'What should it cover?' },
           { role: 'user', content: 'Help me' },
         ],
-        }),
+      }),
     );
   });
   it('records application tools without requiring a browser session', async () => {
@@ -286,6 +293,8 @@ describe('LoopService', () => {
       aiService,
       toolsService,
       execution,
+      memoryService,
+      memoryTools,
     ).run(runWithoutBrowser, []);
 
     expect(result.content).toBe('The page is saved.');

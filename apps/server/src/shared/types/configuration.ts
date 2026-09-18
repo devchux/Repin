@@ -30,6 +30,14 @@ export type Configuration = {
     embeddingModel: string;
     requestTimeout: number;
   };
+  memoryRetrieval: {
+    lexicalWeight: number;
+    semanticWeight: number;
+    exactScopeBoost: number;
+    globalScopeBoost: number;
+    recencyWeight: number;
+    minimumSemanticSimilarity: number;
+  };
   assistantQueue: {
     rateLimitMax: number;
     rateLimitDuration: number;

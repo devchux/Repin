@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Bookmark } from './entities/bookmark.entity';
-import { BookmarkController } from './bookmark.controller';
-import { BookmarkService } from './bookmark.service';
+import { BookmarkController } from './controllers/bookmark.controller';
+import { BookmarkService } from './services/bookmark.service';
 import { AiModule } from '../ai/ai.module';
 import { BookmarkCollection } from './entities/collection.entity';
 import { BookmarkCollectionItem } from './entities/collection-item.entity';
-import { BookmarkCollectionController } from './collection.controller';
-import { BookmarkCollectionService } from './collection.service';
-import { BookmarkEnrichmentService } from './enrichment.service';
+import { BookmarkCollectionController } from './controllers/collection.controller';
+import { BookmarkCollectionService } from './services/collection.service';
+import { BookmarkEnrichmentService } from './services/enrichment.service';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Configuration } from 'src/shared/types';
 import { BOOKMARK_ENRICHMENT_QUEUE } from './utils/constants';
-import { BookmarkEnrichmentProcessor } from './enrichment.processor';
+import { BookmarkEnrichmentProcessor } from './processors/enrichment.processor';
 
 @Module({
   imports: [

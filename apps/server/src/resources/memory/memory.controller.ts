@@ -13,7 +13,7 @@ import type { AuthUser } from 'src/shared/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateMemoryDto } from './dto/create-memory.dto';
 import { FindMemoriesDto, FindMemoryContextDto } from './dto/find-memories.dto';
-import { MemoryService } from './memory.service';
+import { MemoryService } from './services/memory.service';
 import { CreateMemoryFromSourceDto } from './dto/create-memory-from-source.dto';
 
 @ApiTags('Memories')

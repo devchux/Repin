@@ -3,8 +3,8 @@ import type { Job } from 'bullmq';
 import {
   BOOKMARK_ENRICHMENT_QUEUE,
   ENRICH_BOOKMARK_JOB,
-} from './utils/constants';
-import { BookmarkEnrichmentService } from './enrichment.service';
+} from '../utils/constants';
+import { BookmarkEnrichmentService } from '../services/enrichment.service';
 
 interface BookmarkEnrichmentJob {
   readonly bookmarkId: string;

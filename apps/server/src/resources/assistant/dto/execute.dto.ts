@@ -17,7 +17,31 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { PAGE_CONTENT_BLOCK_KINDS } from '@repo/contracts/context';
+import {
+  PAGE_CONTENT_BLOCK_KINDS,
+  PAGE_INTERACTIVE_ELEMENT_KINDS,
+} from '@repo/contracts/context';
+
+export class PageContentStructureDto {
+  @IsOptional()
+  @IsInt()
+  itemCount?: number;
+
+  @IsOptional()
+  @IsInt()
+  rowCount?: number;
+
+  @IsOptional()
+  @IsInt()
+  columnCount?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  headers?: readonly string[];
+}
 
 export class PageContentBlockDto {
   @IsString()
@@ -50,6 +74,11 @@ export class PageContentBlockDto {
   @IsUrl({ require_tld: false })
   @MaxLength(2048)
   sourceFrameUrl?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PageContentStructureDto)
+  structure?: PageContentStructureDto;
 }
 
 export class PageObservationDto {
@@ -96,8 +125,120 @@ export class PageObservationDto {
   @Type(() => PageContentBlockDto)
   blocks: readonly PageContentBlockDto[];
 
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => PageInteractiveElementDto)
+  interactiveElements?: readonly PageInteractiveElementDto[];
+
   @IsBoolean()
   truncated: boolean;
+}
+
+export class PageInteractiveElementDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  id: string;
+
+  @IsIn(PAGE_INTERACTIVE_ELEMENT_KINDS)
+  kind: (typeof PAGE_INTERACTIVE_ELEMENT_KINDS)[number];
+
+  @IsString()
+  @MaxLength(100)
+  role: string;
+
+  @IsString()
+  @MaxLength(1_000)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1_000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1_000)
+  value?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  inputType?: string;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  @MaxLength(2048)
+  href?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  headingPath?: readonly string[];
+
+  @IsBoolean()
+  visible: boolean;
+
+  @IsBoolean()
+  inViewport: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  disabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  checked?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  expanded?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  required?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1_000)
+  validationMessage?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  invalid?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  selected?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  actionRef?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  formId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  dialogId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  regionRole?: string;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  @MaxLength(2048)
+  sourceFrameUrl?: string;
 }
 
 export class PageContextDto {
