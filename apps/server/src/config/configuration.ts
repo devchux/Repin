@@ -1,6 +1,6 @@
 import { Configuration } from 'src/shared/types';
 import * as dotenv from 'dotenv';
-import { optionalInt, required } from 'src/shared/utils/helper';
+import { optionalInt, optionalNumber, required } from 'src/shared/utils/helper';
 
 dotenv.config();
 
@@ -50,6 +50,18 @@ export default (): Configuration => ({
     model: process.env.AI_MODEL || 'gpt-5-mini',
     embeddingModel: process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small',
     requestTimeout: optionalInt('AI_REQUEST_TIMEOUT', 120000),
+  },
+  memoryRetrieval: {
+    lexicalWeight: optionalNumber('MEMORY_LEXICAL_WEIGHT', 0.4),
+    semanticWeight: optionalNumber('MEMORY_SEMANTIC_WEIGHT', 0.5),
+    exactScopeBoost: optionalNumber('MEMORY_EXACT_SCOPE_BOOST', 0.07),
+    globalScopeBoost: optionalNumber('MEMORY_GLOBAL_SCOPE_BOOST', 0.04),
+    recencyWeight: optionalNumber('MEMORY_RECENCY_WEIGHT', 0.03),
+    minimumSemanticSimilarity: optionalNumber(
+      'MEMORY_MINIMUM_SEMANTIC_SIMILARITY',
+      0.55,
+      1,
+    ),
   },
   assistantQueue: {
     rateLimitMax: optionalInt('ASSISTANT_RATE_LIMIT_MAX', 25),

@@ -16,6 +16,10 @@ The first version deliberately supports only:
 match against `query`. Ranking combines full-text relevance, embedding cosine
 similarity, exact-scope preference, and a small recency tie-breaker. Its maximum
 of 10 records is an intentional context-size boundary.
+Semantic-only candidates must meet `MEMORY_MINIMUM_SEMANTIC_SIMILARITY`
+(default `0.55`); exact full-text matches remain eligible independently. Ranking
+weights and scope boosts can be tuned with the `MEMORY_*_WEIGHT` and
+`MEMORY_*_SCOPE_BOOST` environment variables without changing retrieval code.
 Browser-page sources are always marked `untrusted`; this metadata does not turn
 page content into an instruction or grant permission to perform an action.
 
@@ -24,6 +28,12 @@ current-domain memories most relevant to the latest user message and puts at
 most ten into one compact system message. It does not repeat the lookup on every
 tool iteration and does not inject full source documents. If embeddings are
 temporarily unavailable, full-text retrieval continues to work.
+
+Embedding generation runs on the `memory-embedding` BullMQ queue with retry and
+exponential backoff. A recurring bounded backfill job finds legacy memories
+without vectors and queues them without delaying API requests. Status, failure
+reason, and completion time are stored on each memory. Retrieval emits tracing
+and result-count metrics split between hybrid and full-text fallback modes.
 
 The harness also exposes `memory_remember`, `memory_search`, and
 `memory_forget`. Search is read-only. Remember and forget execute only when the

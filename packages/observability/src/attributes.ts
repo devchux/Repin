@@ -11,6 +11,12 @@ export const TelemetryAttributes = {
     destinationName: "messaging.destination.name",
     operationName: "messaging.operation.name",
   },
+  memory: {
+    queryLength: "repin.memory.query_length",
+    resultCount: "repin.memory.result_count",
+    retrievalMode: "repin.memory.retrieval_mode",
+    scope: "repin.memory.scope",
+  },
   operation: {
     name: "repin.operation.name",
     outcome: "repin.outcome",

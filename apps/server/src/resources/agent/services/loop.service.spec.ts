@@ -4,7 +4,7 @@ import { LoopService } from './loop.service';
 import type { Run } from '../entities/run.entity';
 import type { ExecutionService } from './execution.service';
 import type { MemoryService } from '../../memory/memory.service';
-import type { MemoryToolsService } from '../../memory/memory-tools.service';
+import type { MemoryToolsService } from '../../memory/tools.service';
 
 const run = {
   id: 'run-1',
@@ -224,10 +224,14 @@ describe('LoopService', () => {
       execution,
       memoryService,
       memoryTools,
-    ).run(run, [{ role: 'user', content: 'Help me' }]);
+    ).run(run, [
+      { role: 'user', content: 'I am drafting an API guide' },
+      { role: 'assistant', content: 'What should it cover?' },
+      { role: 'user', content: 'Help me' },
+    ]);
 
     expect(memoryService.getContext).toHaveBeenCalledWith(9, {
-      query: 'Help me',
+      query: 'I am drafting an API guide\nHelp me',
       scope: 'domain',
       scopeId: 'docs.example.com',
       limit: 10,
@@ -239,6 +243,8 @@ describe('LoopService', () => {
             role: 'system',
             content: expect.stringContaining('Prefer concise answers'),
           }),
+          { role: 'user', content: 'I am drafting an API guide' },
+          { role: 'assistant', content: 'What should it cover?' },
           { role: 'user', content: 'Help me' },
         ],
       }),

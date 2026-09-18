@@ -5,6 +5,7 @@ import { MemoryService } from './memory.service';
 import { MemorySource } from './entities/memory-source.entity';
 import type { LibraryService } from '../library/library.service';
 import type { AiService } from '../ai/ai.service';
+import type { Queue } from 'bullmq';
 
 describe('MemoryService', () => {
   const memoryQuery = {
@@ -36,11 +37,21 @@ describe('MemoryService', () => {
   const ai = {
     embed: jest.fn().mockResolvedValue([[0.1, 0.2]]),
   } as unknown as jest.Mocked<AiService>;
-  const service = new MemoryService(repository, sourceRepository, library, ai);
+  const embeddingQueue = {
+    add: jest.fn(),
+  } as unknown as jest.Mocked<Queue>;
+  const service = new MemoryService(
+    repository,
+    sourceRepository,
+    library,
+    ai,
+    embeddingQueue,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
     ai.embed.mockResolvedValue([[0.1, 0.2]]);
+    embeddingQueue.add.mockResolvedValue({} as never);
     sourceQuery.getOne.mockResolvedValue(null);
   });
 
@@ -61,18 +72,26 @@ describe('MemoryService', () => {
       }),
     );
     expect(result.data).toEqual(expect.objectContaining({ id: 'memory-1' }));
-    expect(repository.update).toHaveBeenCalledWith('memory-1', {
-      embedding: [0.1, 0.2],
-    });
+    expect(embeddingQueue.add).toHaveBeenCalledWith(
+      'embed-memory',
+      { memoryId: 'memory-1' },
+      expect.objectContaining({ jobId: 'memory:memory-1', attempts: 3 }),
+    );
   });
 
-  it('keeps a memory searchable by full text when embedding fails', async () => {
-    ai.embed.mockRejectedValueOnce(new Error('provider unavailable'));
+  it('keeps a memory searchable by full text when its job cannot be queued', async () => {
+    embeddingQueue.add.mockRejectedValueOnce(new Error('queue unavailable'));
 
     await expect(
       service.create(7, { content: 'Prefers dark mode' }),
     ).resolves.toEqual(expect.objectContaining({ data: expect.any(Object) }));
-    expect(repository.update).not.toHaveBeenCalled();
+    expect(repository.update).toHaveBeenCalledWith(
+      'memory-1',
+      expect.objectContaining({
+        embeddingStatus: 'failed',
+        embeddingError: expect.stringContaining('queue unavailable'),
+      }),
+    );
   });
 
   it('ranks context with semantic, full-text, scope, and user filters', async () => {
@@ -106,7 +125,7 @@ describe('MemoryService', () => {
       ]),
     );
     expect(repository.query.mock.calls[0]?.[0]).toContain(
-      `to_tsvector('english', coalesce(memory."content", ''))`,
+      `to_tsvector('simple', coalesce(memory."content", ''))`,
     );
     expect(repository.query.mock.calls[0]?.[0]).toContain(
       `memory."embedding" <=>`,

@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { MemorySourceType, MemoryTrust } from '@repo/contracts/memory';
@@ -17,6 +18,21 @@ import { CreateMemoryFromSourceDto } from './dto/create-memory-from-source.dto';
 import type { LibraryItemType } from '@repo/contracts/library';
 import { AiService } from '../ai/ai.service';
 import type { MemoryKind, MemoryScope } from '@repo/contracts/memory';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
+import {
+  EMBED_MEMORY_JOB,
+  MEMORY_EMBEDDING_QUEUE,
+  MEMORY_RANKING,
+} from './memory.constants';
+import {
+  MemoryTelemetryEvents,
+  TelemetryAttributes,
+  recordMemoryRetrieval,
+  traceOperation,
+} from '@repo/observability';
+import { ConfigService } from '@nestjs/config';
+import type { Configuration } from 'src/shared/types';
 
 const UNTRUSTED_SOURCES = new Set<MemorySourceType>([
   'webpage',
@@ -42,6 +58,11 @@ export class MemoryService {
     private readonly sources: Repository<MemorySource>,
     private readonly library: LibraryService,
     private readonly ai: AiService,
+    @Optional()
+    @InjectQueue(MEMORY_EMBEDDING_QUEUE)
+    private readonly embeddingQueue?: Queue,
+    @Optional()
+    private readonly config?: ConfigService<Configuration>,
   ) {}
 
   async create(userId: number, request: CreateMemoryDto) {
@@ -65,7 +86,7 @@ export class MemoryService {
       ],
     });
     const saved = await this.memories.save(memory);
-    await this.addEmbedding(saved.id, saved.content);
+    await this.queueEmbedding(saved.id);
     return { message: 'Memory created successfully', data: saved };
   }
 
@@ -170,15 +191,28 @@ export class MemoryService {
     return query.getMany();
   }
 
-  private async addEmbedding(id: string, content: string): Promise<void> {
+  private async queueEmbedding(id: string): Promise<void> {
+    if (!this.embeddingQueue) return;
     try {
-      const [embedding] = await this.ai.embed([content]);
-      if (!embedding) throw new Error('Embedding provider returned no result');
-      await this.memories.update(id, { embedding: [...embedding] });
+      await this.embeddingQueue.add(
+        EMBED_MEMORY_JOB,
+        { memoryId: id },
+        {
+          jobId: `memory:${id}`,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5_000 },
+          removeOnComplete: 1000,
+          removeOnFail: 5000,
+        },
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      await this.memories.update(id, {
+        embeddingStatus: 'failed',
+        embeddingError: `Queue unavailable: ${message}`.slice(0, 2000),
+      });
       this.logger.warn(
-        `Memory ${id} was saved without a semantic embedding: ${message}`,
+        `Memory ${id} embedding could not be queued: ${message}`,
       );
     }
   }
@@ -194,6 +228,29 @@ export class MemoryService {
       readonly limit: number;
     },
   ): Promise<Memory[]> {
+    return traceOperation(
+      MemoryTelemetryEvents.retrieval,
+      {
+        [TelemetryAttributes.memory.queryLength]: request.query.length,
+        [TelemetryAttributes.memory.scope]: request.scope ?? 'all',
+      },
+      () => this.retrieveInternal(userId, request),
+    );
+  }
+
+  private async retrieveInternal(
+    userId: number,
+    request: {
+      readonly query: string;
+      readonly kind?: MemoryKind;
+      readonly scope?: MemoryScope;
+      readonly scopeId?: string;
+      readonly includeGlobal: boolean;
+      readonly limit: number;
+    },
+  ): Promise<Memory[]> {
+    const ranking =
+      this.config?.get('memoryRetrieval', { infer: true }) ?? MEMORY_RANKING;
     let embedding: readonly number[] | undefined;
     try {
       [embedding] = await this.ai.embed([request.query]);
@@ -221,8 +278,8 @@ export class MemoryService {
       conditions.push(`memory."scope" = 'global'`);
     }
 
-    const lexical = `to_tsvector('english', coalesce(memory."content", ''))`;
-    const lexicalScore = `ts_rank_cd(${lexical}, websearch_to_tsquery('english', $2), 32)`;
+    const lexical = `to_tsvector('simple', coalesce(memory."content", ''))`;
+    const lexicalScore = `ts_rank_cd(${lexical}, websearch_to_tsquery('simple', $2), 32)`;
     const semanticScore = embedding
       ? `GREATEST(0, 1 - (memory."embedding" <=> $${parameters.length + 1}::vector))`
       : '0';
@@ -235,22 +292,23 @@ export class MemoryService {
 
     const rows = (await this.memories.query(
       `SELECT memory."id",
-        (${lexicalScore} * 0.4
-          + ${semanticScore} * 0.5
+        (${lexicalScore} * ${ranking.lexicalWeight}
+          + ${semanticScore} * ${ranking.semanticWeight}
           + CASE
-              WHEN memory."scope" = $${rankingScopeParameter} AND memory."scopeId" IS NOT DISTINCT FROM $${rankingScopeIdParameter} THEN 0.07
-              WHEN memory."scope" = 'global' THEN 0.04
+              WHEN memory."scope" = $${rankingScopeParameter} AND memory."scopeId" IS NOT DISTINCT FROM $${rankingScopeIdParameter} THEN ${ranking.exactScopeBoost}
+              WHEN memory."scope" = 'global' THEN ${ranking.globalScopeBoost}
               ELSE 0
             END
-          + (1.0 / (1.0 + EXTRACT(EPOCH FROM (now() - memory."updatedAt")) / 2592000.0)) * 0.03
+          + (1.0 / (1.0 + EXTRACT(EPOCH FROM (now() - memory."updatedAt")) / 2592000.0)) * ${ranking.recencyWeight}
         ) AS "relevanceScore"
        FROM "memories" memory
        WHERE ${conditions.join(' AND ')}
-         AND (${lexical} @@ websearch_to_tsquery('english', $2)${embedding ? ' OR memory."embedding" IS NOT NULL' : ''})
+         AND (${lexical} @@ websearch_to_tsquery('simple', $2)${embedding ? ` OR ${semanticScore} >= ${ranking.minimumSemanticSimilarity}` : ''})
        ORDER BY "relevanceScore" DESC, memory."updatedAt" DESC
        LIMIT $${limitParameter}`,
       parameters,
     )) as Array<{ id: string; relevanceScore: string }>;
+    recordMemoryRetrieval(embedding ? 'hybrid' : 'full_text', rows.length);
     if (!rows.length) return [];
 
     const memories = await this.memories

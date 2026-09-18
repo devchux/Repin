@@ -16,6 +16,22 @@ const operationDuration = meter.createHistogram("repin.operation.duration", {
 const operationCount = meter.createCounter("repin.operation.count", {
   description: "Count of Repin application operations by outcome",
 });
+const memoryRetrievalResults = meter.createHistogram(
+  "repin.memory.retrieval.results",
+  {
+    description: "Number of memories returned by a retrieval",
+    unit: "{memory}",
+  },
+);
+
+export function recordMemoryRetrieval(
+  mode: "hybrid" | "full_text",
+  resultCount: number,
+): void {
+  memoryRetrievalResults.record(resultCount, {
+    [TelemetryAttributes.memory.retrievalMode]: mode,
+  });
+}
 
 export async function traceOperation<T>(
   event: TelemetryEvent,

@@ -25,7 +25,7 @@ import {
   traceOperation,
 } from '@repo/observability';
 import { MemoryService } from '../../memory/memory.service';
-import { MemoryToolsService } from '../../memory/memory-tools.service';
+import { MemoryToolsService } from '../../memory/tools.service';
 import type { ContextManifest } from '@repo/contracts/context';
 
 @Injectable()
@@ -183,7 +183,7 @@ export class LoopService {
     } catch {
       domain = undefined;
     }
-    const query = this.latestUserMessage(messages);
+    const query = this.memoryRetrievalQuery(messages);
     if (!query) return [...messages];
     const memories = await this.memoryService.getContext(run.userId, {
       query,
@@ -220,16 +220,15 @@ export class LoopService {
     ];
   }
 
-  private latestUserMessage(
+  private memoryRetrievalQuery(
     messages: readonly AiMessage[],
   ): string | undefined {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (message?.role === 'user' && message.content.trim()) {
-        return message.content.trim().slice(0, 2000);
-      }
-    }
-    return undefined;
+    const query = messages
+      .filter((message) => message.role === 'user' && message.content.trim())
+      .slice(-3)
+      .map((message) => message.content.trim())
+      .join('\n');
+    return query ? query.slice(-2000) : undefined;
   }
 
   private async executeTool(

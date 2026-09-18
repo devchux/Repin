@@ -35,6 +35,15 @@ export class Memory {
   @Column({ type: 'vector', length: 1536, nullable: true, select: false })
   embedding?: number[] | null;
 
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  embeddingStatus: 'pending' | 'processing' | 'complete' | 'failed';
+
+  @Column({ type: 'text', nullable: true })
+  embeddingError?: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  embeddedAt?: Date | null;
+
   relevanceScore?: number;
 
   @Column({ type: 'varchar', default: 'global' })

@@ -148,6 +148,20 @@ export const optionalInt = (key: string, fallback: number): number => {
   return parsed;
 };
 
+export const optionalNumber = (
+  key: string,
+  fallback: number,
+  maximum = Number.POSITIVE_INFINITY,
+): number => {
+  const value = process.env[key];
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > maximum) {
+    throw new Error(`${key} must be between 0 and ${maximum}`);
+  }
+  return parsed;
+};
+
 export const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export const getAuthCodeKey = (email: string) => `auth-code:${email}`;
