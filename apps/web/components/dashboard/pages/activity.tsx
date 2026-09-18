@@ -56,7 +56,7 @@ export function ActivityPage() {
       <PageHeading
         eyebrow="Workspace"
         title="Activity"
-        description="Follow assistant runs and browser work from both the web app and extension."
+        description="Follow AI runs and browser actions from both the web app and extension."
       />
 
       <section
@@ -149,7 +149,7 @@ export function ActivityPage() {
               description={
                 query || filter !== "all"
                   ? "Adjust the search or filter to see more results."
-                  : "Assistant and browser runs will appear here as you use Repin."
+                  : "AI runs and browser actions will appear here as you use Repin."
               }
             />
           ) : null}

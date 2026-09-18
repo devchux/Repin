@@ -22,6 +22,10 @@ Repin is built around three connected capabilities:
 The current system provides this foundation. Fully autonomous operation remains
 an incremental product goal.
 
+Repin is under active development. Browser actions are observable and subject
+to explicit permission and approval boundaries; autonomy is expanded
+incrementally as those safeguards mature.
+
 ## Current capabilities
 
 - Explain, summarize, translate, and chat about pages or selected text
@@ -179,6 +183,22 @@ During local development, an empty `EXTENSION_CLIENT_IDS` value permits
 unpacked extension IDs. In production, set it to the comma-separated Chrome Web
 Store extension IDs that are allowed to authenticate.
 
+## Local monorepo development
+
+Use Docker Compose for PostgreSQL and Redis, then run the applications through
+the pnpm workspace:
+
+```bash
+corepack enable
+pnpm install
+docker compose up -d postgres redis
+pnpm dev
+```
+
+Copy the relevant environment examples before starting an application outside
+Docker. The root [`.env.example`](./.env.example) documents the shared defaults;
+application-specific examples live beside the server and web app.
+
 ## Development checks
 
 When changing the codebase, run:
@@ -192,3 +212,7 @@ pnpm --filter server test
 
 Environment options are documented in [`.env.example`](./.env.example) and
 [`apps/server/.env.example`](./apps/server/.env.example).
+
+## License
+
+Repin is available under the terms in [`LICENSE`](./LICENSE).

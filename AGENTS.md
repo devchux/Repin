@@ -10,11 +10,11 @@
 
 # Project Vision
 
-Repin AI is an AI-powered assistant available through both a browser extension
-and a full web application. The extension helps users act in the context of the
-page they are browsing, while the web application provides the same core AI
-capabilities alongside a durable workspace for conversations, activity,
-saved content, and history.
+Repin AI is an AI workspace and browser agent available through both a browser
+extension and a full web application. The extension helps users understand and
+act in the context of the page they are browsing, while the web application
+provides the same core AI capabilities alongside a durable workspace for
+conversations, activity, saved content, and history.
 
 Current capabilities include:
 
@@ -742,4 +742,4 @@ A task is complete only when:
 
 > **Final Principle**
 >
-> Every line of code should move Repin AI one step closer to becoming the most capable AI browser assistant and autonomous browser agent, while maintaining production-quality engineering standards.
+> Every line of code should move Repin AI one step closer to becoming the most capable AI workspace and autonomous browser agent, while maintaining production-quality engineering standards.

@@ -6,7 +6,8 @@ export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifest: ({ browser }) => ({
     name: "Repin",
-    description: "Save, annotate, and organize useful pages from anywhere.",
+    description:
+      "Understand, remember, and safely act on information from the web.",
     permissions: [
       "identity",
       "contextMenus",

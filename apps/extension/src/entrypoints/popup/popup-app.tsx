@@ -144,7 +144,9 @@ export const PopupApp = () => {
           <div>
             <h1 className="text-sm font-semibold leading-4">Repin</h1>
             <p className="mt-0.5 max-w-44 truncate text-[11px] text-neutral-500 dark:text-neutral-400">
-              {auth?.authenticated ? auth.user?.email : "Browser assistant"}
+              {auth?.authenticated
+                ? auth.user?.email
+                : "AI workspace and agent"}
             </p>
           </div>
         </div>

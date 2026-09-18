@@ -25,7 +25,8 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Repin AI",
-  description: "Your intelligent companion for the web.",
+  description:
+    "An AI workspace and browser agent that understands, remembers, and acts with you on the web.",
 };
 
 export default function RootLayout({
