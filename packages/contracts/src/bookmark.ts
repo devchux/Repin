@@ -15,10 +15,64 @@ export interface Bookmark {
   readonly note: string | null;
   readonly saveReason: string | null;
   readonly tags: readonly string[];
+  readonly aiSummary?: string | null;
+  readonly aiTopics?: readonly string[];
+  readonly enrichmentStatus?:
+    | "pending"
+    | "processing"
+    | "complete"
+    | "failed";
+  readonly enrichmentError?: string | null;
+  readonly enrichedAt?: string | null;
   readonly capturedAt: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export interface BookmarksPage {
+  readonly items: readonly Bookmark[];
+  readonly page: number;
+  readonly limit: number;
+  readonly total: number;
+  readonly pageCount: number;
+}
+
+export interface BookmarkCollection {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly color: string | null;
+  readonly bookmarkCount: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CreateBookmarkCollectionRequest {
+  readonly name: string;
+  readonly description?: string;
+  readonly color?: string;
+}
+
+export type UpdateBookmarkCollectionRequest = Partial<CreateBookmarkCollectionRequest>;
+
+export type UpdateBookmarkRequest = Partial<
+  Pick<
+    CreateBookmarkRequest,
+    | "title"
+    | "description"
+    | "siteName"
+    | "author"
+    | "publishedAt"
+    | "imageUrl"
+    | "faviconUrl"
+    | "excerpt"
+    | "content"
+    | "selectedText"
+    | "note"
+    | "saveReason"
+    | "tags"
+  >
+>;
 
 export interface CreateBookmarkRequest {
   readonly url: string;
