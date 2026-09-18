@@ -1,10 +1,12 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
+import { join } from 'node:path';
 
 dotenv.config();
 
 const databaseUrl = process.env.DATABASE_URL;
+const isTypeScriptRuntime = __filename.endsWith('.ts');
 
 if (!databaseUrl) {
   throw new Error('DATABASE_URL is required');
@@ -13,8 +15,18 @@ if (!databaseUrl) {
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   url: databaseUrl,
-  entities: ['dist/**/*.entity{.js,.ts}'],
-  migrations: ['dist/database/migrations/*.{js,ts}'],
+  entities: isTypeScriptRuntime
+    ? [join(__dirname, '..', '**', '*.entity.ts')]
+    : [],
+  migrations: [
+    join(
+      __dirname,
+      '..',
+      'database',
+      'migrations',
+      isTypeScriptRuntime ? '*.ts' : '*.js',
+    ),
+  ],
   synchronize: false,
 };
 
