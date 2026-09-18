@@ -3,6 +3,8 @@
 Repin is an AI workspace that understands what users encounter on the web,
 remembers what matters, and can eventually act on their behalf.
 
+![Repin demo animation](./demo.gif)
+
 The browser extension works in the context of the current page. The web
 application is the durable workspace for conversations, saved knowledge,
 activity, memories, and agent execution history.
