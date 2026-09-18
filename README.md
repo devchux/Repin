@@ -1,297 +1,192 @@
 # Repin AI
 
 Repin is an AI workspace that understands what users encounter on the web,
-remembers what matters, and can eventually act on their behalf. It combines a
-browser extension that works in the context of the current page with a
-persistent web application for conversations, saved knowledge, activity, and
-agent execution history.
+remembers what matters, and can eventually act on their behalf.
 
-The platform is being built toward a provider-neutral browser-agent harness
-that can turn a user's intent and browsing context into safe, observable
-action. Models decide what to do, typed tools describe what can be done, and
-the Repin runtime owns execution, approvals, browser state, retries, memory,
-and observability.
+The browser extension works in the context of the current page. The web
+application is the durable workspace for conversations, saved knowledge,
+activity, memories, and agent execution history.
 
 ## Product direction
 
-Repin is organized around three connected capabilities:
+Repin is built around three connected capabilities:
 
-1. **Understand** — use the active page, selected text, conversation, and user
-   intent to provide relevant assistance in context.
-2. **Remember** — preserve useful pages, notes, highlights, conversations, and
-   trusted memories in a workspace the user controls.
-3. **Act** — use explicit, typed browser tools to complete work with clear
-   permission boundaries, observable execution, and human approval for
-   consequential actions.
+1. **Understand** the active page, selected text, conversation, and user intent.
+2. **Remember** useful pages, notes, highlights, conversations, and trusted
+   context.
+3. **Act** through typed browser tools with observable execution, permission
+   boundaries, and human approval for consequential actions.
 
-The browser extension is Repin's contextual surface, while the web application
-is its durable workspace. Knowledge, conversations, preferences, and execution
-history should follow the authenticated user across both surfaces. The current
-system provides the foundation for this direction; fully autonomous operation
-remains an incremental product goal.
+The current system provides this foundation. Fully autonomous operation remains
+an incremental product goal.
 
-## Current foundation
+## Current capabilities
 
-- Contextual AI actions for explaining, summarizing, translating, and chatting
-  about pages or selected text
-- A persistent library for pages, bookmarks, notes, and highlights
-- Scoped, source-aware memories that can be retrieved as agent context
-- Persistent assistant conversations with resumable run history
-- Browser-tool execution through a connected extension or a managed Playwright
-  session
-- Typed browser tools, human approval boundaries, cancellation, retries, and
-  post-action verification
-- Workflow definitions, execution, deterministic goal validation, and task
-  routing
-- Separate interactive and background BullMQ execution lanes
-- Cookie-based web authentication and PKCE-based extension authorization
-- OpenTelemetry traces and metrics with OTLP export
-- Shared contracts, API client state, and UI components across product clients
+- Explain, summarize, translate, and chat about pages or selected text
+- Save pages, bookmarks, notes, highlights, and scoped memories
+- Continue persistent conversations across the web app and extension
+- Execute browser tools through the extension or a managed Playwright session
+- Run resumable agent tasks and workflows with approvals and verification
+- Persist data in PostgreSQL and process background work with Redis and BullMQ
+- Export vendor-neutral traces and metrics through OpenTelemetry
 
-## Repository structure
+## Project structure
 
-| Path                         | Responsibility                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `apps/server`                | NestJS API, authentication, AI orchestration, agent runs, browser tools, workflows, queues, and persistence   |
-| `apps/web`                   | Next.js web application for conversations, activity, saved content, settings, and extension authorization     |
-| `apps/extension`             | WXT React extension with contextual UI, background coordination, browser tools, and browser-session transport |
-| `apps/docs`                  | Next.js documentation application                                                                             |
-| `packages/client`            | Shared HTTP, React Query, authentication, and client-state utilities                                          |
-| `packages/contracts`         | Framework-neutral wire contracts and Zod schemas                                                              |
-| `packages/ui`                | Shared React UI components and rich-content primitives                                                        |
-| `packages/observability`     | Provider-neutral telemetry names, attributes, events, and helpers                                             |
-| `packages/eslint-config`     | Shared ESLint configuration                                                                                   |
-| `packages/typescript-config` | Shared TypeScript configuration                                                                               |
+| Path                     | Purpose                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------- |
+| `apps/server`            | NestJS API, AI orchestration, agent runtime, browser tools, workflows, queues, and persistence |
+| `apps/web`               | Next.js workspace for conversations, activity, saved content, and settings                     |
+| `apps/extension`         | WXT browser extension for contextual assistance and browser actions                            |
+| `apps/docs`              | Product and developer documentation application                                                |
+| `packages/contracts`     | Shared wire contracts and schemas                                                              |
+| `packages/client`        | Shared API and client-state utilities                                                          |
+| `packages/ui`            | Shared React components                                                                        |
+| `packages/observability` | Shared telemetry contracts                                                                     |
 
-## Architecture
+## Install with Docker Compose
 
-The web application and browser extension are first-class clients of the same
-backend capabilities.
+### Requirements
 
-```text
-Web application ───────┐
-                       ├── NestJS API ── PostgreSQL
-Browser extension ─────┤       │
-                       │       ├── Redis / BullMQ
-Managed browser ───────┘       ├── AI provider adapter
-                               └── Agent harness and typed browser tools
+- Docker with Docker Compose
+- An API key for the configured AI provider
+
+### 1. Configure Repin
+
+```bash
+cp .env.example .env
 ```
 
-Important boundaries:
+Open `.env` and set at least:
 
-- AI providers handle model input and output only. Agent state and tool
-  execution remain provider-neutral.
-- Business logic and durable data live on the server rather than in product
-  clients.
-- Browser-dependent commands execute through the connected extension or the
-  managed Playwright executor.
-- Shared transport shapes belong in `packages/contracts`.
-- Domain-agnostic server helpers belong in
-  `apps/server/src/shared/utils/helper.ts`.
+```env
+AI_API_KEY=your-provider-api-key
+```
 
-See [AGENTS.md](./AGENTS.md) for the complete engineering and architecture
-guidelines.
+The defaults use an OpenAI-compatible API. Change `AI_PROVIDER`, `AI_BASE_URL`,
+and `AI_MODEL` in `.env` when using another compatible provider. Replace the
+development authentication secrets before deploying Repin.
 
-## Technology
+### 2. Start Repin
 
-- Node.js 22.18 or newer and pnpm 9
-- TypeScript and Turborepo
-- NestJS, TypeORM, PostgreSQL, Redis, and BullMQ
-- Next.js 16, React 19, Tailwind CSS, and shared shadcn-style primitives
-- WXT for Chromium and Firefox extension builds
-- OpenAI-compatible provider APIs behind a provider abstraction
-- Playwright for managed browser sessions
-- OpenTelemetry for traces and metrics
+```bash
+docker compose up --build -d
+```
 
-## Getting started
+Docker Compose starts the web application, API, PostgreSQL, and Redis. Database
+migrations run automatically when the server starts.
 
-### Prerequisites
+Open:
+
+- Web application: `http://localhost:3000`
+- API: `http://localhost:3001/api`
+- Swagger UI: `http://localhost:3001/docs`
+
+Useful lifecycle commands:
+
+```bash
+docker compose logs -f
+docker compose down
+```
+
+Use `docker compose down -v` only when you intentionally want to delete the
+local PostgreSQL and Redis data volumes.
+
+## Install the browser extension
+
+### Option A: Build the Chrome extension with Docker
+
+This is the simplest option and does not require installing Node.js locally.
+
+1. Export the Chromium extension bundle:
+
+   ```bash
+   docker compose --profile extension run --rm extension
+   ```
+
+2. Open `chrome://extensions` in Chrome, or `edge://extensions` in Edge.
+3. Enable **Developer mode**.
+4. Select **Load unpacked**.
+5. Choose the generated `extension-dist` directory in this repository.
+6. Pin Repin from the browser toolbar.
+7. Open the Repin popup and authorize the extension through the web app.
+
+The development extension connects to:
+
+- API: `http://localhost:3001`
+- Web application: `http://localhost:3000`
+
+If the extension bundle changes, run the export command again and select
+**Reload** on the Repin card in the browser's extensions page.
+
+### Option B: Run the extension in development mode
+
+Use this option when actively changing extension code.
+
+Requirements:
 
 - Node.js `>=22.18.0`
-- pnpm `9.x` through Corepack
-- Docker with Docker Compose, or local PostgreSQL and Redis instances
-- An API key for the configured AI provider to use AI capabilities
+- Corepack and pnpm 9
 
-Enable pnpm and install the workspace:
+Install dependencies and start WXT:
 
 ```bash
 corepack enable
 pnpm install
+pnpm --filter extension dev
 ```
 
-### Local development
+WXT builds the extension in development mode and opens a browser profile with
+the extension loaded. Keep the command running for automatic rebuilds.
 
-1. Start PostgreSQL and Redis:
-
-   ```bash
-   docker compose up -d postgres redis
-   ```
-
-2. Create application environment files:
-
-   ```bash
-   cp apps/server/.env.example apps/server/.env
-   cp apps/web/.env.example apps/web/.env.local
-   ```
-
-3. Add `AI_API_KEY` to `apps/server/.env`. Adjust `AI_PROVIDER`,
-   `AI_BASE_URL`, and `AI_MODEL` when using another OpenAI-compatible provider.
-
-4. Apply database migrations:
-
-   ```bash
-   pnpm --filter server migration:run
-   ```
-
-5. Start the product surfaces in separate terminals:
-
-   ```bash
-   pnpm --filter server start:dev
-   pnpm --filter web dev
-   pnpm --filter extension dev
-   ```
-
-The default development URLs are:
-
-- Web application: `http://localhost:3000`
-- API: `http://localhost:3001/api`
-- Swagger UI: `http://localhost:3001/docs` when `ENABLE_SWAGGER=true`
-
-The documentation application currently defaults to port `3001`, which is
-also the API development port. Run it on another port while developing the
-full stack:
+To create a regular unpacked Chromium build instead:
 
 ```bash
-pnpm --filter docs exec next dev --port 3002
+pnpm --filter extension build
 ```
 
-### Load the browser extension
+Load the generated Chromium directory under `apps/extension/.output` using the
+same **Load unpacked** steps above.
 
-Running `pnpm --filter extension dev` starts WXT development mode and creates a
-development browser bundle. Follow the WXT terminal instructions, or load the
-generated unpacked extension from the extension's `.output` directory.
+### Firefox
 
-The extension defaults to:
-
-- Repin API: `http://localhost:3001`
-- Repin web application: `http://localhost:3000`
-
-Use the extension popup to authorize it through the web application. Unpacked
-development extension IDs are accepted when `EXTENSION_CLIENT_IDS` is empty.
-Production environments should configure the permitted extension IDs.
-
-Firefox development and production builds are also available:
+Start Firefox development mode with:
 
 ```bash
 pnpm --filter extension dev:firefox
+```
+
+To build it manually:
+
+```bash
 pnpm --filter extension build:firefox
 ```
 
-## Docker Compose
+Then:
 
-Copy the root environment template and configure the AI provider:
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Select **Load Temporary Add-on**.
+3. Open the generated Firefox directory under `apps/extension/.output`.
+4. Select its `manifest.json` file.
 
-```bash
-cp .env.example .env
-docker compose up --build
-```
+Firefox removes temporary add-ons when the browser closes. Distribution
+outside development requires packaging and signing through Mozilla.
 
-This starts the web application, API, PostgreSQL, and Redis. The server
-container applies TypeORM migrations before starting.
+### Production extension IDs
 
-The extension is a build artifact rather than a long-running service. Export a
-Chromium MV3 bundle to `extension-dist` with:
+During local development, an empty `EXTENSION_CLIENT_IDS` value permits
+unpacked extension IDs. In production, set it to the comma-separated Chrome Web
+Store extension IDs that are allowed to authenticate.
 
-```bash
-docker compose --profile extension run --rm extension
-```
+## Development checks
 
-The default credentials in the example and Compose files are for local
-development only. Replace all secrets in deployed environments.
-
-## Common commands
-
-Run commands from the repository root unless noted otherwise.
+When changing the codebase, run:
 
 ```bash
-# Build every buildable workspace
 pnpm build
-
-# Lint the workspace
 pnpm lint
-
-# Type-check the workspace
 pnpm check-types
-
-# Format TypeScript, TSX, and Markdown
-pnpm format
-
-# Run server unit tests
 pnpm --filter server test
-
-# Run server end-to-end tests
-pnpm --filter server test:e2e
-
-# Build browser-extension archives
-pnpm --filter extension zip
 ```
 
-Useful migration commands:
-
-```bash
-pnpm --filter server migration:show
-pnpm --filter server migration:run
-pnpm --filter server migration:revert
-pnpm --filter server migration:create -- MigrationName
-pnpm --filter server migration:generate -- MigrationName
-```
-
-## Configuration
-
-The authoritative templates are:
-
-- Root Docker Compose configuration: [`.env.example`](./.env.example)
-- Server configuration: [`apps/server/.env.example`](./apps/server/.env.example)
-- Web server-side proxy configuration:
-  [`apps/web/.env.example`](./apps/web/.env.example)
-
-Core server configuration groups include:
-
-- PostgreSQL and Redis connections
-- JWT secrets and token lifetimes
-- Allowed CORS origins and extension client IDs
-- AI provider, model, base URL, API key, and request timeout
-- Assistant queue rate limits, scaling thresholds, and run deadlines
-- Swagger and OpenTelemetry settings
-
-Never commit real credentials or production secrets.
-
-## API and runtime notes
-
-- All REST endpoints use the `/api` prefix.
-- Authentication supports secure cookies for the web app and bearer tokens for
-  extension flows.
-- Assistant and workflow progress is streamed using authenticated
-  Server-Sent Events, with persisted state available for reconnection.
-- Extension browser sessions connect through the authenticated
-  `/api/browser-sessions/connect` WebSocket upgrade endpoint.
-- Potentially consequential browser tools require explicit approval according
-  to the browser action policy.
-- Interactive and long-running browser work use separate BullMQ queues to keep
-  ordinary assistant responses responsive.
-
-More detailed server notes live in:
-
-- [`apps/server/src/shared/docs/execution-foundation.md`](./apps/server/src/shared/docs/execution-foundation.md)
-- [`apps/server/src/shared/docs/workflow-runtime.md`](./apps/server/src/shared/docs/workflow-runtime.md)
-- [`apps/server/src/shared/docs/task-routing.md`](./apps/server/src/shared/docs/task-routing.md)
-- [`apps/server/src/shared/docs/memory.md`](./apps/server/src/shared/docs/memory.md)
-- [`apps/server/src/shared/docs/prompts.md`](./apps/server/src/shared/docs/prompts.md)
-
-## Engineering expectations
-
-Contributions should preserve the product's cross-client architecture and
-provider-neutral agent runtime. Keep implementations focused, typed, secure,
-and proportional to the requirement. Reuse shared contracts and UI primitives,
-avoid placing business logic in controllers or extension content scripts, and
-add migrations for every database schema change.
+Environment options are documented in [`.env.example`](./.env.example) and
+[`apps/server/.env.example`](./apps/server/.env.example).
