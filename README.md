@@ -1,159 +1,278 @@
-# Turborepo starter
+# Repin AI
 
-This Turborepo starter is maintained by the Turborepo core team.
+Repin is an AI workspace that understands what users encounter on the web,
+remembers what matters, and can eventually act on their behalf. It combines a
+browser extension that works in the context of the current page with a
+persistent web application for conversations, saved knowledge, activity, and
+agent execution history.
 
-## Using this example
+The platform is being built toward a provider-neutral browser-agent harness
+that can turn a user's intent and browsing context into safe, observable
+action. Models decide what to do, typed tools describe what can be done, and
+the Repin runtime owns execution, approvals, browser state, retries, memory,
+and observability.
 
-Run the following command:
+## What is implemented
 
-```sh
-npx create-turbo@latest
+- Contextual AI actions for explaining, summarizing, translating, and chatting
+  about pages or selected text
+- Page bookmarks, notes, highlights, library items, and durable memories
+- Persistent assistant conversations with resumable run history
+- Browser automation through a connected extension or a managed Playwright
+  session
+- Typed browser tools, human approval boundaries, cancellation, retries, and
+  post-action verification
+- Workflow definitions, execution, deterministic goal validation, and task
+  routing
+- Separate interactive and background BullMQ execution lanes
+- Cookie-based web authentication and PKCE-based extension authorization
+- OpenTelemetry traces and metrics with OTLP export
+- Shared contracts, API client state, and UI components across product clients
+
+## Repository structure
+
+| Path | Responsibility |
+| --- | --- |
+| `apps/server` | NestJS API, authentication, AI orchestration, agent runs, browser tools, workflows, queues, and persistence |
+| `apps/web` | Next.js web application for conversations, activity, saved content, settings, and extension authorization |
+| `apps/extension` | WXT React extension with contextual UI, background coordination, browser tools, and browser-session transport |
+| `apps/docs` | Next.js documentation application |
+| `packages/client` | Shared HTTP, React Query, authentication, and client-state utilities |
+| `packages/contracts` | Framework-neutral wire contracts and Zod schemas |
+| `packages/ui` | Shared React UI components and rich-content primitives |
+| `packages/observability` | Provider-neutral telemetry names, attributes, events, and helpers |
+| `packages/eslint-config` | Shared ESLint configuration |
+| `packages/typescript-config` | Shared TypeScript configuration |
+
+## Architecture
+
+The web application and browser extension are first-class clients of the same
+backend capabilities.
+
+```text
+Web application ───────┐
+                       ├── NestJS API ── PostgreSQL
+Browser extension ─────┤       │
+                       │       ├── Redis / BullMQ
+Managed browser ───────┘       ├── AI provider adapter
+                               └── Agent harness and typed browser tools
 ```
 
-## What's inside?
+Important boundaries:
 
-This Turborepo includes the following packages/apps:
+- AI providers handle model input and output only. Agent state and tool
+  execution remain provider-neutral.
+- Business logic and durable data live on the server rather than in product
+  clients.
+- Browser-dependent commands execute through the connected extension or the
+  managed Playwright executor.
+- Shared transport shapes belong in `packages/contracts`.
+- Domain-agnostic server helpers belong in
+  `apps/server/src/shared/utils/helper.ts`.
 
-### Apps and Packages
+See [AGENTS.md](./AGENTS.md) for the complete engineering and architecture
+guidelines.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Technology
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+- Node.js 22.18 or newer and pnpm 9
+- TypeScript and Turborepo
+- NestJS, TypeORM, PostgreSQL, Redis, and BullMQ
+- Next.js 16, React 19, Tailwind CSS, and shared shadcn-style primitives
+- WXT for Chromium and Firefox extension builds
+- OpenAI-compatible provider APIs behind a provider abstraction
+- Playwright for managed browser sessions
+- OpenTelemetry for traces and metrics
 
-### Utilities
+## Getting started
 
-This Turborepo has some additional tools already setup for you:
+### Prerequisites
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+- Node.js `>=22.18.0`
+- pnpm `9.x` through Corepack
+- Docker with Docker Compose, or local PostgreSQL and Redis instances
+- An API key for the configured AI provider to use AI capabilities
 
-### Build
+Enable pnpm and install the workspace:
 
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+corepack enable
+pnpm install
 ```
 
-Without global `turbo`, use your package manager:
+### Local development
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+1. Start PostgreSQL and Redis:
+
+   ```bash
+   docker compose up -d postgres redis
+   ```
+
+2. Create application environment files:
+
+   ```bash
+   cp apps/server/.env.example apps/server/.env
+   cp apps/web/.env.example apps/web/.env.local
+   ```
+
+3. Add `AI_API_KEY` to `apps/server/.env`. Adjust `AI_PROVIDER`,
+   `AI_BASE_URL`, and `AI_MODEL` when using another OpenAI-compatible provider.
+
+4. Apply database migrations:
+
+   ```bash
+   pnpm --filter server migration:run
+   ```
+
+5. Start the product surfaces in separate terminals:
+
+   ```bash
+   pnpm --filter server start:dev
+   pnpm --filter web dev
+   pnpm --filter extension dev
+   ```
+
+The default development URLs are:
+
+- Web application: `http://localhost:3000`
+- API: `http://localhost:3001/api`
+- Swagger UI: `http://localhost:3001/docs` when `ENABLE_SWAGGER=true`
+
+The documentation application currently defaults to port `3001`, which is
+also the API development port. Run it on another port while developing the
+full stack:
+
+```bash
+pnpm --filter docs exec next dev --port 3002
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Load the browser extension
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Running `pnpm --filter extension dev` starts WXT development mode and creates a
+development browser bundle. Follow the WXT terminal instructions, or load the
+generated unpacked extension from the extension's `.output` directory.
 
-```sh
-turbo build --filter=docs
+The extension defaults to:
+
+- Repin API: `http://localhost:3001`
+- Repin web application: `http://localhost:3000`
+
+Use the extension popup to authorize it through the web application. Unpacked
+development extension IDs are accepted when `EXTENSION_CLIENT_IDS` is empty.
+Production environments should configure the permitted extension IDs.
+
+Firefox development and production builds are also available:
+
+```bash
+pnpm --filter extension dev:firefox
+pnpm --filter extension build:firefox
 ```
 
-Without global `turbo`:
+## Docker Compose
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+Copy the root environment template and configure the AI provider:
+
+```bash
+cp .env.example .env
+docker compose up --build
 ```
 
-### Develop
+This starts the web application, API, PostgreSQL, and Redis. The server
+container applies TypeORM migrations before starting.
 
-To develop all apps and packages, run the following command:
+The extension is a build artifact rather than a long-running service. Export a
+Chromium MV3 bundle to `extension-dist` with:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+```bash
+docker compose --profile extension run --rm extension
 ```
 
-Without global `turbo`, use your package manager:
+The default credentials in the example and Compose files are for local
+development only. Replace all secrets in deployed environments.
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+## Common commands
+
+Run commands from the repository root unless noted otherwise.
+
+```bash
+# Build every buildable workspace
+pnpm build
+
+# Lint the workspace
+pnpm lint
+
+# Type-check the workspace
+pnpm check-types
+
+# Format TypeScript, TSX, and Markdown
+pnpm format
+
+# Run server unit tests
+pnpm --filter server test
+
+# Run server end-to-end tests
+pnpm --filter server test:e2e
+
+# Build browser-extension archives
+pnpm --filter extension zip
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Useful migration commands:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
+```bash
+pnpm --filter server migration:show
+pnpm --filter server migration:run
+pnpm --filter server migration:revert
+pnpm --filter server migration:create -- MigrationName
+pnpm --filter server migration:generate -- MigrationName
 ```
 
-Without global `turbo`:
+## Configuration
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+The authoritative templates are:
 
-### Remote Caching
+- Root Docker Compose configuration: [`.env.example`](./.env.example)
+- Server configuration: [`apps/server/.env.example`](./apps/server/.env.example)
+- Web server-side proxy configuration:
+  [`apps/web/.env.example`](./apps/web/.env.example)
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Core server configuration groups include:
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+- PostgreSQL and Redis connections
+- JWT secrets and token lifetimes
+- Allowed CORS origins and extension client IDs
+- AI provider, model, base URL, API key, and request timeout
+- Assistant queue rate limits, scaling thresholds, and run deadlines
+- Swagger and OpenTelemetry settings
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+Never commit real credentials or production secrets.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## API and runtime notes
 
-```sh
-cd my-turborepo
-turbo login
-```
+- All REST endpoints use the `/api` prefix.
+- Authentication supports secure cookies for the web app and bearer tokens for
+  extension flows.
+- Assistant and workflow progress is streamed using authenticated
+  Server-Sent Events, with persisted state available for reconnection.
+- Extension browser sessions connect through the authenticated
+  `/api/browser-sessions/connect` WebSocket upgrade endpoint.
+- Potentially consequential browser tools require explicit approval according
+  to the browser action policy.
+- Interactive and long-running browser work use separate BullMQ queues to keep
+  ordinary assistant responses responsive.
 
-Without global `turbo`, use your package manager:
+More detailed server notes live in:
 
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
+- [`apps/server/src/shared/docs/execution-foundation.md`](./apps/server/src/shared/docs/execution-foundation.md)
+- [`apps/server/src/shared/docs/workflow-runtime.md`](./apps/server/src/shared/docs/workflow-runtime.md)
+- [`apps/server/src/shared/docs/task-routing.md`](./apps/server/src/shared/docs/task-routing.md)
+- [`apps/server/src/shared/docs/memory.md`](./apps/server/src/shared/docs/memory.md)
+- [`apps/server/src/shared/docs/prompts.md`](./apps/server/src/shared/docs/prompts.md)
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+## Engineering expectations
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Contributions should preserve the product's cross-client architecture and
+provider-neutral agent runtime. Keep implementations focused, typed, secure,
+and proportional to the requirement. Reuse shared contracts and UI primitives,
+avoid placing business logic in controllers or extension content scripts, and
+add migrations for every database schema change.
