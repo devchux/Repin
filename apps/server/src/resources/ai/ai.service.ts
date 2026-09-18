@@ -45,6 +45,14 @@ export class AiService {
     return provider.stream(options);
   }
 
+  embed(input: readonly string[]): Promise<readonly number[][]> {
+    const provider = this.getProvider();
+    if (!provider.embed) {
+      throw new Error('The configured AI provider does not support embeddings');
+    }
+    return provider.embed(input);
+  }
+
   private getProvider(): AiProvider {
     if (!this.provider) {
       throw new Error('AI provider is not configured');

@@ -13,6 +13,7 @@ import { ExecutionService } from './execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
 import { getBrowserToolDescriptor } from '../../tools/policy/browser-tool-descriptors';
 import type { BrowserToolResult } from '../../tools/types/browser-tool.types';
+import type { ToolResult } from '../../tools/types/application-tool.types';
 import { randomUUID } from 'node:crypto';
 import {
   BrowserCommandOutcomeUnknownError,
@@ -258,7 +259,10 @@ export class LoopService {
       if (!this.toolsService.supports(toolCall.name)) {
         throw new Error(`Unsupported tool: ${toolCall.name}`);
       }
-      if (!run.browserSessionId) {
+      if (
+        this.toolsService.requiresBrowserSession(toolCall.name) &&
+        !run.browserSessionId
+      ) {
         throw new Error('No browser session is associated with this run');
       }
 
@@ -350,10 +354,10 @@ export class LoopService {
   private async verifyTool(
     run: Run,
     toolCall: AiToolCall,
-    result: BrowserToolResult,
+    result: ToolResult,
     signal?: AbortSignal,
   ): Promise<unknown> {
-    if (!this.toolsService.supports(toolCall.name)) return undefined;
+    if (!this.toolsService.supportsBrowser(toolCall.name)) return undefined;
     const descriptor = getBrowserToolDescriptor(toolCall.name);
     if (!descriptor.verifyAfterExecution) return undefined;
 
@@ -362,7 +366,7 @@ export class LoopService {
       toolName: toolCall.name,
     });
     try {
-      const tabId = this.readResultTabId(result);
+      const tabId = this.readResultTabId(result as BrowserToolResult);
       const evidence = tabId
         ? await this.toolsService.execute(
             { name: 'browser_get_navigation_state', arguments: { tabId } },

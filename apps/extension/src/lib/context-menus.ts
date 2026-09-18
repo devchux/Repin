@@ -1,6 +1,6 @@
 import { openPageSidebar } from "./sidebar-activation";
 import { getExtensionWebUrl } from "../auth/extension-auth-client";
-import { PAGE_ACTIONS } from "./page-actions";
+import { PAGE_ACTIONS } from "./page/page-actions";
 
 const REPIN_MENU_ID = "repin.page-actions";
 const OPEN_DASHBOARD_MENU_ID = "repin.open-dashboard";

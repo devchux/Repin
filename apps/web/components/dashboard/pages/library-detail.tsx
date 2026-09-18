@@ -2,7 +2,7 @@
 
 import { DetailShell } from "@/components/dashboard/features/library/detail-shell";
 import { Meta } from "@/components/dashboard/features/library/meta";
-import type { BookmarkItem, HighlightItem, NoteItem } from "@/lib/library-data";
+import type { BookmarkItem, HighlightItem } from "@/lib/library-data";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
 import {
@@ -15,6 +15,11 @@ import {
   Trash2,
 } from "@repo/ui/icons";
 import { useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useFetch } from "@/hooks/useFetch";
+import { api } from "@/lib/api";
+import type { Note } from "@repo/contracts/note";
 
 export function BookmarkDetail({ item }: { readonly item: BookmarkItem }) {
   return (
@@ -70,15 +75,67 @@ export function BookmarkDetail({ item }: { readonly item: BookmarkItem }) {
 }
 
 export function NoteDetail({
-  item,
+  noteId,
   isNew = false,
 }: {
-  readonly item?: NoteItem;
+  readonly noteId?: string;
   readonly isNew?: boolean;
 }) {
-  const [title, setTitle] = useState(item?.title ?? "");
-  const [body, setBody] = useState(item?.body ?? "");
+  const router = useRouter();
+  const note = useFetch<Note>(noteId ? `/notes/${noteId}` : "/notes", {
+    enabled: Boolean(noteId),
+    hideToast: "all",
+  });
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const item = note.data?.data.data;
+
+  useEffect(() => {
+    if (!item) return;
+    setTitle(item.title);
+    setBody(item.body);
+    setSaved(true);
+  }, [item]);
+
+  const save = async () => {
+    if (!title.trim() || !body.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      if (noteId) {
+        await api.patch("base", `/notes/${noteId}`, { title, body });
+        setSaved(true);
+        void note.refetch();
+      } else {
+        const response = await api.post<Note>("base", "/notes", { title, body });
+        router.replace(`/notes/${response.data.data.id}`);
+      }
+    } catch {
+      setError("Note could not be saved. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!noteId || !window.confirm("Delete this note?")) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.delete("base", `/notes/${noteId}`);
+      router.replace("/notes");
+    } catch {
+      setError("Note could not be deleted. Please try again.");
+      setDeleting(false);
+    }
+  };
+
+  if (noteId && note.isLoading) return <p className="p-6">Loading note…</p>;
+  if (noteId && note.isError) return <p className="p-6 text-destructive">Note could not be loaded.</p>;
   return (
     <DetailShell
       back="/notes"
@@ -86,8 +143,8 @@ export function NoteDetail({
       icon={<FileText />}
       aside={
         <>
-          <Meta label="Last updated" value={item?.updatedAt ?? "Not saved"} />
-          <Meta label="Source" value={item?.sourceLabel ?? "Personal note"} />
+          <Meta label="Last updated" value={item ? new Date(item.updatedAt).toLocaleString() : "Not saved"} />
+          <Meta label="Source" value={item?.sourceUrl ? new URL(item.sourceUrl).hostname : "Personal note"} />
           <Meta
             label="Words"
             value={String(body.trim() ? body.trim().split(/\s+/).length : 0)}
@@ -112,8 +169,9 @@ export function NoteDetail({
         className="mt-2 w-full bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/50 md:text-4xl"
       />
       <div className="mt-8 border-y py-3 text-xs text-muted-foreground">
-        {saved ? "All changes saved" : "Draft saved locally"}
+        {saving ? "Saving…" : saved ? "All changes saved" : "Unsaved changes"}
       </div>
+      {error ? <p role="alert" className="mt-3 text-sm text-destructive">{error}</p> : null}
       <label className="sr-only" htmlFor="note-body">
         Note
       </label>
@@ -128,13 +186,13 @@ export function NoteDetail({
         className="mt-6 min-h-72 w-full resize-none bg-transparent text-base leading-8 outline-none placeholder:text-muted-foreground/50"
       />
       <div className="mt-8 flex items-center justify-between border-t pt-5">
-        <Button variant="ghost" className="text-destructive">
+        <Button variant="ghost" className="text-destructive" disabled={!noteId || deleting} onClick={() => void remove()}>
           <Trash2 />
           Delete
         </Button>
-        <Button onClick={() => setSaved(true)} disabled={!title.trim()}>
+        <Button onClick={() => void save()} disabled={!title.trim() || !body.trim() || saving || deleting}>
           <Save />
-          Save note
+          {saving ? "Saving…" : "Save note"}
         </Button>
       </div>
     </DetailShell>

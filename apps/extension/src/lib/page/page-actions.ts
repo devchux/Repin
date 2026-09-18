@@ -9,8 +9,8 @@ export const PAGE_ACTIONS = [
   },
   {
     id: "repin.save-page",
-    label: "Save page",
-    menuTitle: "Save page",
+    label: "Repin bookmark",
+    menuTitle: "Save Repin bookmark",
     mode: "save",
   },
   {

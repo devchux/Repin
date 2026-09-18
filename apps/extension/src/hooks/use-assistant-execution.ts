@@ -15,7 +15,7 @@ import {
   getAssistantRunApprovals,
   resumeAssistantRun,
 } from "../assistant/assistant-run-client";
-import { extractPageContext } from "../lib/page-context";
+import { extractPageContext } from "../lib/page/page-context";
 import { dispatchTask } from "../assistant/workflow-client";
 import { useEventStream } from "./use-event-stream";
 

@@ -1,7 +1,7 @@
 import type { BrowserActionApproval } from "@repo/contracts/assistant";
 import { Button } from "@repo/ui/button";
 import { BROWSER_TOOL_LABELS } from "@/lib/constants";
-import { formatBrowserActionLabel, formatDisplayValue } from "@/lib/utils";
+import { encodeFileAsBase64, formatBrowserActionLabel, formatDisplayValue } from "@/lib/utils";
 import {
   AlertTriangle,
   Check,
@@ -10,21 +10,6 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-
-const encodeFile = async (file: File) => {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () =>
-      reject(reader.error ?? new Error("File could not be read"));
-    reader.onload = () => resolve(String(reader.result));
-    reader.readAsDataURL(file);
-  });
-  return {
-    dataBase64: dataUrl.slice(dataUrl.indexOf(",") + 1),
-    name: file.name,
-    type: file.type,
-  };
-};
 
 export const ApprovalPanel = ({
   approval,
@@ -67,7 +52,10 @@ export const ApprovalPanel = ({
     try {
       await browser.runtime.sendMessage({
         type: "repin.files.stage",
-        payload: { fileIds, files: await Promise.all(files.map(encodeFile)) },
+        payload: {
+          fileIds,
+          files: await Promise.all(files.map(encodeFileAsBase64)),
+        },
       });
       setFilesStaged(true);
       setFileError(undefined);

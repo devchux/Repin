@@ -104,6 +104,8 @@ describe('LoopService', () => {
         },
       ]),
       supports: jest.fn().mockReturnValue(true),
+      supportsBrowser: jest.fn().mockReturnValue(true),
+      requiresBrowserSession: jest.fn().mockReturnValue(true),
       execute: jest.fn().mockResolvedValue([
         {
           id: 'tab-1',
@@ -238,6 +240,64 @@ describe('LoopService', () => {
           }),
           { role: 'user', content: 'Help me' },
         ],
+        }),
+    );
+  });
+  it('records application tools without requiring a browser session', async () => {
+    const runWithoutBrowser = { id: 'run-2', userId: 9 } as Run;
+    const aiService = {
+      generate: jest
+        .fn()
+        .mockResolvedValueOnce({
+          provider: 'test',
+          model: 'model',
+          content: '',
+          toolCalls: [
+            {
+              id: 'call-save',
+              name: 'bookmark_page',
+              arguments: {
+                url: 'https://example.com/article',
+                title: 'Example article',
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          provider: 'test',
+          model: 'model',
+          content: 'The page is saved.',
+        }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+      supports: jest.fn().mockReturnValue(true),
+      supportsBrowser: jest.fn().mockReturnValue(false),
+      requiresBrowserSession: jest.fn().mockReturnValue(false),
+      execute: jest.fn().mockResolvedValue({
+        bookmarkId: 'bookmark-1',
+        created: true,
+        url: 'https://example.com/article',
+        title: 'Example article',
+      }),
+    } as unknown as ToolsService;
+
+    const result = await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+    ).run(runWithoutBrowser, []);
+
+    expect(result.content).toBe('The page is saved.');
+    expect(toolsService.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'bookmark_page' }),
+      expect.objectContaining({ userId: 9, runId: 'run-2' }),
+    );
+    expect(execution.completeStep).toHaveBeenCalledWith(
+      'step-1',
+      expect.objectContaining({
+        success: true,
+        result: expect.objectContaining({ bookmarkId: 'bookmark-1' }),
       }),
     );
   });
@@ -280,6 +340,8 @@ describe('LoopService', () => {
     const toolsService = {
       getDefinitions: jest.fn().mockReturnValue([]),
       supports: jest.fn().mockReturnValue(true),
+      supportsBrowser: jest.fn().mockReturnValue(true),
+      requiresBrowserSession: jest.fn().mockReturnValue(true),
       execute: jest.fn().mockResolvedValue([]),
     } as unknown as ToolsService;
 
