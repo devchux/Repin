@@ -5,34 +5,34 @@ import {
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import type { AiTool } from '../ai/types/provider';
+import type { AiTool } from '../../ai/types/provider';
 import { BookmarkService } from '../bookmark/bookmark.service';
-import { HighlightService } from '../highlight/highlight.service';
-import { executeBookmarkPageTool } from './application/bookmark-page-tool.handler';
-import { executeHighlightSelectionTool } from './application/highlight-selection-tool.handler';
-import { executeSearchBookmarksTool } from './application/search-bookmarks-tool.handler';
-import { dispatchBrowserTool } from './browser/browser-tool.dispatcher';
-import { TOOL_DEFINITIONS } from './definitions';
-import { BrowserActionPolicyService } from './policy/browser-action-policy.service';
-import { getBrowserToolDescriptor } from './policy/browser-tool-descriptors';
-import { BrowserToolApprovalService } from './policy/browser-tool-approval.service';
+import { HighlightService } from '../../highlight/highlight.service';
+import { executeBookmarkPageTool } from '../application/bookmark-page-tool.handler';
+import { executeHighlightSelectionTool } from '../application/highlight-selection-tool.handler';
+import { executeSearchBookmarksTool } from '../application/search-bookmarks-tool.handler';
+import { dispatchBrowserTool } from '../browser/browser-tool.dispatcher';
+import { TOOL_DEFINITIONS } from '../definitions';
+import { BrowserActionPolicyService } from '../policy/browser-action-policy.service';
+import { getBrowserToolDescriptor } from '../policy/browser-tool-descriptors';
+import { BrowserToolApprovalService } from '../policy/browser-tool-approval.service';
 import {
   APPLICATION_TOOL_NAMES,
   ToolCall,
   ToolExecutionContext,
   ToolName,
   ToolResult,
-} from './types/application-tool.types';
+} from '../types/application-tool.types';
 import {
   BROWSER_TOOL_EXECUTOR,
   BROWSER_TOOL_NAMES,
-} from './types/browser-tool.types';
+} from '../types/browser-tool.types';
 import type {
   BrowserToolCall,
   BrowserToolExecutionContext,
   BrowserToolExecutor,
   BrowserToolName,
-} from './types/browser-tool.types';
+} from '../types/browser-tool.types';
 
 const BROWSER_TOOL_NAME_SET: ReadonlySet<string> = new Set(BROWSER_TOOL_NAMES);
 const APPLICATION_TOOL_NAME_SET: ReadonlySet<string> = new Set(

@@ -11,10 +11,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from 'src/shared/types';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CreateBookmarkDto } from './dto/create-bookmark.dto';
-import { FindBookmarksDto } from './dto/find-bookmarks.dto';
-import { UpdateBookmarkDto } from './dto/update-bookmark.dto';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { CreateBookmarkDto } from '../dto/create-bookmark.dto';
+import { FindBookmarksDto } from '../dto/find-bookmarks.dto';
+import { UpdateBookmarkDto } from '../dto/update-bookmark.dto';
 import { BookmarkService } from './bookmark.service';
 
 @ApiTags('Bookmarks')

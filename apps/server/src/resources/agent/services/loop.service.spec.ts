@@ -1,10 +1,10 @@
 import type { AiService } from '../../ai/ai.service';
-import type { ToolsService } from '../../tools/tools.service';
+import type { ToolsService } from '../../tools/services/tools.service';
 import { LoopService } from './loop.service';
 import type { Run } from '../entities/run.entity';
 import type { ExecutionService } from './execution.service';
-import type { MemoryService } from '../../memory/memory.service';
-import type { MemoryToolsService } from '../../memory/tools.service';
+import type { MemoryService } from '../../memory/services/memory.service';
+import type { MemoryToolsService } from '../../memory/services/tools.service';
 
 const run = {
   id: 'run-1',

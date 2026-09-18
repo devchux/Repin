@@ -5,7 +5,7 @@ import type {
   AiToolCall,
 } from '../../ai/types/provider';
 import { AiService } from '../../ai/ai.service';
-import { ToolsService } from '../../tools/tools.service';
+import { ToolsService } from '../../tools/services/tools.service';
 import type { Run } from '../entities/run.entity';
 import { MAX_ITERATIONS } from '../constants';
 import type { AssistantAgentDecision } from '@repo/contracts/assistant';
@@ -24,8 +24,8 @@ import {
   TelemetryAttributes,
   traceOperation,
 } from '@repo/observability';
-import { MemoryService } from '../../memory/memory.service';
-import { MemoryToolsService } from '../../memory/tools.service';
+import { MemoryService } from '../../memory/services/memory.service';
+import { MemoryToolsService } from '../../memory/services/tools.service';
 import type { ContextManifest } from '@repo/contracts/context';
 
 @Injectable()

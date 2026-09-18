@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { CacheService } from '../cache/cache.service';
-import { AuthService } from './auth.service';
-import { MockMailService } from './mock-mail.service';
-import { UserService } from '../user/user.service';
-import { AuthTokenService } from './services/auth-token.service';
-import { ExtensionAuthService } from './services/extension-auth.service';
+import { CacheService } from '../../cache/cache.service';
+import { AuthService } from '../auth.service';
+import { MockMailService } from '../mock-mail.service';
+import { UserService } from '../../user/user.service';
+import { AuthTokenService } from './auth-token.service';
+import { ExtensionAuthService } from './extension-auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;

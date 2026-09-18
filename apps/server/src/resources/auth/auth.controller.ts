@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
+import { AuthService } from './services/auth.service';
 import {
   AUTH_COOKIE_NAME,
   REFRESH_AUTH_COOKIE_NAME,

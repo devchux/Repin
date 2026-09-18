@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { AiService } from '../ai/ai.service';
-import { Memory } from './entities/memory.entity';
+import { AiService } from '../../ai/ai.service';
+import { Memory } from '../entities/memory.entity';
 
 @Injectable()
 export class MemoryEmbeddingService {

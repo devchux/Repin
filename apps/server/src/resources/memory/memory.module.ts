@@ -3,13 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Memory } from './entities/memory.entity';
 import { MemorySource } from './entities/memory-source.entity';
 import { MemoryController } from './memory.controller';
-import { MemoryService } from './memory.service';
-import { MemoryToolsService } from './tools.service';
+import { MemoryService } from './services/memory.service';
+import { MemoryToolsService } from './services/tools.service';
 import { LibraryModule } from '../library/library.module';
 import { AiModule } from '../ai/ai.module';
 import { BullModule } from '@nestjs/bullmq';
-import { MEMORY_EMBEDDING_QUEUE } from './memory.constants';
-import { MemoryEmbeddingService } from './embedding.service';
+import { MEMORY_EMBEDDING_QUEUE } from './constants';
+import { MemoryEmbeddingService } from './services/embedding.service';
 import { MemoryEmbeddingProcessor } from './embedding.processor';
 import { MemoryEmbeddingScheduler } from './embedding.scheduler';
 

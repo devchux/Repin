@@ -2,15 +2,15 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { BROWSER_TOOL_DEFINITIONS, TOOL_DEFINITIONS } from './definitions';
+import { BROWSER_TOOL_DEFINITIONS, TOOL_DEFINITIONS } from '../definitions';
 import { BookmarkService } from '../bookmark/bookmark.service';
-import { HighlightService } from '../highlight/highlight.service';
-import { ToolsService } from './tools.service';
+import { HighlightService } from '../../highlight/highlight.service';
+import { ToolsService } from '../tools.service';
 import type {
   BrowserToolExecutionContext,
   BrowserToolExecutor,
-} from './types/browser-tool.types';
-import { BROWSER_TOOL_NAMES } from './types/browser-tool.types';
+} from '../types/browser-tool.types';
+import { BROWSER_TOOL_NAMES } from '../types/browser-tool.types';
 
 const context: BrowserToolExecutionContext = {
   userId: 7,

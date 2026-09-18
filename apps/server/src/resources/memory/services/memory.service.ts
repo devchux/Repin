@@ -9,14 +9,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import type { MemorySourceType, MemoryTrust } from '@repo/contracts/memory';
 import { Brackets, Repository } from 'typeorm';
-import { CreateMemoryDto } from './dto/create-memory.dto';
-import { FindMemoriesDto, FindMemoryContextDto } from './dto/find-memories.dto';
-import { Memory } from './entities/memory.entity';
-import { MemorySource } from './entities/memory-source.entity';
-import { LibraryService } from '../library/library.service';
-import { CreateMemoryFromSourceDto } from './dto/create-memory-from-source.dto';
+import { CreateMemoryDto } from '../dto/create-memory.dto';
+import { FindMemoriesDto, FindMemoryContextDto } from '../dto/find-memories.dto';
+import { Memory } from '../entities/memory.entity';
+import { MemorySource } from '../entities/memory-source.entity';
+import { LibraryService } from '../../library/library.service';
+import { CreateMemoryFromSourceDto } from '../dto/create-memory-from-source.dto';
 import type { LibraryItemType } from '@repo/contracts/library';
-import { AiService } from '../ai/ai.service';
+import { AiService } from '../../ai/ai.service';
 import type { MemoryKind, MemoryScope } from '@repo/contracts/memory';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
@@ -24,7 +24,7 @@ import {
   EMBED_MEMORY_JOB,
   MEMORY_EMBEDDING_QUEUE,
   MEMORY_RANKING,
-} from './memory.constants';
+} from '../constants';
 import {
   MemoryTelemetryEvents,
   TelemetryAttributes,

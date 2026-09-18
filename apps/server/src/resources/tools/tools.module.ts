@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ToolsService } from './tools.service';
+import { ToolsService } from './services/tools.service';
 import { ExtensionBrowserExecutor } from './executors/extension-browser.executor';
 import { BROWSER_TOOL_EXECUTOR } from './types/browser-tool.types';
 import { AuthModule } from '../auth/auth.module';

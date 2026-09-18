@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { AiTool } from '../ai/types/provider';
+import type { AiTool } from '../../ai/types/provider';
 import type { MemoryKind, MemoryScope } from '@repo/contracts/memory';
 import { MemoryService } from './memory.service';
 

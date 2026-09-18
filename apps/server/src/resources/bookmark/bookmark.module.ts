@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Bookmark } from './entities/bookmark.entity';
-import { BookmarkController } from './bookmark.controller';
+import { BookmarkController } from './controllers/bookmark.controller';
 import { BookmarkService } from './bookmark.service';
 import { AiModule } from '../ai/ai.module';
 import { BookmarkCollection } from './entities/collection.entity';
 import { BookmarkCollectionItem } from './entities/collection-item.entity';
-import { BookmarkCollectionController } from './collection.controller';
+import { BookmarkCollectionController } from './controllers/collection.controller';
 import { BookmarkCollectionService } from './collection.service';
 import { BookmarkEnrichmentService } from './enrichment.service';
 import { BullModule } from '@nestjs/bullmq';

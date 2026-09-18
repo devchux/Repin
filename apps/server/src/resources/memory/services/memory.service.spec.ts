@@ -1,10 +1,10 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
-import { Memory } from './entities/memory.entity';
+import { Memory } from '../entities/memory.entity';
 import { MemoryService } from './memory.service';
-import { MemorySource } from './entities/memory-source.entity';
-import type { LibraryService } from '../library/library.service';
-import type { AiService } from '../ai/ai.service';
+import { MemorySource } from '../entities/memory-source.entity';
+import type { LibraryService } from '../../library/library.service';
+import type { AiService } from '../../ai/ai.service';
 import type { Queue } from 'bullmq';
 
 describe('MemoryService', () => {
