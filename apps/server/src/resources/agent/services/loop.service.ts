@@ -24,6 +24,7 @@ import {
   traceOperation,
 } from '@repo/observability';
 import { MemoryService } from '../../memory/memory.service';
+import { MemoryToolsService } from '../../memory/memory-tools.service';
 
 @Injectable()
 export class LoopService {
@@ -32,6 +33,7 @@ export class LoopService {
     private readonly toolsService: ToolsService,
     private readonly execution: ExecutionService,
     private readonly memoryService: MemoryService,
+    private readonly memoryTools: MemoryToolsService,
   ) {}
 
   async run(
@@ -120,7 +122,10 @@ export class LoopService {
       try {
         result = await this.aiService.generate({
           messages,
-          tools: [...this.toolsService.getDefinitions()],
+          tools: [
+            ...this.toolsService.getDefinitions(),
+            ...this.memoryTools.getDefinitions(),
+          ],
           signal,
         });
         await this.execution.completeStep(modelStep.id, {
@@ -228,8 +233,26 @@ export class LoopService {
     });
 
     try {
+      if (this.memoryTools.supports(toolCall.name)) {
+        const result = await this.memoryTools.execute(
+          { name: toolCall.name, arguments: toolCall.arguments },
+          {
+            userId: run.userId,
+            runId: run.id,
+            userInput: run.input,
+            currentUrl: run.context?.url,
+            currentDomain: this.readDomain(run.context?.url),
+          },
+        );
+        await this.execution.completeStep(step.id, { success: true, result });
+        return {
+          role: 'tool',
+          toolCallId: toolCall.id,
+          content: JSON.stringify({ success: true, result }),
+        };
+      }
       if (!this.toolsService.supports(toolCall.name)) {
-        throw new Error(`Unsupported browser tool: ${toolCall.name}`);
+        throw new Error(`Unsupported tool: ${toolCall.name}`);
       }
       if (!run.browserSessionId) {
         throw new Error('No browser session is associated with this run');
@@ -377,5 +400,14 @@ export class LoopService {
       return result.tab.id;
     }
     return undefined;
+  }
+
+  private readDomain(url?: string): string | undefined {
+    if (!url) return undefined;
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return undefined;
+    }
   }
 }

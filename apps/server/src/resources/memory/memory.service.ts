@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,14 +10,32 @@ import { Brackets, Repository } from 'typeorm';
 import { CreateMemoryDto } from './dto/create-memory.dto';
 import { FindMemoriesDto, FindMemoryContextDto } from './dto/find-memories.dto';
 import { Memory } from './entities/memory.entity';
+import { MemorySource } from './entities/memory-source.entity';
+import { LibraryService } from '../library/library.service';
+import { CreateMemoryFromSourceDto } from './dto/create-memory-from-source.dto';
+import type { LibraryItemType } from '@repo/contracts/library';
 
-const UNTRUSTED_SOURCES = new Set<MemorySourceType>(['webpage']);
+const UNTRUSTED_SOURCES = new Set<MemorySourceType>([
+  'webpage',
+  'highlight',
+  'bookmark',
+]);
+
+const LIBRARY_MEMORY_SOURCE: Record<LibraryItemType, MemorySourceType> = {
+  note: 'note',
+  highlight: 'highlight',
+  bookmark: 'bookmark',
+  page: 'webpage',
+};
 
 @Injectable()
 export class MemoryService {
   constructor(
     @InjectRepository(Memory)
     private readonly memories: Repository<Memory>,
+    @InjectRepository(MemorySource)
+    private readonly sources: Repository<MemorySource>,
+    private readonly library: LibraryService,
   ) {}
 
   async create(userId: number, request: CreateMemoryDto) {
@@ -66,6 +85,37 @@ export class MemoryService {
 
     const data = await query.getMany();
     return { message: 'Memories found successfully', data };
+  }
+
+  async createFromSource(userId: number, request: CreateMemoryFromSourceDto) {
+    const item = await this.library.findOwned(userId, request.sourceId);
+    const content = request.content.trim();
+    const sourceType = LIBRARY_MEMORY_SOURCE[item.type];
+    const duplicate = await this.sources
+      .createQueryBuilder('source')
+      .innerJoin('source.memory', 'memory')
+      .where('memory.userId = :userId', { userId })
+      .andWhere('source.type = :sourceType', { sourceType })
+      .andWhere('source.sourceId = :sourceId', { sourceId: item.id })
+      .andWhere('LOWER(TRIM(memory.content)) = LOWER(:content)', { content })
+      .getOne();
+    if (duplicate) {
+      throw new ConflictException(
+        'This source has already created that memory',
+      );
+    }
+
+    return this.create(userId, {
+      content,
+      kind: request.kind,
+      scope: request.scope,
+      scopeId: request.scopeId,
+      source: {
+        type: sourceType,
+        sourceId: item.id,
+        url: item.url,
+      },
+    });
   }
 
   async findContext(userId: number, request: FindMemoryContextDto) {

@@ -12,6 +12,7 @@ import { AssistantModule } from './resources/assistant/assistant.module';
 import { WorkflowModule } from './resources/workflow/workflow.module';
 import { TaskModule } from './resources/task/task.module';
 import { MemoryModule } from './resources/memory/memory.module';
+import { LibraryModule } from './resources/library/library.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { MemoryModule } from './resources/memory/memory.module';
     WorkflowModule,
     TaskModule,
     MemoryModule,
+    LibraryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

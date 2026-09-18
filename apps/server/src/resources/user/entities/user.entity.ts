@@ -6,6 +6,7 @@ import { BrowserToolApproval } from '../../tools/policy/browser-tool-approval.en
 import { Definition } from '../../workflow/entities/definition.entity';
 import { Instance } from '../../workflow/entities/instance.entity';
 import { Memory } from '../../memory/entities/memory.entity';
+import { LibraryItem } from '../../library/entities/library-item.entity';
 
 @Entity()
 export class User extends Base {
@@ -38,4 +39,7 @@ export class User extends Base {
 
   @OneToMany(() => Memory, (memory) => memory.user)
   memories: Memory[];
+
+  @OneToMany(() => LibraryItem, (item) => item.user)
+  libraryItems: LibraryItem[];
 }

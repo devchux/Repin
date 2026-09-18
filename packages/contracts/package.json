@@ -11,6 +11,7 @@
     "./workflow": "./src/workflow.ts",
     "./task": "./src/task.ts",
     "./memory": "./src/memory.ts",
+    "./library": "./src/library.ts",
     "./schema": "./src/schema.ts"
   },
   "scripts": {

@@ -14,6 +14,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateMemoryDto } from './dto/create-memory.dto';
 import { FindMemoriesDto, FindMemoryContextDto } from './dto/find-memories.dto';
 import { MemoryService } from './memory.service';
+import { CreateMemoryFromSourceDto } from './dto/create-memory-from-source.dto';
 
 @ApiTags('Memories')
 @Controller('memories')
@@ -23,6 +24,14 @@ export class MemoryController {
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() request: CreateMemoryDto) {
     return this.memories.create(user.id, request);
+  }
+
+  @Post('from-source')
+  createFromSource(
+    @CurrentUser() user: AuthUser,
+    @Body() request: CreateMemoryFromSourceDto,
+  ) {
+    return this.memories.createFromSource(user.id, request);
   }
 
   @Get()

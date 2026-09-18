@@ -4,6 +4,7 @@ import { LoopService } from './loop.service';
 import type { Run } from '../entities/run.entity';
 import type { ExecutionService } from './execution.service';
 import type { MemoryService } from '../../memory/memory.service';
+import type { MemoryToolsService } from '../../memory/memory-tools.service';
 
 const run = {
   id: 'run-1',
@@ -26,6 +27,11 @@ describe('LoopService', () => {
   const memoryService = {
     getContext: jest.fn().mockResolvedValue([]),
   } as unknown as MemoryService;
+  const memoryTools = {
+    getDefinitions: jest.fn().mockReturnValue([]),
+    supports: jest.fn().mockReturnValue(false),
+    execute: jest.fn(),
+  } as unknown as MemoryToolsService;
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -77,6 +83,7 @@ describe('LoopService', () => {
       toolsService,
       execution,
       memoryService,
+      memoryTools,
     );
 
     const result = await loop.run(run, [
@@ -138,6 +145,7 @@ describe('LoopService', () => {
       toolsService,
       execution,
       memoryService,
+      memoryTools,
     ).run(run, []);
 
     expect(result.content).toBe('I cannot do that.');
@@ -146,7 +154,7 @@ describe('LoopService', () => {
         messages: expect.arrayContaining([
           expect.objectContaining({
             role: 'tool',
-            content: expect.stringContaining('Unsupported browser tool'),
+            content: expect.stringContaining('Unsupported tool'),
           }),
         ]),
       }),
@@ -178,6 +186,7 @@ describe('LoopService', () => {
       toolsService,
       execution,
       memoryService,
+      memoryTools,
     ).run(run, [{ role: 'user', content: 'Help me' }]);
 
     expect(memoryService.getContext).toHaveBeenCalledWith(9, {
@@ -244,6 +253,7 @@ describe('LoopService', () => {
       toolsService,
       execution,
       memoryService,
+      memoryTools,
     ).run(run, []);
 
     expect(result.content).toBe('Resumed successfully.');

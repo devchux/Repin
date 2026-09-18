@@ -21,5 +21,16 @@ At the start of an agent run, the harness loads at most ten global and
 current-domain memories into one compact system message. It does not repeat the
 lookup on every tool iteration and does not inject full source documents.
 
+The harness also exposes `memory_remember`, `memory_search`, and
+`memory_forget`. Search is read-only. Remember and forget execute only when the
+current user message explicitly asks to save or remove memory; a model tool call
+by itself is not treated as consent.
+
+Saved notes, highlights, bookmarks, and pages live in the separate library
+resource. `POST /api/memories/from-source` verifies that the library item belongs
+to the user, derives trust from its type, and prevents the same source from
+creating an identical memory twice. Forgetting a memory does not delete its
+library source.
+
 Semantic embeddings, automatic extraction, conflict resolution, consolidation,
 and knowledge graphs are deferred until usage data shows they are necessary.
