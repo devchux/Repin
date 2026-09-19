@@ -16,6 +16,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { FindUserDto } from './dto/find-user.dto';
 import { SuperUserGuard } from '../auth/guards/super-user.guard';
 import { SelfOrSuperUserGuard } from '../auth/guards/self-or-super-user.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthUser } from 'src/shared/types';
 
 @ApiTags('User')
 @Controller('user')
@@ -33,7 +35,13 @@ export class UserController {
     return this.userService.findAll(params);
   }
 
+  @Get('me')
+  findCurrent(@CurrentUser() user: AuthUser) {
+    return this.userService.findOne(user.id);
+  }
+
   @Get(':id')
+  @UseGuards(SelfOrSuperUserGuard)
   findOne(@Param('id') id: string) {
     return this.userService.findOne(+id);
   }

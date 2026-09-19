@@ -13,9 +13,7 @@ import {
 } from 'class-validator';
 import { HIGHLIGHT_COLORS } from '../entities/highlight.entity';
 import type { HighlightColor } from '../entities/highlight.entity';
-
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim() : value;
+import { trimStringValue } from 'src/shared/utils/helper';
 
 export class CreateHighlightDto {
   @ApiPropertyOptional({ description: 'Stable UUID for retry-safe creation' })
@@ -29,7 +27,7 @@ export class CreateHighlightDto {
   url: string;
 
   @ApiProperty({ example: 'An article worth reading' })
-  @Transform(trim)
+  @Transform(trimStringValue)
   @IsString()
   @IsNotEmpty()
   @MaxLength(500)

@@ -9,20 +9,18 @@ import {
   IsUrl,
   MaxLength,
 } from 'class-validator';
-
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim() : value;
+import { trimStringValue } from 'src/shared/utils/helper';
 
 export class CreateNoteDto {
   @ApiProperty()
-  @Transform(trim)
+  @Transform(trimStringValue)
   @IsString()
   @IsNotEmpty()
   @MaxLength(500)
   title: string;
 
   @ApiProperty()
-  @Transform(trim)
+  @Transform(trimStringValue)
   @IsString()
   @IsNotEmpty()
   @MaxLength(100_000)

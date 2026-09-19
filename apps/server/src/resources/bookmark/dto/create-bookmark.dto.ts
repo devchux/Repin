@@ -10,6 +10,7 @@ import {
   IsUrl,
   MaxLength,
 } from 'class-validator';
+import { trimStringValue } from 'src/shared/utils/helper';
 
 const HTTP_URL_OPTIONS = {
   protocols: ['http', 'https'],
@@ -31,9 +32,7 @@ export class CreateBookmarkDto {
   canonicalUrl?: string;
 
   @ApiProperty({ example: 'How browser agents work' })
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(trimStringValue)
   @IsString()
   @IsNotEmpty()
   @MaxLength(500)
