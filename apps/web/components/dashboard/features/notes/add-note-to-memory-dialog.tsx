@@ -1,6 +1,10 @@
 "use client";
 
+import { useCreateMemoryFromNote } from "@/hooks/useMemories";
+import { getHost } from "@/lib/utils";
+import { memoryFormSchema, type MemoryFormValues } from "@/schemas/memory";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Memory } from "@repo/contracts/memory";
 import { Button } from "@repo/ui/button";
 import {
   Dialog,
@@ -21,49 +25,44 @@ import {
   FormMessage,
 } from "@repo/ui/form";
 import { Brain, Check, LoaderCircle } from "@repo/ui/icons";
-import type { Memory } from "@repo/contracts/memory";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { useCreateMemoryFromBookmark } from "@/hooks/useMemories";
-import { memoryFormSchema, type MemoryFormValues } from "@/schemas/memory";
-
-export function AddBookmarkToMemoryDialog({
-  bookmarkId,
+export function AddNoteToMemoryDialog({
+  noteId,
   defaultContent,
-  domain,
+  sourceUrl,
   isLoading,
   memory,
 }: {
-  readonly bookmarkId: string;
+  readonly noteId: string;
   readonly defaultContent: string;
-  readonly domain: string;
+  readonly sourceUrl?: string | null;
   readonly isLoading: boolean;
   readonly memory: Memory | null;
 }) {
   const [open, setOpen] = useState(false);
+  const domain = sourceUrl ? getHost(sourceUrl) : undefined;
   const defaults = useMemo<MemoryFormValues>(
     () => ({
       content: (memory?.content ?? defaultContent).slice(0, 4_000),
-      scope: memory?.scope === "domain" ? "domain" : "global",
+      scope: memory?.scope === "domain" && domain ? "domain" : "global",
     }),
-    [defaultContent, memory?.content, memory?.scope],
+    [defaultContent, domain, memory?.content, memory?.scope],
   );
   const form = useForm<MemoryFormValues>({
     resolver: zodResolver(memoryFormSchema),
     defaultValues: defaults,
   });
-  const createMemory = useCreateMemoryFromBookmark(() => {
-    setOpen(false);
-  });
+  const saveMemory = useCreateMemoryFromNote(() => setOpen(false));
 
   useEffect(() => {
     form.reset(defaults);
   }, [defaults, form]);
 
   const submit = (values: MemoryFormValues) => {
-    createMemory.mutate({
-      sourceId: bookmarkId,
+    saveMemory.mutate({
+      sourceId: noteId,
       content: values.content,
       scope: values.scope,
       scopeId: values.scope === "domain" ? domain : undefined,
@@ -97,12 +96,12 @@ export function AddBookmarkToMemoryDialog({
           >
             <DialogHeader>
               <DialogTitle>
-                {memory ? "Update Repin memory" : "Add to Repin memory"}
+                {memory ? "Update note memory" : "Add note to memory"}
               </DialogTitle>
               <DialogDescription>
                 {memory
-                  ? "This bookmark is already in memory. Update what Repin should remember."
-                  : "Save a concise fact or instruction that Repin can recall in future conversations."}
+                  ? "This note is already in memory. Update what Repin should remember."
+                  : "Choose the useful context from this note that Repin should recall later."}
               </DialogDescription>
             </DialogHeader>
             <FormField
@@ -113,9 +112,8 @@ export function AddBookmarkToMemoryDialog({
                   <FormLabel>What should Repin remember?</FormLabel>
                   <FormControl>
                     <textarea
-                      className="min-h-28 w-full resize-y rounded-md border bg-transparent px-3 py-2 text-sm leading-6 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      className="min-h-32 w-full resize-y rounded-md border bg-transparent px-3 py-2 text-sm leading-6 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       maxLength={4_000}
-                      placeholder="The useful fact, preference, or instruction…"
                       {...field}
                     />
                   </FormControl>
@@ -123,37 +121,41 @@ export function AddBookmarkToMemoryDialog({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="scope"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Available in</FormLabel>
-                  <FormControl>
-                    <select
-                      className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                      {...field}
-                    >
-                      <option value="global">All conversations</option>
-                      <option value="domain">Pages from {domain}</option>
-                    </select>
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Domain memories are recalled only when that website is
-                    relevant.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {domain ? (
+              <FormField
+                control={form.control}
+                name="scope"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Available in</FormLabel>
+                    <FormControl>
+                      <select
+                        className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        {...field}
+                      >
+                        <option value="global">All conversations</option>
+                        <option value="domain">Pages from {domain}</option>
+                      </select>
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Domain memory is available only when that source is
+                      relevant.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
             <DialogFooter>
-              <Button disabled={createMemory.isPending} type="submit">
-                {createMemory.isPending ? (
+              <Button type="submit" disabled={saveMemory.isPending}>
+                {saveMemory.isPending ? (
                   <LoaderCircle className="animate-spin" />
+                ) : memory ? (
+                  <Check />
                 ) : (
                   <Brain />
                 )}
-                {createMemory.isPending
+                {saveMemory.isPending
                   ? memory
                     ? "Updating…"
                     : "Adding…"

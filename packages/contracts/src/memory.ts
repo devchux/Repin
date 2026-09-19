@@ -46,10 +46,14 @@ export interface Memory {
   readonly updatedAt: string;
 }
 
-export interface CreateMemoryFromBookmarkRequest {
+export interface CreateMemoryFromSourceRequest {
   readonly sourceId: string;
   readonly content: string;
   readonly kind?: MemoryKind;
   readonly scope?: MemoryScope;
   readonly scopeId?: string;
 }
+
+export type CreateMemoryFromBookmarkRequest = CreateMemoryFromSourceRequest;
+export type CreateMemoryFromNoteRequest = CreateMemoryFromSourceRequest;
+export type CreateMemoryFromHighlightRequest = CreateMemoryFromSourceRequest;

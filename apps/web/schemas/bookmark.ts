@@ -35,16 +35,6 @@ export const updateBookmarkSchema = z.object({
   tags: z.string().max(2_000, "The tags are too long."),
 });
 
-export const bookmarkMemorySchema = z.object({
-  content: z
-    .string()
-    .trim()
-    .min(1, "Enter what Repin should remember.")
-    .max(4_000, "Memory must be 4,000 characters or fewer."),
-  scope: z.enum(["global", "domain"]),
-});
-
 export type CreateBookmarkFormValues = z.infer<typeof createBookmarkSchema>;
 export type CreateCollectionFormValues = z.infer<typeof createCollectionSchema>;
 export type UpdateBookmarkFormValues = z.infer<typeof updateBookmarkSchema>;
-export type BookmarkMemoryFormValues = z.infer<typeof bookmarkMemorySchema>;

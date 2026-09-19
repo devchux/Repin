@@ -38,6 +38,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Configuration } from 'src/shared/types';
 import { BookmarkService } from '../../bookmark/services/bookmark.service';
+import { NoteService } from '../../note/note.service';
+import { HighlightService } from '../../highlight/highlight.service';
 
 const UNTRUSTED_SOURCES = new Set<MemorySourceType>([
   'webpage',
@@ -63,6 +65,8 @@ export class MemoryService {
     private readonly sources: Repository<MemorySource>,
     private readonly library: LibraryService,
     private readonly bookmarks: BookmarkService,
+    private readonly notes: NoteService,
+    private readonly highlights: HighlightService,
     private readonly ai: AiService,
     @Optional()
     @InjectQueue(MEMORY_EMBEDDING_QUEUE)
@@ -150,44 +154,11 @@ export class MemoryService {
       userId,
       request.sourceId,
     );
-    const content = request.content.trim();
-    const existing = await this.findSourceMemory(
-      userId,
-      'bookmark',
-      bookmark.id,
-    );
-
-    if (existing) {
-      const scope = request.scope ?? existing.scope;
-      const scopeId =
-        request.scope === undefined ? existing.scopeId : request.scopeId;
-      this.validateScope(scope, scopeId);
-      const data = await this.memories.save(
-        this.memories.merge(existing, {
-          content,
-          kind: request.kind ?? existing.kind,
-          scope,
-          scopeId: scope === 'global' ? undefined : scopeId,
-          embedding: null,
-          embeddingStatus: 'pending',
-          embeddingError: null,
-          embeddedAt: null,
-        }),
-      );
-      await this.queueEmbedding(data.id, true);
-      return { message: 'Bookmark memory updated successfully', data };
-    }
-
-    return this.create(userId, {
-      content,
-      kind: request.kind,
-      scope: request.scope,
-      scopeId: request.scopeId,
-      source: {
-        type: 'bookmark',
-        sourceId: bookmark.id,
-        url: bookmark.url,
-      },
+    return this.upsertSourceMemory(userId, request, {
+      type: 'bookmark',
+      id: bookmark.id,
+      url: bookmark.url,
+      label: 'Bookmark',
     });
   }
 
@@ -195,6 +166,44 @@ export class MemoryService {
     await this.bookmarks.findOne(userId, bookmarkId);
     const data = await this.findSourceMemory(userId, 'bookmark', bookmarkId);
     return { message: 'Bookmark memory found successfully', data };
+  }
+
+  async createFromNote(userId: number, request: CreateMemoryFromSourceDto) {
+    const { data: note } = await this.notes.findOne(userId, request.sourceId);
+    return this.upsertSourceMemory(userId, request, {
+      type: 'note',
+      id: note.id,
+      url: note.sourceUrl ?? undefined,
+      label: 'Note',
+    });
+  }
+
+  async findByNote(userId: number, noteId: string) {
+    await this.notes.findOne(userId, noteId);
+    const data = await this.findSourceMemory(userId, 'note', noteId);
+    return { message: 'Note memory found successfully', data };
+  }
+
+  async createFromHighlight(
+    userId: number,
+    request: CreateMemoryFromSourceDto,
+  ) {
+    const { data: highlight } = await this.highlights.findOne(
+      userId,
+      request.sourceId,
+    );
+    return this.upsertSourceMemory(userId, request, {
+      type: 'highlight',
+      id: highlight.id,
+      url: highlight.url,
+      label: 'Highlight',
+    });
+  }
+
+  async findByHighlight(userId: number, highlightId: string) {
+    await this.highlights.findOne(userId, highlightId);
+    const data = await this.findSourceMemory(userId, 'highlight', highlightId);
+    return { message: 'Highlight memory found successfully', data };
   }
 
   async findContext(userId: number, request: FindMemoryContextDto) {
@@ -420,6 +429,57 @@ export class MemoryService {
       .where('memory.userId = :userId', { userId })
       .orderBy('memory.updatedAt', 'DESC')
       .getOne();
+  }
+
+  private async upsertSourceMemory(
+    userId: number,
+    request: CreateMemoryFromSourceDto,
+    source: {
+      readonly type: 'bookmark' | 'note' | 'highlight';
+      readonly id: string;
+      readonly url?: string;
+      readonly label: 'Bookmark' | 'Note' | 'Highlight';
+    },
+  ) {
+    const content = request.content.trim();
+    const existing = await this.findSourceMemory(
+      userId,
+      source.type,
+      source.id,
+    );
+
+    if (!existing) {
+      return this.create(userId, {
+        content,
+        kind: request.kind,
+        scope: request.scope,
+        scopeId: request.scopeId,
+        source: {
+          type: source.type,
+          sourceId: source.id,
+          url: source.url,
+        },
+      });
+    }
+
+    const scope = request.scope ?? existing.scope;
+    const scopeId =
+      request.scope === undefined ? existing.scopeId : request.scopeId;
+    this.validateScope(scope, scopeId);
+    const data = await this.memories.save(
+      this.memories.merge(existing, {
+        content,
+        kind: request.kind ?? existing.kind,
+        scope,
+        scopeId: scope === 'global' ? undefined : scopeId,
+        embedding: null,
+        embeddingStatus: 'pending',
+        embeddingError: null,
+        embeddedAt: null,
+      }),
+    );
+    await this.queueEmbedding(data.id, true);
+    return { message: `${source.label} memory updated successfully`, data };
   }
 
   private trustFor(type: MemorySourceType): MemoryTrust {

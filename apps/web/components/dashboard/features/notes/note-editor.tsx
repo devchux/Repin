@@ -1,9 +1,11 @@
 "use client";
 
 import { DeleteNoteDialog } from "@/components/dashboard/features/notes/delete-note-dialog";
+import { AddNoteToMemoryDialog } from "@/components/dashboard/features/notes/add-note-to-memory-dialog";
 import { DetailShell } from "@/components/dashboard/features/library/detail-shell";
 import { Meta } from "@/components/dashboard/features/library/meta";
 import { useCreateNote, useNote, useUpdateNote } from "@/hooks/useNotes";
+import { useNoteMemory } from "@/hooks/useMemories";
 import { formatRelativeDate, getHost } from "@/lib/utils";
 import { noteSchema, type NoteFormValues } from "@/schemas/note";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,6 +48,7 @@ export function NoteEditor({
 }) {
   const router = useRouter();
   const note = useNote(noteId ?? "new", Boolean(noteId));
+  const noteMemory = useNoteMemory(noteId ?? "");
   const item = note.data?.data.data;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const form = useForm<NoteFormValues>({
@@ -126,6 +129,7 @@ export function NoteEditor({
               <>
                 <Meta
                   label="Last updated"
+                  valueClassName="lowercase"
                   value={
                     item ? formatRelativeDate(item.updatedAt) : "Not saved"
                   }
@@ -182,6 +186,17 @@ export function NoteEditor({
                 </a>
               ) : null}
             </div>
+            {noteId && item ? (
+              <div className="mt-5 flex justify-end">
+                <AddNoteToMemoryDialog
+                  noteId={noteId}
+                  defaultContent={`${item.title}\n\n${item.body}`}
+                  sourceUrl={item.sourceUrl}
+                  isLoading={noteMemory.isLoading}
+                  memory={noteMemory.data?.data.data ?? null}
+                />
+              </div>
+            ) : null}
             <FormField
               control={form.control}
               name="body"

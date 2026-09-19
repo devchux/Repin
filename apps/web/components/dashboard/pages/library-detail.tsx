@@ -3,7 +3,6 @@
 import { DetailShell } from "@/components/dashboard/features/library/detail-shell";
 import { Meta } from "@/components/dashboard/features/library/meta";
 import { AddBookmarkToMemoryDialog } from "@/components/dashboard/features/bookmarks/add-bookmark-to-memory-dialog";
-import type { HighlightItem } from "@/lib/library-data";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
 import {
@@ -18,8 +17,6 @@ import {
 import {
   Bookmark,
   ExternalLink,
-  FileText,
-  Highlighter,
   LoaderCircle,
   Save,
   Sparkles,
@@ -270,50 +267,5 @@ export function BookmarkDetail({
         </DetailShell>
       </form>
     </Form>
-  );
-}
-
-export function HighlightDetail({ item }: { readonly item: HighlightItem }) {
-  return (
-    <DetailShell
-      back="/highlights"
-      backLabel="Highlights"
-      icon={<Highlighter />}
-      aside={
-        <>
-          <Meta label="Highlighted" value={item.highlightedAt} />
-          <Meta label="Source" value={item.domain} />
-          <Meta label="Color" value={item.color} />
-        </>
-      }
-    >
-      <p className="text-sm font-medium text-primary">
-        Highlight from {item.domain}
-      </p>
-      <blockquote className="mt-6 border-l-4 border-primary bg-primary/6 p-6 text-xl font-medium leading-9 md:text-2xl">
-        “{item.quote}”
-      </blockquote>
-      <section className="mt-10">
-        <h1 className="text-xl font-semibold">{item.article}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-          {item.context}
-        </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Button asChild>
-            <a href={item.url} target="_blank" rel="noreferrer">
-              Open source <ExternalLink />
-            </a>
-          </Button>
-          <Button variant="outline">
-            <FileText />
-            Create note
-          </Button>
-          <Button variant="outline">
-            <Sparkles />
-            Explain with Repin
-          </Button>
-        </div>
-      </section>
-    </DetailShell>
   );
 }

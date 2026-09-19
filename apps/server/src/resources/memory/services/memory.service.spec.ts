@@ -7,6 +7,8 @@ import type { LibraryService } from '../../library/library.service';
 import type { AiService } from '../../ai/ai.service';
 import type { Queue } from 'bullmq';
 import type { BookmarkService } from '../../bookmark/services/bookmark.service';
+import type { NoteService } from '../../note/note.service';
+import type { HighlightService } from '../../highlight/highlight.service';
 
 describe('MemoryService', () => {
   const memoryQuery = {
@@ -43,6 +45,12 @@ describe('MemoryService', () => {
   const bookmarks = {
     findOne: jest.fn(),
   } as unknown as jest.Mocked<BookmarkService>;
+  const notes = {
+    findOne: jest.fn(),
+  } as unknown as jest.Mocked<NoteService>;
+  const highlights = {
+    findOne: jest.fn(),
+  } as unknown as jest.Mocked<HighlightService>;
   const ai = {
     embed: jest.fn().mockResolvedValue([[0.1, 0.2]]),
   } as unknown as jest.Mocked<AiService>;
@@ -55,6 +63,8 @@ describe('MemoryService', () => {
     sourceRepository,
     library,
     bookmarks,
+    notes,
+    highlights,
     ai,
     embeddingQueue,
   );
@@ -306,6 +316,76 @@ describe('MemoryService', () => {
       'embed-memory',
       { memoryId: 'memory-1' },
       expect.objectContaining({ jobId: 'memory-memory-1' }),
+    );
+  });
+
+  it('creates memory only after loading an owned note', async () => {
+    notes.findOne.mockResolvedValueOnce({
+      message: 'Note found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        title: 'Agent notes',
+        body: 'Durable context belongs in memory',
+        sourceUrl: 'https://example.com/article',
+        tags: [],
+      },
+    } as never);
+
+    await service.createFromNote(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'Durable context belongs in memory',
+      scope: 'global',
+    });
+
+    expect(notes.findOne).toHaveBeenCalledWith(
+      7,
+      '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: [
+          expect.objectContaining({
+            type: 'note',
+            sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+            url: 'https://example.com/article',
+            trust: 'trusted',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('creates memory only after loading an owned highlight', async () => {
+    highlights.findOne.mockResolvedValueOnce({
+      message: 'Highlight found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        url: 'https://example.com/article',
+        quote: 'Durable context belongs in memory',
+      },
+    } as never);
+
+    await service.createFromHighlight(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'Durable context belongs in memory',
+      scope: 'global',
+    });
+
+    expect(highlights.findOne).toHaveBeenCalledWith(
+      7,
+      '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: [
+          expect.objectContaining({
+            type: 'highlight',
+            sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+            url: 'https://example.com/article',
+            trust: 'untrusted',
+          }),
+        ],
+      }),
     );
   });
 });

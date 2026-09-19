@@ -50,6 +50,38 @@ export class MemoryController {
     return this.memories.findByBookmark(user.id, bookmarkId);
   }
 
+  @Post('from-note')
+  createFromNote(
+    @CurrentUser() user: AuthUser,
+    @Body() request: CreateMemoryFromSourceDto,
+  ) {
+    return this.memories.createFromNote(user.id, request);
+  }
+
+  @Get('from-note/:noteId')
+  findByNote(
+    @CurrentUser() user: AuthUser,
+    @Param('noteId', ParseUUIDPipe) noteId: string,
+  ) {
+    return this.memories.findByNote(user.id, noteId);
+  }
+
+  @Post('from-highlight')
+  createFromHighlight(
+    @CurrentUser() user: AuthUser,
+    @Body() request: CreateMemoryFromSourceDto,
+  ) {
+    return this.memories.createFromHighlight(user.id, request);
+  }
+
+  @Get('from-highlight/:highlightId')
+  findByHighlight(
+    @CurrentUser() user: AuthUser,
+    @Param('highlightId', ParseUUIDPipe) highlightId: string,
+  ) {
+    return this.memories.findByHighlight(user.id, highlightId);
+  }
+
   @Get()
   findAll(@CurrentUser() user: AuthUser, @Query() request: FindMemoriesDto) {
     return this.memories.findAll(user.id, request);

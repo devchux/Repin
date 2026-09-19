@@ -34,6 +34,10 @@ authenticated user ID.
   memory for that bookmark, or `null`.
 - `POST /api/memories/from-bookmark` creates the bookmark memory once and
   updates its content and scope on later saves.
+- `GET /api/memories/from-note/:noteId` and `POST /api/memories/from-note`
+  provide the same explicit, update-in-place memory workflow for notes.
+- `GET /api/memories/from-highlight/:highlightId` and
+  `POST /api/memories/from-highlight` provide that workflow for highlights.
 
 URLs are normalized for identity by removing fragments and common tracking
 parameters, sorting query parameters, and preferring the canonical URL when one
