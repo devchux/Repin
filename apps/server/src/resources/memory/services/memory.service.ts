@@ -18,6 +18,7 @@ import { Memory } from '../entities/memory.entity';
 import { MemorySource } from '../entities/memory-source.entity';
 import { LibraryService } from '../../library/library.service';
 import { CreateMemoryFromSourceDto } from '../dto/create-memory-from-source.dto';
+import { UpdateMemoryDto } from '../dto/update-memory.dto';
 import type { LibraryItemType } from '@repo/contracts/library';
 import { AiService } from '../../ai/ai.service';
 import type { MemoryKind, MemoryScope } from '@repo/contracts/memory';
@@ -390,6 +391,33 @@ export class MemoryService {
     const result = await this.memories.delete({ id, userId });
     if (!result.affected) throw new NotFoundException('Memory not found');
     return { message: 'Memory forgotten successfully' };
+  }
+
+  async update(userId: number, id: string, request: UpdateMemoryDto) {
+    const memory = await this.memories.findOne({
+      where: { id, userId },
+      relations: { sources: true },
+    });
+    if (!memory) throw new NotFoundException('Memory not found');
+
+    const scope = request.scope ?? memory.scope;
+    const scopeId =
+      request.scope === undefined ? memory.scopeId : request.scopeId;
+    this.validateScope(scope, scopeId);
+    const content = request.content?.trim() ?? memory.content;
+    const data = await this.memories.save(
+      this.memories.merge(memory, {
+        content,
+        scope,
+        scopeId: scope === 'global' ? undefined : scopeId,
+        embedding: null,
+        embeddingStatus: 'pending',
+        embeddingError: null,
+        embeddedAt: null,
+      }),
+    );
+    await this.queueEmbedding(data.id, true);
+    return { message: 'Memory updated successfully', data };
   }
 
   private async ensureUniqueSourceMemory(

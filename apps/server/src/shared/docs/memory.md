@@ -51,5 +51,10 @@ Bookmarks are stored outside the generic library table. The dedicated
 records bookmark provenance before creating the memory. It applies the same
 per-source duplicate protection as the generic library endpoint.
 
+The web workspace lists memories at `/memory`. `PATCH /api/memories/:id`
+updates only a memory owned by the current user, clears its previous embedding,
+and queues enrichment again. `DELETE /api/memories/:id` forgets the memory while
+preserving its original bookmark, note, highlight, or page.
+
 Automatic extraction, conflict resolution, consolidation, and knowledge graphs
 are deferred until usage data shows they are necessary.

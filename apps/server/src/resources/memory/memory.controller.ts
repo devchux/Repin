@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { CreateMemoryDto } from './dto/create-memory.dto';
 import { FindMemoriesDto, FindMemoryContextDto } from './dto/find-memories.dto';
 import { MemoryService } from './services/memory.service';
 import { CreateMemoryFromSourceDto } from './dto/create-memory-from-source.dto';
+import { UpdateMemoryDto } from './dto/update-memory.dto';
 
 @ApiTags('Memories')
 @Controller('memories')
@@ -93,6 +95,15 @@ export class MemoryController {
     @Query() request: FindMemoryContextDto,
   ) {
     return this.memories.findContext(user.id, request);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() request: UpdateMemoryDto,
+  ) {
+    return this.memories.update(user.id, id, request);
   }
 
   @Delete(':id')

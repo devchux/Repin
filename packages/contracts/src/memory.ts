@@ -54,6 +54,12 @@ export interface CreateMemoryFromSourceRequest {
   readonly scopeId?: string;
 }
 
+export interface UpdateMemoryRequest {
+  readonly content?: string;
+  readonly scope?: MemoryScope;
+  readonly scopeId?: string;
+}
+
 export type CreateMemoryFromBookmarkRequest = CreateMemoryFromSourceRequest;
 export type CreateMemoryFromNoteRequest = CreateMemoryFromSourceRequest;
 export type CreateMemoryFromHighlightRequest = CreateMemoryFromSourceRequest;

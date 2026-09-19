@@ -28,6 +28,7 @@ export {
   MoreHorizontal,
   Moon,
   Paperclip,
+  Pencil,
   PanelLeftClose,
   Plus,
   Save,

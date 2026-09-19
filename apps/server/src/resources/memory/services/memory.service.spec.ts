@@ -29,6 +29,7 @@ describe('MemoryService', () => {
     delete: jest.fn(),
     query: jest.fn(),
     createQueryBuilder: jest.fn().mockReturnValue(memoryQuery),
+    findOne: jest.fn(),
   } as unknown as jest.Mocked<Repository<Memory>>;
   const sourceQuery = {
     innerJoin: jest.fn().mockReturnThis(),
@@ -76,6 +77,7 @@ describe('MemoryService', () => {
     embeddingQueue.getJob.mockResolvedValue(undefined);
     memoryQuery.getOne.mockResolvedValue(null);
     sourceQuery.getOne.mockResolvedValue(null);
+    repository.findOne.mockResolvedValue(null);
   });
 
   it('creates an explicit global user memory by default', async () => {
@@ -195,6 +197,43 @@ describe('MemoryService', () => {
     await expect(
       service.forget(8, '0fd29fab-a044-45b0-a757-e73a8aac5305'),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('updates only a memory owned by the user and requeues its embedding', async () => {
+    repository.findOne.mockResolvedValueOnce({
+      id: 'memory-1',
+      userId: 7,
+      kind: 'user',
+      content: 'Old context',
+      scope: 'global',
+      sources: [],
+    } as never);
+
+    const result = await service.update(7, 'memory-1', {
+      content: '  Updated context  ',
+      scope: 'domain',
+      scopeId: 'example.com',
+    });
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { id: 'memory-1', userId: 7 },
+      relations: { sources: true },
+    });
+    expect(repository.merge).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'memory-1' }),
+      expect.objectContaining({
+        content: 'Updated context',
+        scope: 'domain',
+        scopeId: 'example.com',
+        embeddingStatus: 'pending',
+      }),
+    );
+    expect(result.message).toBe('Memory updated successfully');
+    expect(embeddingQueue.add).toHaveBeenCalledWith(
+      'embed-memory',
+      { memoryId: 'memory-1' },
+      expect.objectContaining({ jobId: 'memory-memory-1' }),
+    );
   });
 
   it('creates memory only after loading an owned library source', async () => {
