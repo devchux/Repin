@@ -23,6 +23,7 @@ import type { Queue } from 'bullmq';
 import {
   BOOKMARK_ENRICHMENT_QUEUE,
   ENRICH_BOOKMARK_JOB,
+  bookmarkEnrichmentJobId,
 } from '../utils/constants';
 
 @Injectable()
@@ -286,7 +287,7 @@ export class BookmarkService {
 
   private async queueEnrichment(bookmarkId: string, replace = false) {
     if (!this.enrichmentQueue) return;
-    const jobId = `bookmark:${bookmarkId}`;
+    const jobId = bookmarkEnrichmentJobId(bookmarkId);
     if (replace) {
       const existing = await this.enrichmentQueue.getJob(jobId);
       await existing?.remove();

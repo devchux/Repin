@@ -3,6 +3,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@repo/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@repo/ui/dialog";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -12,7 +21,6 @@ import {
   FormMessage,
 } from "@repo/ui/form";
 import { Brain, LoaderCircle } from "@repo/ui/icons";
-import { Popover, PopoverContent, PopoverTrigger } from "@repo/ui/popover";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -22,7 +30,7 @@ import {
   type BookmarkMemoryFormValues,
 } from "@/schemas/bookmark";
 
-export function AddBookmarkToMemoryPopover({
+export function AddBookmarkToMemoryDialog({
   bookmarkId,
   defaultContent,
   domain,
@@ -55,29 +63,26 @@ export function AddBookmarkToMemoryPopover({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button type="button" variant="outline">
           <Brain /> Add to memory
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-[min(26rem,calc(100vw-2rem))] p-5"
-      >
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
         <Form {...form}>
           <form
             className="space-y-4"
             noValidate
             onSubmit={form.handleSubmit(submit)}
           >
-            <div>
-              <h2 className="font-semibold">Add to Repin memory</h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            <DialogHeader>
+              <DialogTitle>Add to Repin memory</DialogTitle>
+              <DialogDescription>
                 Save a concise fact or instruction that Repin can recall in
                 future conversations.
-              </p>
-            </div>
+              </DialogDescription>
+            </DialogHeader>
             <FormField
               control={form.control}
               name="content"
@@ -119,21 +124,19 @@ export function AddBookmarkToMemoryPopover({
                 </FormItem>
               )}
             />
-            <Button
-              className="w-full"
-              disabled={createMemory.isPending}
-              type="submit"
-            >
-              {createMemory.isPending ? (
-                <LoaderCircle className="animate-spin" />
-              ) : (
-                <Brain />
-              )}
-              {createMemory.isPending ? "Adding…" : "Add to memory"}
-            </Button>
+            <DialogFooter>
+              <Button disabled={createMemory.isPending} type="submit">
+                {createMemory.isPending ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : (
+                  <Brain />
+                )}
+                {createMemory.isPending ? "Adding…" : "Add to memory"}
+              </Button>
+            </DialogFooter>
           </form>
         </Form>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -3,7 +3,7 @@
 import { EmptyLibrary } from "@/components/dashboard/features/bookmarks/empty-library";
 import { BookmarkCard } from "@/components/dashboard/features/bookmarks/bookmark-card";
 import { CollectionFilter } from "@/components/dashboard/features/bookmarks/collection-filter";
-import { CreateBookmarkPopover } from "@/components/dashboard/features/bookmarks/create-bookmark-popover";
+import { CreateBookmarkDialog } from "@/components/dashboard/features/bookmarks/create-bookmark-dialog";
 import { LibraryToolbar } from "@/components/dashboard/features/common/library-toolbar";
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
 import { useBookmarkCollections, useBookmarks } from "@/hooks/useBookmarks";
@@ -28,7 +28,7 @@ export function BookmarksPage() {
         eyebrow="Library"
         title="Bookmarks"
         description="Articles, references, and pages you saved from Repin on any device."
-        action={<CreateBookmarkPopover />}
+        action={<CreateBookmarkDialog />}
       />
       <LibraryToolbar
         query={query}

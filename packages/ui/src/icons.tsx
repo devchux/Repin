@@ -40,6 +40,7 @@ export {
   Trash2,
   User,
   Wifi,
+  X,
   XCircle,
   Zap,
 } from "lucide-react";

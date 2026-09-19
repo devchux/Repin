@@ -2,7 +2,7 @@
 
 import { DetailShell } from "@/components/dashboard/features/library/detail-shell";
 import { Meta } from "@/components/dashboard/features/library/meta";
-import { AddBookmarkToMemoryPopover } from "@/components/dashboard/features/bookmarks/add-bookmark-to-memory-popover";
+import { AddBookmarkToMemoryDialog } from "@/components/dashboard/features/bookmarks/add-bookmark-to-memory-dialog";
 import type { HighlightItem } from "@/lib/library-data";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
@@ -175,7 +175,7 @@ export function BookmarkDetail({
               <Sparkles />
               Ask Repin about this
             </Button>
-            <AddBookmarkToMemoryPopover
+            <AddBookmarkToMemoryDialog
               bookmarkId={item.id}
               defaultContent={memoryContent}
               domain={domain}

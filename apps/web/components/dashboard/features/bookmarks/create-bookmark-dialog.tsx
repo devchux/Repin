@@ -4,6 +4,15 @@ import { useCreateBookmark } from "@/hooks/useBookmarks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@repo/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@repo/ui/dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -13,7 +22,6 @@ import {
 } from "@repo/ui/form";
 import { Bookmark, LoaderCircle, Plus } from "@repo/ui/icons";
 import { Input } from "@repo/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@repo/ui/popover";
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import {
@@ -21,7 +29,7 @@ import {
   type CreateBookmarkFormValues,
 } from "../../../../schemas/bookmark";
 
-export function CreateBookmarkPopover() {
+export function CreateBookmarkDialog() {
   const [open, setOpen] = useState(false);
   const form = useForm<CreateBookmarkFormValues>({
     resolver: zodResolver(createBookmarkSchema),
@@ -36,29 +44,26 @@ export function CreateBookmarkPopover() {
     createBookmark.mutate(values);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button>
           <Bookmark aria-hidden="true" /> Save a page
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="w-[min(24rem,calc(100vw-2rem))] p-5"
-      >
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(submit)}
             className="space-y-4"
             noValidate
           >
-            <div>
-              <h2 className="font-semibold">Save a bookmark</h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            <DialogHeader>
+              <DialogTitle>Save a bookmark</DialogTitle>
+              <DialogDescription>
                 Add a page to the workspace. Rich page context is captured when
                 saving from the extension.
-              </p>
-            </div>
+              </DialogDescription>
+            </DialogHeader>
             <FormField
               control={form.control}
               name="url"
@@ -94,21 +99,19 @@ export function CreateBookmarkPopover() {
                 </FormItem>
               )}
             />
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={createBookmark.isPending}
-            >
-              {createBookmark.isPending ? (
-                <LoaderCircle className="animate-spin" aria-hidden="true" />
-              ) : (
-                <Plus aria-hidden="true" />
-              )}
-              {createBookmark.isPending ? "Saving…" : "Save bookmark"}
-            </Button>
+            <DialogFooter>
+              <Button type="submit" disabled={createBookmark.isPending}>
+                {createBookmark.isPending ? (
+                  <LoaderCircle className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Plus aria-hidden="true" />
+                )}
+                {createBookmark.isPending ? "Saving…" : "Save bookmark"}
+              </Button>
+            </DialogFooter>
           </form>
         </Form>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }
