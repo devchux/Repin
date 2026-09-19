@@ -5,7 +5,6 @@ import { BookmarkController } from './controllers/bookmark.controller';
 import { BookmarkService } from './services/bookmark.service';
 import { AiModule } from '../ai/ai.module';
 import { BookmarkCollection } from './entities/collection.entity';
-import { BookmarkCollectionItem } from './entities/collection-item.entity';
 import { BookmarkCollectionController } from './controllers/collection.controller';
 import { BookmarkCollectionService } from './services/collection.service';
 import { BookmarkEnrichmentService } from './services/enrichment.service';
@@ -37,11 +36,7 @@ import { BookmarkEnrichmentProcessor } from './processors/enrichment.processor';
       },
     }),
     BullModule.registerQueue({ name: BOOKMARK_ENRICHMENT_QUEUE }),
-    TypeOrmModule.forFeature([
-      Bookmark,
-      BookmarkCollection,
-      BookmarkCollectionItem,
-    ]),
+    TypeOrmModule.forFeature([Bookmark, BookmarkCollection]),
   ],
   controllers: [BookmarkController, BookmarkCollectionController],
   providers: [
