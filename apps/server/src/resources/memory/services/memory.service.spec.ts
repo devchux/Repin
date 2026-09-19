@@ -6,6 +6,7 @@ import { MemorySource } from '../entities/memory-source.entity';
 import type { LibraryService } from '../../library/library.service';
 import type { AiService } from '../../ai/ai.service';
 import type { Queue } from 'bullmq';
+import type { BookmarkService } from '../../bookmark/services/bookmark.service';
 
 describe('MemoryService', () => {
   const memoryQuery = {
@@ -34,6 +35,9 @@ describe('MemoryService', () => {
   const library = {
     findOwned: jest.fn(),
   } as unknown as jest.Mocked<LibraryService>;
+  const bookmarks = {
+    findOne: jest.fn(),
+  } as unknown as jest.Mocked<BookmarkService>;
   const ai = {
     embed: jest.fn().mockResolvedValue([[0.1, 0.2]]),
   } as unknown as jest.Mocked<AiService>;
@@ -44,6 +48,7 @@ describe('MemoryService', () => {
     repository,
     sourceRepository,
     library,
+    bookmarks,
     ai,
     embeddingQueue,
   );
@@ -222,5 +227,39 @@ describe('MemoryService', () => {
       }),
     ).rejects.toThrow('already created');
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('creates memory only after loading an owned bookmark', async () => {
+    bookmarks.findOne.mockResolvedValueOnce({
+      message: 'Bookmark found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        url: 'https://example.com/article',
+      },
+    } as never);
+
+    await service.createFromBookmark(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'This article explains durable agent memory',
+      scope: 'domain',
+      scopeId: 'example.com',
+    });
+
+    expect(bookmarks.findOne).toHaveBeenCalledWith(
+      7,
+      '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: [
+          expect.objectContaining({
+            type: 'bookmark',
+            sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+            url: 'https://example.com/article',
+            trust: 'untrusted',
+          }),
+        ],
+      }),
+    );
   });
 });

@@ -114,9 +114,9 @@ export class BookmarkService {
     }
     if (query.collectionId) {
       builder.innerJoin(
-        'bookmark_collection_items',
-        'collectionItem',
-        'collectionItem."bookmarkId" = bookmark.id AND collectionItem."collectionId" = :collectionId',
+        'bookmark.collections',
+        'collection',
+        'collection.id = :collectionId',
         { collectionId: query.collectionId },
       );
     }

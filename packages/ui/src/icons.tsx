@@ -6,6 +6,7 @@ export {
   Bell,
   Bookmark,
   Bot,
+  Brain,
   ChevronRight,
   CheckCircle2,
   Check,

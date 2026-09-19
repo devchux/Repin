@@ -46,5 +46,10 @@ to the user, derives trust from its type, and prevents the same source from
 creating an identical memory twice. Forgetting a memory does not delete its
 library source.
 
+Bookmarks are stored outside the generic library table. The dedicated
+`POST /api/memories/from-bookmark` endpoint verifies bookmark ownership and
+records bookmark provenance before creating the memory. It applies the same
+per-source duplicate protection as the generic library endpoint.
+
 Automatic extraction, conflict resolution, consolidation, and knowledge graphs
 are deferred until usage data shows they are necessary.

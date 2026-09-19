@@ -34,6 +34,14 @@ export class MemoryController {
     return this.memories.createFromSource(user.id, request);
   }
 
+  @Post('from-bookmark')
+  createFromBookmark(
+    @CurrentUser() user: AuthUser,
+    @Body() request: CreateMemoryFromSourceDto,
+  ) {
+    return this.memories.createFromBookmark(user.id, request);
+  }
+
   @Get()
   findAll(@CurrentUser() user: AuthUser, @Query() request: FindMemoriesDto) {
     return this.memories.findAll(user.id, request);

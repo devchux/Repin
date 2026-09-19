@@ -36,6 +36,7 @@ import {
 } from '@repo/observability';
 import { ConfigService } from '@nestjs/config';
 import type { Configuration } from 'src/shared/types';
+import { BookmarkService } from '../../bookmark/services/bookmark.service';
 
 const UNTRUSTED_SOURCES = new Set<MemorySourceType>([
   'webpage',
@@ -60,6 +61,7 @@ export class MemoryService {
     @InjectRepository(MemorySource)
     private readonly sources: Repository<MemorySource>,
     private readonly library: LibraryService,
+    private readonly bookmarks: BookmarkService,
     private readonly ai: AiService,
     @Optional()
     @InjectQueue(MEMORY_EMBEDDING_QUEUE)
@@ -127,19 +129,7 @@ export class MemoryService {
     const item = await this.library.findOwned(userId, request.sourceId);
     const content = request.content.trim();
     const sourceType = LIBRARY_MEMORY_SOURCE[item.type];
-    const duplicate = await this.sources
-      .createQueryBuilder('source')
-      .innerJoin('source.memory', 'memory')
-      .where('memory.userId = :userId', { userId })
-      .andWhere('source.type = :sourceType', { sourceType })
-      .andWhere('source.sourceId = :sourceId', { sourceId: item.id })
-      .andWhere('LOWER(TRIM(memory.content)) = LOWER(:content)', { content })
-      .getOne();
-    if (duplicate) {
-      throw new ConflictException(
-        'This source has already created that memory',
-      );
-    }
+    await this.ensureUniqueSourceMemory(userId, sourceType, item.id, content);
 
     return this.create(userId, {
       content,
@@ -150,6 +140,32 @@ export class MemoryService {
         type: sourceType,
         sourceId: item.id,
         url: item.url,
+      },
+    });
+  }
+
+  async createFromBookmark(userId: number, request: CreateMemoryFromSourceDto) {
+    const { data: bookmark } = await this.bookmarks.findOne(
+      userId,
+      request.sourceId,
+    );
+    const content = request.content.trim();
+    await this.ensureUniqueSourceMemory(
+      userId,
+      'bookmark',
+      bookmark.id,
+      content,
+    );
+
+    return this.create(userId, {
+      content,
+      kind: request.kind,
+      scope: request.scope,
+      scopeId: request.scopeId,
+      source: {
+        type: 'bookmark',
+        sourceId: bookmark.id,
+        url: bookmark.url,
       },
     });
   }
@@ -333,6 +349,27 @@ export class MemoryService {
     const result = await this.memories.delete({ id, userId });
     if (!result.affected) throw new NotFoundException('Memory not found');
     return { message: 'Memory forgotten successfully' };
+  }
+
+  private async ensureUniqueSourceMemory(
+    userId: number,
+    sourceType: MemorySourceType,
+    sourceId: string,
+    content: string,
+  ) {
+    const duplicate = await this.sources
+      .createQueryBuilder('source')
+      .innerJoin('source.memory', 'memory')
+      .where('memory.userId = :userId', { userId })
+      .andWhere('source.type = :sourceType', { sourceType })
+      .andWhere('source.sourceId = :sourceId', { sourceId })
+      .andWhere('LOWER(TRIM(memory.content)) = LOWER(:content)', { content })
+      .getOne();
+    if (duplicate) {
+      throw new ConflictException(
+        'This source has already created that memory',
+      );
+    }
   }
 
   private trustFor(type: MemorySourceType): MemoryTrust {
