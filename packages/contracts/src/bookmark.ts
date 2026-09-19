@@ -17,11 +17,8 @@ export interface Bookmark {
   readonly tags: readonly string[];
   readonly aiSummary?: string | null;
   readonly aiTopics?: readonly string[];
-  readonly enrichmentStatus?:
-    | "pending"
-    | "processing"
-    | "complete"
-    | "failed";
+  readonly collectionIds?: readonly string[];
+  readonly enrichmentStatus?: "pending" | "processing" | "complete" | "failed";
   readonly enrichmentError?: string | null;
   readonly enrichedAt?: string | null;
   readonly capturedAt: string;
@@ -53,7 +50,8 @@ export interface CreateBookmarkCollectionRequest {
   readonly color?: string;
 }
 
-export type UpdateBookmarkCollectionRequest = Partial<CreateBookmarkCollectionRequest>;
+export type UpdateBookmarkCollectionRequest =
+  Partial<CreateBookmarkCollectionRequest>;
 
 export type UpdateBookmarkRequest = Partial<
   Pick<

@@ -11,12 +11,17 @@ import type { BookmarkService } from '../../bookmark/services/bookmark.service';
 describe('MemoryService', () => {
   const memoryQuery = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    innerJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
     whereInIds: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
     getMany: jest.fn(),
+    getOne: jest.fn(),
   };
   const repository = {
     create: jest.fn((value) => value),
+    merge: jest.fn((target, value) => Object.assign(target, value)),
     save: jest.fn(async (value) => ({ id: 'memory-1', ...value })),
     update: jest.fn(),
     delete: jest.fn(),
@@ -43,6 +48,7 @@ describe('MemoryService', () => {
   } as unknown as jest.Mocked<AiService>;
   const embeddingQueue = {
     add: jest.fn(),
+    getJob: jest.fn(),
   } as unknown as jest.Mocked<Queue>;
   const service = new MemoryService(
     repository,
@@ -57,6 +63,8 @@ describe('MemoryService', () => {
     jest.clearAllMocks();
     ai.embed.mockResolvedValue([[0.1, 0.2]]);
     embeddingQueue.add.mockResolvedValue({} as never);
+    embeddingQueue.getJob.mockResolvedValue(undefined);
+    memoryQuery.getOne.mockResolvedValue(null);
     sourceQuery.getOne.mockResolvedValue(null);
   });
 
@@ -80,7 +88,7 @@ describe('MemoryService', () => {
     expect(embeddingQueue.add).toHaveBeenCalledWith(
       'embed-memory',
       { memoryId: 'memory-1' },
-      expect.objectContaining({ jobId: 'memory:memory-1', attempts: 3 }),
+      expect.objectContaining({ jobId: 'memory-memory-1', attempts: 3 }),
     );
   });
 
@@ -260,6 +268,44 @@ describe('MemoryService', () => {
           }),
         ],
       }),
+    );
+  });
+
+  it('updates the existing memory for a bookmark instead of creating another', async () => {
+    bookmarks.findOne.mockResolvedValueOnce({
+      message: 'Bookmark found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        url: 'https://example.com/article',
+      },
+    } as never);
+    memoryQuery.getOne.mockResolvedValueOnce({
+      id: 'memory-1',
+      kind: 'user',
+      content: 'Old note',
+      scope: 'global',
+      sources: [],
+    });
+
+    const result = await service.createFromBookmark(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'Updated note',
+      scope: 'global',
+    });
+
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.merge).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'memory-1' }),
+      expect.objectContaining({
+        content: 'Updated note',
+        embeddingStatus: 'pending',
+      }),
+    );
+    expect(result.message).toBe('Bookmark memory updated successfully');
+    expect(embeddingQueue.add).toHaveBeenCalledWith(
+      'embed-memory',
+      { memoryId: 'memory-1' },
+      expect.objectContaining({ jobId: 'memory-memory-1' }),
     );
   });
 });

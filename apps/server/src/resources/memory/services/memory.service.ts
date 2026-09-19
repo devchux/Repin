@@ -27,6 +27,7 @@ import {
   EMBED_MEMORY_JOB,
   MEMORY_EMBEDDING_QUEUE,
   MEMORY_RANKING,
+  memoryEmbeddingJobId,
 } from '../constants';
 import {
   MemoryTelemetryEvents,
@@ -150,12 +151,32 @@ export class MemoryService {
       request.sourceId,
     );
     const content = request.content.trim();
-    await this.ensureUniqueSourceMemory(
+    const existing = await this.findSourceMemory(
       userId,
       'bookmark',
       bookmark.id,
-      content,
     );
+
+    if (existing) {
+      const scope = request.scope ?? existing.scope;
+      const scopeId =
+        request.scope === undefined ? existing.scopeId : request.scopeId;
+      this.validateScope(scope, scopeId);
+      const data = await this.memories.save(
+        this.memories.merge(existing, {
+          content,
+          kind: request.kind ?? existing.kind,
+          scope,
+          scopeId: scope === 'global' ? undefined : scopeId,
+          embedding: null,
+          embeddingStatus: 'pending',
+          embeddingError: null,
+          embeddedAt: null,
+        }),
+      );
+      await this.queueEmbedding(data.id, true);
+      return { message: 'Bookmark memory updated successfully', data };
+    }
 
     return this.create(userId, {
       content,
@@ -168,6 +189,12 @@ export class MemoryService {
         url: bookmark.url,
       },
     });
+  }
+
+  async findByBookmark(userId: number, bookmarkId: string) {
+    await this.bookmarks.findOne(userId, bookmarkId);
+    const data = await this.findSourceMemory(userId, 'bookmark', bookmarkId);
+    return { message: 'Bookmark memory found successfully', data };
   }
 
   async findContext(userId: number, request: FindMemoryContextDto) {
@@ -210,14 +237,19 @@ export class MemoryService {
     return query.getMany();
   }
 
-  private async queueEmbedding(id: string): Promise<void> {
+  private async queueEmbedding(id: string, replace = false): Promise<void> {
     if (!this.embeddingQueue) return;
     try {
+      const jobId = memoryEmbeddingJobId(id);
+      if (replace) {
+        const existing = await this.embeddingQueue.getJob(jobId);
+        await existing?.remove();
+      }
       await this.embeddingQueue.add(
         EMBED_MEMORY_JOB,
         { memoryId: id },
         {
-          jobId: `memory:${id}`,
+          jobId,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: 1000,
@@ -370,6 +402,24 @@ export class MemoryService {
         'This source has already created that memory',
       );
     }
+  }
+
+  private findSourceMemory(
+    userId: number,
+    sourceType: MemorySourceType,
+    sourceId: string,
+  ) {
+    return this.memories
+      .createQueryBuilder('memory')
+      .innerJoinAndSelect(
+        'memory.sources',
+        'source',
+        'source.type = :sourceType AND source.sourceId = :sourceId',
+        { sourceType, sourceId },
+      )
+      .where('memory.userId = :userId', { userId })
+      .orderBy('memory.updatedAt', 'DESC')
+      .getOne();
   }
 
   private trustFor(type: MemorySourceType): MemoryTrust {

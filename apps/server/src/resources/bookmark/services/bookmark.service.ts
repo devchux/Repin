@@ -98,6 +98,7 @@ export class BookmarkService {
   async findAll(userId: number, query: FindBookmarksDto) {
     const builder = this.bookmarks
       .createQueryBuilder('bookmark')
+      .loadRelationIdAndMap('bookmark.collectionIds', 'bookmark.collections')
       .where('bookmark.userId = :userId', { userId });
     const search = query.search?.trim();
     if (search) {
@@ -219,7 +220,12 @@ export class BookmarkService {
   }
 
   private async findUserBookmark(userId: number, id: string) {
-    const page = await this.bookmarks.findOne({ where: { id, userId } });
+    const page = await this.bookmarks
+      .createQueryBuilder('bookmark')
+      .loadRelationIdAndMap('bookmark.collectionIds', 'bookmark.collections')
+      .where('bookmark.id = :id', { id })
+      .andWhere('bookmark.userId = :userId', { userId })
+      .getOne();
     if (!page) throw new NotFoundException('Bookmark not found');
     return page;
   }

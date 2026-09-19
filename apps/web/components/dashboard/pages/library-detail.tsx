@@ -44,6 +44,7 @@ import {
   type UpdateBookmarkFormValues,
 } from "@/schemas/bookmark";
 import { noteSchema, type NoteFormValues } from "@/schemas/note";
+import { useBookmarkMemory } from "@/hooks/useMemories";
 
 export function BookmarkDetail({
   bookmarkId,
@@ -52,6 +53,7 @@ export function BookmarkDetail({
 }) {
   const router = useRouter();
   const bookmark = useBookmark(bookmarkId);
+  const bookmarkMemory = useBookmarkMemory(bookmarkId);
   const update = useUpdateBookmark(bookmarkId);
   const remove = useDeleteBookmark(bookmarkId, () =>
     router.replace("/bookmarks"),
@@ -125,7 +127,11 @@ export function BookmarkDetail({
           icon={<Bookmark />}
           aside={
             <>
-              <Meta label="Saved" value={formatRelativeDate(item.createdAt)} />
+              <Meta
+                label="Saved"
+                value={formatRelativeDate(item.createdAt)}
+                valueClassName="lowercase"
+              />
               <Meta label="Source" value={item.siteName || domain} />
               <Meta label="Status" value={item.enrichmentStatus ?? "Saved"} />
             </>
@@ -179,6 +185,8 @@ export function BookmarkDetail({
               bookmarkId={item.id}
               defaultContent={memoryContent}
               domain={domain}
+              isLoading={bookmarkMemory.isLoading}
+              memory={bookmarkMemory.data?.data.data ?? null}
             />
           </div>
           <section className="mt-12 border-t pt-8">

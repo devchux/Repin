@@ -42,6 +42,14 @@ export class MemoryController {
     return this.memories.createFromBookmark(user.id, request);
   }
 
+  @Get('from-bookmark/:bookmarkId')
+  findByBookmark(
+    @CurrentUser() user: AuthUser,
+    @Param('bookmarkId', ParseUUIDPipe) bookmarkId: string,
+  ) {
+    return this.memories.findByBookmark(user.id, bookmarkId);
+  }
+
   @Get()
   findAll(@CurrentUser() user: AuthUser, @Query() request: FindMemoriesDto) {
     return this.memories.findAll(user.id, request);

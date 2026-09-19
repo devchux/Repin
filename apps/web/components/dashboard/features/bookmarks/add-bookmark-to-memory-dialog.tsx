@@ -20,8 +20,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@repo/ui/form";
-import { Brain, LoaderCircle } from "@repo/ui/icons";
-import { useState } from "react";
+import { Brain, Check, LoaderCircle } from "@repo/ui/icons";
+import type { Memory } from "@repo/contracts/memory";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { useCreateMemoryFromBookmark } from "@/hooks/useMemories";
@@ -34,24 +35,34 @@ export function AddBookmarkToMemoryDialog({
   bookmarkId,
   defaultContent,
   domain,
+  isLoading,
+  memory,
 }: {
   readonly bookmarkId: string;
   readonly defaultContent: string;
   readonly domain: string;
+  readonly isLoading: boolean;
+  readonly memory: Memory | null;
 }) {
   const [open, setOpen] = useState(false);
-  const defaults: BookmarkMemoryFormValues = {
-    content: defaultContent.slice(0, 4_000),
-    scope: "global",
-  };
+  const defaults = useMemo<BookmarkMemoryFormValues>(
+    () => ({
+      content: (memory?.content ?? defaultContent).slice(0, 4_000),
+      scope: memory?.scope === "domain" ? "domain" : "global",
+    }),
+    [defaultContent, memory?.content, memory?.scope],
+  );
   const form = useForm<BookmarkMemoryFormValues>({
     resolver: zodResolver(bookmarkMemorySchema),
     defaultValues: defaults,
   });
   const createMemory = useCreateMemoryFromBookmark(() => {
     setOpen(false);
-    form.reset(defaults);
   });
+
+  useEffect(() => {
+    form.reset(defaults);
+  }, [defaults, form]);
 
   const submit = (values: BookmarkMemoryFormValues) => {
     createMemory.mutate({
@@ -65,8 +76,19 @@ export function AddBookmarkToMemoryDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline">
-          <Brain /> Add to memory
+        <Button type="button" variant="outline" disabled={isLoading}>
+          {isLoading ? (
+            <LoaderCircle className="animate-spin" />
+          ) : memory ? (
+            <Check />
+          ) : (
+            <Brain />
+          )}
+          {isLoading
+            ? "Checking memory…"
+            : memory
+              ? "In memory"
+              : "Add to memory"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -77,10 +99,13 @@ export function AddBookmarkToMemoryDialog({
             onSubmit={form.handleSubmit(submit)}
           >
             <DialogHeader>
-              <DialogTitle>Add to Repin memory</DialogTitle>
+              <DialogTitle>
+                {memory ? "Update Repin memory" : "Add to Repin memory"}
+              </DialogTitle>
               <DialogDescription>
-                Save a concise fact or instruction that Repin can recall in
-                future conversations.
+                {memory
+                  ? "This bookmark is already in memory. Update what Repin should remember."
+                  : "Save a concise fact or instruction that Repin can recall in future conversations."}
               </DialogDescription>
             </DialogHeader>
             <FormField
@@ -131,7 +156,13 @@ export function AddBookmarkToMemoryDialog({
                 ) : (
                   <Brain />
                 )}
-                {createMemory.isPending ? "Adding…" : "Add to memory"}
+                {createMemory.isPending
+                  ? memory
+                    ? "Updating…"
+                    : "Adding…"
+                  : memory
+                    ? "Update memory"
+                    : "Add to memory"}
               </Button>
             </DialogFooter>
           </form>

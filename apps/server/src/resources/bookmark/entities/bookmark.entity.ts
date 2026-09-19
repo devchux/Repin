@@ -110,4 +110,6 @@ export class Bookmark {
 
   @ManyToMany(() => BookmarkCollection, (collection) => collection.bookmarks)
   collections: BookmarkCollection[];
+
+  collectionIds?: string[];
 }

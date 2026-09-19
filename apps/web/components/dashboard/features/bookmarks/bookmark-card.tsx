@@ -11,6 +11,7 @@ import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
 import {
   Bookmark as BookmarkIcon,
+  Check,
   ExternalLink,
   Folder,
   LoaderCircle,
@@ -94,6 +95,7 @@ export function BookmarkCard({
                   key={collection.id}
                   bookmarkId={item.id}
                   collection={collection}
+                  isAdded={item.collectionIds?.includes(collection.id) ?? false}
                   onAdded={() => setActionsOpen(false)}
                 />
               ))
@@ -191,10 +193,24 @@ function RemoveFromCollectionButton({
   readonly collectionId: string;
   readonly onRemoved: () => void;
 }) {
-  const remove = useRemoveBookmarkFromCollection(collectionId, bookmarkId, onRemoved);
+  const remove = useRemoveBookmarkFromCollection(
+    collectionId,
+    bookmarkId,
+    onRemoved,
+  );
   return (
-    <Button type="button" variant="ghost" className="w-full justify-start" disabled={remove.isPending} onClick={() => remove.mutate()}>
-      {remove.isPending ? <LoaderCircle className="animate-spin" /> : <Folder />}
+    <Button
+      type="button"
+      variant="ghost"
+      className="w-full justify-start"
+      disabled={remove.isPending}
+      onClick={() => remove.mutate()}
+    >
+      {remove.isPending ? (
+        <LoaderCircle className="animate-spin" />
+      ) : (
+        <Folder />
+      )}
       Remove from collection
     </Button>
   );
@@ -203,10 +219,12 @@ function RemoveFromCollectionButton({
 function AddToCollectionButton({
   bookmarkId,
   collection,
+  isAdded,
   onAdded,
 }: {
   readonly bookmarkId: string;
   readonly collection: BookmarkCollection;
+  readonly isAdded: boolean;
   readonly onAdded: () => void;
 }) {
   const add = useAddBookmarkToCollection(collection.id, bookmarkId, onAdded);
@@ -215,11 +233,20 @@ function AddToCollectionButton({
       type="button"
       variant="ghost"
       className="w-full justify-start"
-      disabled={add.isPending}
+      disabled={isAdded || add.isPending}
       onClick={() => add.mutate()}
     >
-      {add.isPending ? <LoaderCircle className="animate-spin" /> : <Folder />}
+      {add.isPending ? (
+        <LoaderCircle className="animate-spin" />
+      ) : isAdded ? (
+        <Check />
+      ) : (
+        <Folder />
+      )}
       <span className="truncate">{collection.name}</span>
+      {isAdded ? (
+        <span className="ml-auto text-xs text-muted-foreground">Added</span>
+      ) : null}
     </Button>
   );
 }
