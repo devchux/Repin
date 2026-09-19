@@ -1,5 +1,9 @@
-import { NoteDetail } from "@/components/dashboard/pages/library-detail";
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+import { NoteEditor } from "@/components/dashboard/features/notes/note-editor";
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  return <NoteDetail noteId={id} />;
+  return <NoteEditor noteId={id} />;
 }
