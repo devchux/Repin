@@ -2,6 +2,7 @@
 
 import { LibraryToolbar } from "@/components/dashboard/features/common/library-toolbar";
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
+import { PaginationControls } from "@/components/dashboard/features/common/pagination-controls";
 import { EmptyNotes } from "@/components/dashboard/features/notes/empty-notes";
 import { NoteCard } from "@/components/dashboard/features/notes/note-card";
 import { useNotes } from "@/hooks/useNotes";
@@ -13,8 +14,9 @@ import { WorkspacePage } from "../layout/workspace-page";
 
 export function NotesPage() {
   const [query, setQuery] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
   const deferredQuery = useDeferredValue(query.trim());
-  const notes = useNotes({ search: deferredQuery });
+  const notes = useNotes({ search: deferredQuery, page: pageNumber });
   const page = notes.data?.data.data;
   const items = page?.items ?? [];
 
@@ -35,7 +37,7 @@ export function NotesPage() {
       />
       <LibraryToolbar
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={(value) => { setQuery(value); setPageNumber(1); }}
         placeholder="Search notes"
       />
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
@@ -77,6 +79,11 @@ export function NotesPage() {
               : "Create a note here or save one from the Repin extension."
           }
         />
+      ) : null}
+      {page ? (
+        <div className="mt-5">
+          <PaginationControls page={page.page} pageCount={page.pageCount} onPageChange={setPageNumber} />
+        </div>
       ) : null}
     </WorkspacePage>
   );

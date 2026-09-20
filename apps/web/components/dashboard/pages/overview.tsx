@@ -1,16 +1,12 @@
 "use client";
 
 import { SectionHeader } from "@/components/dashboard/features/overview/section-header";
+import { useAssistantConversations, useAssistantRuns } from "@/hooks/useAssistant";
 import { useBookmarks } from "@/hooks/useBookmarks";
-import { useFetch } from "@/hooks/useFetch";
 import { useHighlights } from "@/hooks/useHighlights";
 import { useNotes } from "@/hooks/useNotes";
 import { useProfile } from "@/hooks/useProfile";
 import { formatRelativeDate, getRunTitle, getStatus } from "@/lib/utils";
-import type {
-  AssistantConversationSummary,
-  AssistantRun,
-} from "@repo/contracts/assistant";
 import { Button } from "@repo/ui/button";
 import {
   AlertCircle,
@@ -38,29 +34,31 @@ type SavedItem = {
 
 export function OverviewPage() {
   const profile = useProfile();
-  const conversations = useFetch<readonly AssistantConversationSummary[]>(
-    "/assistant/conversations",
-    { hideToast: "all" },
-  );
-  const runs = useFetch<readonly AssistantRun[]>("/assistant/runs", {
-    hideToast: "all",
+  const conversations = useAssistantConversations({ limit: 1 });
+  const runs = useAssistantRuns({
+    limit: 4,
+    refetchInterval: 10_000,
+  });
+  const attention = useAssistantRuns({
+    limit: 1,
+    status: ["failed", "awaiting_approval", "suspended"],
     refetchInterval: 10_000,
   });
   const bookmarks = useBookmarks({ limit: 3 });
   const notes = useNotes({ limit: 3 });
   const highlights = useHighlights({ limit: 3 });
 
-  const conversationItems = conversations.data?.data.data ?? [];
-  const runItems = runs.data?.data.data ?? [];
+  const conversationPage = conversations.data?.data.data;
+  const runsPage = runs.data?.data.data;
+  const conversationItems = conversationPage?.items ?? [];
+  const runItems = runsPage?.items ?? [];
   const bookmarkPage = bookmarks.data?.data.data;
   const notePage = notes.data?.data.data;
   const highlightPage = highlights.data?.data.data;
   const profileItem = profile.data?.data.data;
   const recentConversation = conversationItems[0];
-  const recentRuns = runItems.slice(0, 4);
-  const attentionRuns = runItems.filter((run) =>
-    ["failed", "awaiting_approval", "suspended"].includes(run.status),
-  );
+  const recentRuns = runItems;
+  const attentionTotal = attention.data?.data.data.total ?? 0;
   const savedTotal =
     (bookmarkPage?.total ?? 0) +
     (notePage?.total ?? 0) +
@@ -142,7 +140,7 @@ export function OverviewPage() {
       >
         <WorkspaceMetric
           label="Conversations"
-          value={conversations.isLoading ? undefined : conversationItems.length}
+          value={conversations.isLoading ? undefined : conversationPage?.total ?? 0}
           detail="Across web and extension"
           icon={MessageSquareText}
           href="/conversations"
@@ -157,14 +155,14 @@ export function OverviewPage() {
         />
         <WorkspaceMetric
           label="Needs attention"
-          value={runs.isLoading ? undefined : attentionRuns.length}
+          value={attention.isLoading ? undefined : attentionTotal}
           detail={
-            attentionRuns.length ? "Review interrupted runs" : "No blocked runs"
+            attentionTotal ? "Review interrupted runs" : "No blocked runs"
           }
           icon={AlertCircle}
           href="/activity"
           bordered
-          emphasized={attentionRuns.length > 0}
+          emphasized={attentionTotal > 0}
         />
       </section>
 

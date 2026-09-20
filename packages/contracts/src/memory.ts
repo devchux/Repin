@@ -1,3 +1,5 @@
+import type { PaginatedResult } from "./pagination";
+
 export const MEMORY_KINDS = ["user", "agent"] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
 
@@ -45,6 +47,8 @@ export interface Memory {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export type MemoriesPage = PaginatedResult<Memory>;
 
 export interface CreateMemoryFromSourceRequest {
   readonly sourceId: string;

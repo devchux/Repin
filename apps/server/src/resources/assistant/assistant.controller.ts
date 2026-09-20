@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Sse,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -16,6 +17,10 @@ import { ExecuteDto } from './dto/execute.dto';
 import { SkipTimeout } from 'src/shared/decorators/skip-timeout.decorator';
 import { SkipResponseTransform } from 'src/shared/decorators/skip-response-transform.decorator';
 import { CreateConversationMessageDto } from './dto/create-conversation-message.dto';
+import {
+  FindConversationsDto,
+  FindRunsDto,
+} from './dto/find-assistant-items.dto';
 
 @ApiTags('Assistant')
 @Controller('assistant')
@@ -36,8 +41,8 @@ export class AssistantController {
   }
 
   @Get('runs')
-  findRuns(@CurrentUser() user: AuthUser) {
-    return this.assistantService.findRuns(user.id);
+  findRuns(@CurrentUser() user: AuthUser, @Query() query: FindRunsDto) {
+    return this.assistantService.findRuns(user.id, query);
   }
 
   @Sse('runs/:id/events')
@@ -102,8 +107,11 @@ export class AssistantController {
   }
 
   @Get('conversations')
-  findConversations(@CurrentUser() user: AuthUser) {
-    return this.assistantService.findConversations(user.id);
+  findConversations(
+    @CurrentUser() user: AuthUser,
+    @Query() query: FindConversationsDto,
+  ) {
+    return this.assistantService.findConversations(user.id, query);
   }
 
   @Post('conversations/:id/messages')

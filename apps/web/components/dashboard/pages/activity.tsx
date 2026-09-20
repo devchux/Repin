@@ -1,18 +1,19 @@
 "use client";
 
-import type { AssistantRun } from "@repo/contracts/assistant";
+import type { AssistantRunStatus } from "@repo/contracts/assistant";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { Search } from "@repo/ui/icons";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/tabs";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 
-import { useFetch } from "@/hooks/useFetch";
+import { useAssistantRuns } from "@/hooks/useAssistant";
 import { ActivityMetric } from "../features/activity/metric";
 import { ActivityRow } from "../features/activity/row";
 import { ActivitySkeleton } from "../features/activity/skeleton";
 import { EmptyState } from "../features/common/empty-state";
 import { PageHeading } from "../features/common/page-heading";
+import { PaginationControls } from "../features/common/pagination-controls";
 import { WorkspacePage } from "../layout/workspace-page";
 import { ActivityFilter } from "@/types/activity";
 
@@ -26,30 +27,21 @@ const filters: readonly { label: string; value: ActivityFilter }[] = [
 export function ActivityPage() {
   const [filter, setFilter] = useState<ActivityFilter>("all");
   const [query, setQuery] = useState("");
-  const runs = useFetch<readonly AssistantRun[]>("/assistant/runs", {
-    hideToast: "all",
+  const [page, setPage] = useState(1);
+  const deferredQuery = useDeferredValue(query.trim());
+  const statuses = getStatuses(filter);
+  const runs = useAssistantRuns({
+    search: deferredQuery,
+    status: statuses,
+    page,
+    limit: 20,
     refetchInterval: 5_000,
   });
-  const items = useMemo(() => {
-    const search = query.trim().toLowerCase();
-    return (runs.data?.data.data ?? []).filter((run) => {
-      const matchesQuery =
-        !search ||
-        `${run.input ?? ""} ${run.context.title} ${run.context.url} ${run.capability}`
-          .toLowerCase()
-          .includes(search);
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "completed" && run.status === "completed") ||
-        (filter === "failed" &&
-          ["failed", "cancelled", "awaiting_approval", "suspended"].includes(
-            run.status,
-          )) ||
-        (filter === "in-progress" &&
-          ["queued", "running"].includes(run.status));
-      return matchesQuery && matchesFilter;
-    });
-  }, [filter, query, runs.data]);
+  const totals = useAssistantRuns({ limit: 1, refetchInterval: 30_000 });
+  const completed = useAssistantRuns({ status: ["completed"], limit: 1, refetchInterval: 30_000 });
+  const attention = useAssistantRuns({ status: ["failed", "awaiting_approval", "suspended"], limit: 1, refetchInterval: 30_000 });
+  const result = runs.data?.data.data;
+  const items = result?.items ?? [];
 
   return (
     <WorkspacePage>
@@ -65,26 +57,18 @@ export function ActivityPage() {
       >
         <ActivityMetric
           label="Total runs"
-          value={runs.data?.data.data.length ?? 0}
-          detail="Latest 100"
+          value={totals.data?.data.data.total ?? 0}
+          detail="All recorded runs"
         />
         <ActivityMetric
           label="Completed"
-          value={
-            (runs.data?.data.data ?? []).filter(
-              (run) => run.status === "completed",
-            ).length
-          }
+          value={completed.data?.data.data.total ?? 0}
           detail="Finished successfully"
           bordered
         />
         <ActivityMetric
           label="Needs attention"
-          value={
-            (runs.data?.data.data ?? []).filter((run) =>
-              ["failed", "awaiting_approval", "suspended"].includes(run.status),
-            ).length
-          }
+          value={attention.data?.data.data.total ?? 0}
           detail="Review or resume"
           bordered
         />
@@ -97,7 +81,10 @@ export function ActivityPage() {
         <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
           <Tabs
             value={filter}
-            onValueChange={(value) => setFilter(value as ActivityFilter)}
+            onValueChange={(value) => {
+              setFilter(value as ActivityFilter);
+              setPage(1);
+            }}
           >
             <TabsList
               className="h-auto max-w-full justify-start overflow-x-auto bg-muted/70"
@@ -124,7 +111,10 @@ export function ActivityPage() {
               className="bg-muted/25 pl-9 shadow-none"
               placeholder="Search activity"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
             />
           </div>
         </div>
@@ -157,7 +147,19 @@ export function ActivityPage() {
             <ActivityRow key={run.id} run={run} />
           ))}
         </div>
+        {result && result.pageCount > 1 ? (
+          <div className="border-t px-4 py-3 md:px-5">
+            <PaginationControls page={result.page} pageCount={result.pageCount} onPageChange={setPage} />
+          </div>
+        ) : null}
       </section>
     </WorkspacePage>
   );
+}
+
+function getStatuses(filter: ActivityFilter): readonly AssistantRunStatus[] | undefined {
+  if (filter === "completed") return ["completed"];
+  if (filter === "failed") return ["failed", "cancelled", "awaiting_approval", "suspended"];
+  if (filter === "in-progress") return ["queued", "running"];
+  return undefined;
 }

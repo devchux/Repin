@@ -6,6 +6,7 @@ import { CollectionFilter } from "@/components/dashboard/features/bookmarks/coll
 import { CreateBookmarkDialog } from "@/components/dashboard/features/bookmarks/create-bookmark-dialog";
 import { LibraryToolbar } from "@/components/dashboard/features/common/library-toolbar";
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
+import { PaginationControls } from "@/components/dashboard/features/common/pagination-controls";
 import { useBookmarkCollections, useBookmarks } from "@/hooks/useBookmarks";
 import { Button } from "@repo/ui/button";
 import { useDeferredValue, useState } from "react";
@@ -15,8 +16,9 @@ export function BookmarksPage() {
   const [query, setQuery] = useState("");
   const [collectionId, setCollectionId] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [pageNumber, setPageNumber] = useState(1);
   const deferredQuery = useDeferredValue(query.trim());
-  const bookmarks = useBookmarks({ search: deferredQuery, collectionId });
+  const bookmarks = useBookmarks({ search: deferredQuery, collectionId, page: pageNumber });
   const collections = useBookmarkCollections();
   const page = bookmarks.data?.data.data;
   const items = page?.items ?? [];
@@ -32,12 +34,12 @@ export function BookmarksPage() {
       />
       <LibraryToolbar
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={(value) => { setQuery(value); setPageNumber(1); }}
         placeholder="Search bookmarks"
         layout={layout}
         onLayoutChange={setLayout}
       >
-        <CollectionFilter collections={collectionItems} value={collectionId} onChange={setCollectionId} />
+        <CollectionFilter collections={collectionItems} value={collectionId} onChange={(value) => { setCollectionId(value); setPageNumber(1); }} />
       </LibraryToolbar>
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
         <span>{bookmarks.isLoading ? "Loading bookmarks…" : `${page?.total ?? 0} ${(page?.total ?? 0) === 1 ? "bookmark" : "bookmarks"}`}</span>
@@ -65,6 +67,11 @@ export function BookmarksPage() {
           title={deferredQuery || collectionId ? "No bookmarks found" : "Your bookmark library is empty"}
           description={deferredQuery || collectionId ? "Try another search or collection." : "Save a page here or from the Repin extension."}
         />
+      ) : null}
+      {page ? (
+        <div className="mt-5">
+          <PaginationControls page={page.page} pageCount={page.pageCount} onPageChange={setPageNumber} />
+        </div>
       ) : null}
     </WorkspacePage>
   );

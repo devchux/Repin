@@ -36,6 +36,11 @@ import { RunContinuation } from './run-continuation.entity';
 
 @Entity('assistant_runs')
 @Index(['userId', 'createdAt'])
+@Index('IDX_assistant_runs_user_status_created', [
+  'userId',
+  'status',
+  'createdAt',
+])
 @Index(['status'])
 export class Run {
   @PrimaryGeneratedColumn('uuid')

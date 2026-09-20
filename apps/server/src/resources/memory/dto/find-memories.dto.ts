@@ -1,8 +1,10 @@
 import {
   MEMORY_KINDS,
   MEMORY_SCOPES,
+  MEMORY_SOURCE_TYPES,
   type MemoryKind,
   type MemoryScope,
+  type MemorySourceType,
 } from '@repo/contracts/memory';
 import { Type } from 'class-transformer';
 import {
@@ -36,6 +38,20 @@ export class FindMemoriesDto {
   @IsNotEmpty()
   @MaxLength(200)
   query?: string;
+
+  @IsOptional()
+  @IsIn(MEMORY_SOURCE_TYPES)
+  sourceType?: MemorySourceType;
+
+  @IsOptional()
+  @IsIn(['pending', 'processing', 'complete', 'failed'])
+  embeddingStatus?: 'pending' | 'processing' | 'complete' | 'failed';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
 
   @IsOptional()
   @Type(() => Number)

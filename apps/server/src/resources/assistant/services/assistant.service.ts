@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { ExecuteDto } from '../dto/execute.dto';
 import type { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
+import type {
+  FindConversationsDto,
+  FindRunsDto,
+} from '../dto/find-assistant-items.dto';
 import { ApprovalService } from './approval.service';
 import { ConversationService } from './conversation.service';
 import { RunService } from './run.service';
@@ -22,8 +26,8 @@ export class AssistantService {
     return this.conversations.findConversation(userId, conversationId);
   }
 
-  findConversations(userId: number) {
-    return this.conversations.findConversations(userId);
+  findConversations(userId: number, query: FindConversationsDto) {
+    return this.conversations.findConversations(userId, query);
   }
 
   createConversationMessage(
@@ -38,8 +42,8 @@ export class AssistantService {
     return this.runs.findRun(userId, runId);
   }
 
-  findRuns(userId: number) {
-    return this.runs.findRuns(userId);
+  findRuns(userId: number, query: FindRunsDto) {
+    return this.runs.findRuns(userId, query);
   }
 
   watchRun(userId: number, runId: string, lastEventId?: string) {

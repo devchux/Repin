@@ -4,10 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { LibraryItemType } from '@repo/contracts/library';
 import { Repository } from 'typeorm';
 import { CreateLibraryItemDto } from './dto/create-library-item.dto';
 import { LibraryItem } from './entities/library-item.entity';
+import type { FindLibraryItemsDto } from './dto/find-library-items.dto';
 
 @Injectable()
 export class LibraryService {
@@ -34,13 +34,33 @@ export class LibraryService {
     return { message: 'Library item created successfully', data: item };
   }
 
-  async findAll(userId: number, type?: LibraryItemType) {
-    const data = await this.items.find({
-      where: { userId, ...(type ? { type } : {}) },
-      order: { updatedAt: 'DESC' },
-      take: 100,
-    });
-    return { message: 'Library items found successfully', data };
+  async findAll(userId: number, request: FindLibraryItemsDto) {
+    const query = this.items
+      .createQueryBuilder('item')
+      .where('item.userId = :userId', { userId });
+    if (request.type)
+      query.andWhere('item.type = :type', { type: request.type });
+    if (request.search?.trim()) {
+      query.andWhere(
+        `(item.title ILIKE :search OR item.content ILIKE :search OR item.url ILIKE :search)`,
+        { search: `%${request.search.trim()}%` },
+      );
+    }
+    const [items, total] = await query
+      .orderBy('item.updatedAt', 'DESC')
+      .skip((request.page - 1) * request.limit)
+      .take(request.limit)
+      .getManyAndCount();
+    return {
+      message: 'Library items found successfully',
+      data: {
+        items,
+        page: request.page,
+        limit: request.limit,
+        total,
+        pageCount: Math.ceil(total / request.limit),
+      },
+    };
   }
 
   async findOwned(userId: number, id: string): Promise<LibraryItem> {

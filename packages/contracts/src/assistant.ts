@@ -1,4 +1,5 @@
 import type { PageContext } from "./browser";
+import type { PaginatedResult } from "./pagination";
 
 export const ASSISTANT_CAPABILITIES = [
   "summarize",
@@ -151,6 +152,11 @@ export interface AssistantConversationSummary {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export type AssistantRunsPage = PaginatedResult<AssistantRun>;
+
+export type AssistantConversationsPage =
+  PaginatedResult<AssistantConversationSummary>;
 
 export interface AssistantConversationMessage {
   readonly id: string;

@@ -123,6 +123,7 @@ export class MemoryToolsService {
             !this.readOptionalString(call.arguments.scopeId)
               ? context.currentDomain
               : this.readOptionalString(call.arguments.scopeId),
+          page: 1,
           limit: this.readLimit(call.arguments.limit),
         });
       case 'memory_forget':

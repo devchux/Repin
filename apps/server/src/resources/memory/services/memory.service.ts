@@ -103,23 +103,11 @@ export class MemoryService {
 
   async findAll(userId: number, request: FindMemoriesDto) {
     this.validateOptionalScope(request.scope, request.scopeId);
-    if (request.query) {
-      const data = await this.retrieve(userId, {
-        query: request.query,
-        kind: request.kind,
-        scope: request.scope,
-        scopeId: request.scopeId,
-        includeGlobal: false,
-        limit: request.limit ?? 20,
-      });
-      return { message: 'Memories found successfully', data };
-    }
     const query = this.memories
       .createQueryBuilder('memory')
       .leftJoinAndSelect('memory.sources', 'source')
       .where('memory.userId = :userId', { userId })
-      .orderBy('memory.updatedAt', 'DESC')
-      .take(request.limit ?? 20);
+      .distinct(true);
 
     if (request.kind)
       query.andWhere('memory.kind = :kind', { kind: request.kind });
@@ -127,8 +115,37 @@ export class MemoryService {
       query.andWhere('memory.scope = :scope', { scope: request.scope });
     if (request.scopeId)
       query.andWhere('memory.scopeId = :scopeId', { scopeId: request.scopeId });
-    const data = await query.getMany();
-    return { message: 'Memories found successfully', data };
+    if (request.query?.trim()) {
+      query.andWhere('memory.content ILIKE :search', {
+        search: `%${request.query.trim()}%`,
+      });
+    }
+    if (request.sourceType) {
+      query.andWhere(
+        `EXISTS (SELECT 1 FROM memory_sources filtered_source WHERE filtered_source."memoryId" = memory.id AND filtered_source.type = :sourceType)`,
+        { sourceType: request.sourceType },
+      );
+    }
+    if (request.embeddingStatus) {
+      query.andWhere('memory.embeddingStatus = :embeddingStatus', {
+        embeddingStatus: request.embeddingStatus,
+      });
+    }
+    const [items, total] = await query
+      .orderBy('memory.updatedAt', 'DESC')
+      .skip((request.page - 1) * request.limit)
+      .take(request.limit)
+      .getManyAndCount();
+    return {
+      message: 'Memories found successfully',
+      data: {
+        items,
+        page: request.page,
+        limit: request.limit,
+        total,
+        pageCount: Math.ceil(total / request.limit),
+      },
+    };
   }
 
   async createFromSource(userId: number, request: CreateMemoryFromSourceDto) {

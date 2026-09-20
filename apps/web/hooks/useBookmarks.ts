@@ -32,7 +32,7 @@ export function useBookmarks(params: {
       searchMode: params.search ? "lexical" : undefined,
       collectionId: params.collectionId || undefined,
       page: params.page ?? 1,
-      limit: params.limit ?? 100,
+      limit: params.limit ?? 20,
     },
     queryKey: [...bookmarkQueryKeys.all, params],
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useFetch } from "@/hooks/useFetch";
-import type { AssistantConversationSummary } from "@repo/contracts/assistant";
+import { useAssistantConversations } from "@/hooks/useAssistant";
 import type { BookmarksPage } from "@repo/contracts/bookmark";
 import type { HighlightsPage } from "@repo/contracts/highlight";
 import type { NotesPage } from "@repo/contracts/note";
@@ -45,10 +45,11 @@ export function WorkspaceSearch() {
     return () => document.removeEventListener("keydown", handleShortcut);
   }, []);
 
-  const conversations = useFetch<readonly AssistantConversationSummary[]>(
-    "/assistant/conversations",
-    { enabled: canSearch, hideToast: "all" },
-  );
+  const conversations = useAssistantConversations({
+    enabled: canSearch,
+    search: deferredQuery,
+    limit: 4,
+  });
   const bookmarks = useFetch<BookmarksPage>("/bookmarks", {
     enabled: canSearch,
     hideToast: "all",
@@ -70,10 +71,7 @@ export function WorkspaceSearch() {
 
   const results = useMemo<readonly SearchResult[]>(() => {
     if (!canSearch) return [];
-    const normalizedQuery = deferredQuery.toLowerCase();
-    const conversationResults = (conversations.data?.data.data ?? [])
-      .filter((item) => `${item.title} ${item.preview}`.toLowerCase().includes(normalizedQuery))
-      .slice(0, 4)
+    const conversationResults = (conversations.data?.data.data.items ?? [])
       .map((item) => ({
         id: `conversation-${item.id}`,
         title: item.title,
@@ -108,7 +106,7 @@ export function WorkspaceSearch() {
     }));
 
     return [...conversationResults, ...bookmarkResults, ...noteResults, ...highlightResults];
-  }, [bookmarks.data, canSearch, conversations.data, deferredQuery, highlights.data, notes.data]);
+  }, [bookmarks.data, canSearch, conversations.data, highlights.data, notes.data]);
 
   const isLoading = canSearch && [conversations, bookmarks, notes, highlights].some((request) => request.isLoading || request.isFetching);
   const isError = canSearch && [conversations, bookmarks, notes, highlights].every((request) => request.isError);

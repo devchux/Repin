@@ -26,7 +26,7 @@ export function useNotes(params: {
     params: {
       search: params.search || undefined,
       page: params.page ?? 1,
-      limit: params.limit ?? 100,
+      limit: params.limit ?? 20,
     },
     queryKey: [...noteQueryKeys.all, params],
   });

@@ -27,7 +27,7 @@ export function useHighlights(params: {
       search: params.search || undefined,
       color: params.color,
       page: params.page ?? 1,
-      limit: params.limit ?? 100,
+      limit: params.limit ?? 20,
     },
     queryKey: [...highlightQueryKeys.all, params],
   });

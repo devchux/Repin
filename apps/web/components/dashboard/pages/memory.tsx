@@ -2,6 +2,7 @@
 
 import { LibraryToolbar } from "@/components/dashboard/features/common/library-toolbar";
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
+import { PaginationControls } from "@/components/dashboard/features/common/pagination-controls";
 import { EmptyMemory } from "@/components/dashboard/features/memory/empty-memory";
 import { MemoryCard } from "@/components/dashboard/features/memory/memory-card";
 import { WorkspacePage } from "@/components/dashboard/layout/workspace-page";
@@ -13,7 +14,7 @@ import {
   type MemorySourceType,
 } from "@repo/contracts/memory";
 import { Button } from "@repo/ui/button";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 type EmbeddingStatus = "pending" | "processing" | "complete" | "failed";
 
@@ -22,20 +23,18 @@ export function MemoryPage() {
   const [scope, setScope] = useState<MemoryScope | "">("");
   const [sourceType, setSourceType] = useState<MemorySourceType | "">("");
   const [status, setStatus] = useState<EmbeddingStatus | "">("");
+  const [page, setPage] = useState(1);
   const deferredQuery = useDeferredValue(query.trim());
   const memories = useMemories({
     query: deferredQuery,
     scope: scope || undefined,
+    sourceType: sourceType || undefined,
+    embeddingStatus: status || undefined,
+    page,
+    limit: 20,
   });
-  const items = useMemo(() => {
-    const allItems = memories.data?.data.data ?? [];
-    return allItems.filter(
-      (memory) =>
-        (!sourceType ||
-          memory.sources.some((source) => source.type === sourceType)) &&
-        (!status || memory.embeddingStatus === status),
-    );
-  }, [memories.data, sourceType, status]);
+  const result = memories.data?.data.data;
+  const items = result?.items ?? [];
   const filtered = Boolean(deferredQuery || scope || sourceType || status);
 
   return (
@@ -47,13 +46,13 @@ export function MemoryPage() {
       />
       <LibraryToolbar
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={(value) => { setQuery(value); setPage(1); }}
         placeholder="Search memory"
       >
         <FilterSelect
           label="Source"
           value={sourceType}
-          onChange={(value) => setSourceType(value as MemorySourceType | "")}
+          onChange={(value) => { setSourceType(value as MemorySourceType | ""); setPage(1); }}
           options={MEMORY_SOURCE_TYPES.map((value) => ({
             value,
             label: value.replaceAll("_", " "),
@@ -62,13 +61,13 @@ export function MemoryPage() {
         <FilterSelect
           label="Scope"
           value={scope}
-          onChange={(value) => setScope(value as MemoryScope | "")}
+          onChange={(value) => { setScope(value as MemoryScope | ""); setPage(1); }}
           options={MEMORY_SCOPES.map((value) => ({ value, label: value }))}
         />
         <FilterSelect
           label="Status"
           value={status}
-          onChange={(value) => setStatus(value as EmbeddingStatus | "")}
+          onChange={(value) => { setStatus(value as EmbeddingStatus | ""); setPage(1); }}
           options={[
             { value: "pending", label: "pending" },
             { value: "processing", label: "processing" },
@@ -81,7 +80,7 @@ export function MemoryPage() {
         <span>
           {memories.isLoading
             ? "Loading memory…"
-            : `${items.length} ${items.length === 1 ? "memory" : "memories"}`}
+            : `${result?.total ?? 0} ${(result?.total ?? 0) === 1 ? "memory" : "memories"}`}
         </span>
         <span>
           {filtered ? "Filtered results" : "Sorted by recently updated"}
@@ -118,6 +117,11 @@ export function MemoryPage() {
               : "Add a bookmark, note, or highlight to memory to make its useful context available later."
           }
         />
+      ) : null}
+      {result && result.pageCount > 1 ? (
+        <div className="mt-5">
+          <PaginationControls page={result.page} pageCount={result.pageCount} onPageChange={setPage} />
+        </div>
       ) : null}
     </WorkspacePage>
   );

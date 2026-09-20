@@ -5,8 +5,10 @@ import type {
   CreateMemoryFromNoteRequest,
   CreateMemoryFromHighlightRequest,
   Memory,
+  MemoriesPage,
   MemoryKind,
   MemoryScope,
+  MemorySourceType,
   UpdateMemoryRequest,
 } from "@repo/contracts/memory";
 import { useQueryClient } from "@repo/client/query";
@@ -27,15 +29,21 @@ export function useMemories(params: {
   readonly query?: string;
   readonly kind?: MemoryKind;
   readonly scope?: MemoryScope;
+  readonly sourceType?: MemorySourceType;
+  readonly embeddingStatus?: "pending" | "processing" | "complete" | "failed";
+  readonly page?: number;
   readonly limit?: number;
 }) {
-  return useFetch<readonly Memory[]>("/memories", {
+  return useFetch<MemoriesPage>("/memories", {
     hideToast: "all",
     params: {
       query: params.query || undefined,
       kind: params.kind,
       scope: params.scope,
-      limit: params.limit ?? 100,
+      sourceType: params.sourceType,
+      embeddingStatus: params.embeddingStatus,
+      page: params.page ?? 1,
+      limit: params.limit ?? 20,
     },
     queryKey: [...memoryQueryKeys.all, params],
   });

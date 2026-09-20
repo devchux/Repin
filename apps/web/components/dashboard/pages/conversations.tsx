@@ -1,17 +1,17 @@
 "use client";
 
-import type { AssistantConversationSummary } from "@repo/contracts/assistant";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { ChevronRight, MessageSquareText, Plus, Search } from "@repo/ui/icons";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 
-import { useFetch } from "@/hooks/useFetch";
+import { useAssistantConversations } from "@/hooks/useAssistant";
 import { formatRelativeDate } from "@/lib/utils";
 import { FilterSelect } from "../features/conversations/filter-select";
 import { EmptyState } from "../features/common/empty-state";
 import { PageHeading } from "../features/common/page-heading";
+import { PaginationControls } from "../features/common/pagination-controls";
 import { ConversationSkeleton } from "../features/conversations/skeleton";
 import { WorkspacePage } from "../layout/workspace-page";
 import { ConversationSort, ConversationType, UpdatedRange } from "@/types/conversation";
@@ -21,23 +21,18 @@ export function ConversationsPage() {
   const [type, setType] = useState<ConversationType>("all");
   const [updated, setUpdated] = useState<UpdatedRange>("any");
   const [sort, setSort] = useState<ConversationSort>("recent");
-  const conversations = useFetch<readonly AssistantConversationSummary[]>("/assistant/conversations", { hideToast: "all" });
-  const filteredItems = useMemo(() => {
-    const items = [...(conversations.data?.data.data ?? [])];
-    const search = query.trim().toLowerCase();
-    const updatedAfter = getUpdatedAfter(updated);
-
-    return items
-      .filter((item) => !search || `${item.title} ${item.preview}`.toLowerCase().includes(search))
-      .filter((item) => type === "all" || item.initialCapability === type)
-      .filter((item) => updatedAfter === undefined || new Date(item.updatedAt).getTime() >= updatedAfter)
-      .sort((a, b) => {
-        if (sort === "oldest") return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-        if (sort === "created") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        if (sort === "messages") return b.messageCount - a.messageCount;
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      });
-  }, [conversations.data, query, sort, type, updated]);
+  const [page, setPage] = useState(1);
+  const deferredQuery = useDeferredValue(query.trim());
+  const conversations = useAssistantConversations({
+    search: deferredQuery,
+    capability: type === "all" ? undefined : type,
+    updatedAfter: getUpdatedAfter(updated),
+    sort,
+    page,
+    limit: 20,
+  });
+  const result = conversations.data?.data.data;
+  const items = result?.items ?? [];
   const filtersActive = Boolean(query || type !== "all" || updated !== "any" || sort !== "recent");
 
   const resetFilters = () => {
@@ -45,6 +40,7 @@ export function ConversationsPage() {
     setType("all");
     setUpdated("any");
     setSort("recent");
+    setPage(1);
   };
 
   return (
@@ -64,24 +60,24 @@ export function ConversationsPage() {
           <div className="border-b p-4 md:p-5">
             <div className="relative min-w-0 md:max-w-xl">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input aria-label="Search conversations" className="bg-muted/25 pl-9 shadow-none" placeholder="Search conversations" value={query} onChange={(event) => setQuery(event.target.value)} />
+              <Input aria-label="Search conversations" className="bg-muted/25 pl-9 shadow-none" placeholder="Search conversations" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
             </div>
             <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="grid gap-2 sm:grid-cols-3">
-                <FilterSelect label="Conversation type" value={type} onChange={(value) => setType(value as ConversationType)}>
+                <FilterSelect label="Conversation type" value={type} onChange={(value) => { setType(value as ConversationType); setPage(1); }}>
                   <option value="all">All types</option>
                   <option value="chat">Chat</option>
                   <option value="summarize">Summarize</option>
                   <option value="explain">Explain</option>
                   <option value="translate">Translate</option>
                 </FilterSelect>
-                <FilterSelect label="Updated" value={updated} onChange={(value) => setUpdated(value as UpdatedRange)}>
+                <FilterSelect label="Updated" value={updated} onChange={(value) => { setUpdated(value as UpdatedRange); setPage(1); }}>
                   <option value="any">Updated anytime</option>
                   <option value="day">Past 24 hours</option>
                   <option value="week">Past 7 days</option>
                   <option value="month">Past 30 days</option>
                 </FilterSelect>
-                <FilterSelect label="Sort conversations" value={sort} onChange={(value) => setSort(value as ConversationSort)}>
+                <FilterSelect label="Sort conversations" value={sort} onChange={(value) => { setSort(value as ConversationSort); setPage(1); }}>
                   <option value="recent">Recently active</option>
                   <option value="created">Recently created</option>
                   <option value="oldest">Oldest activity</option>
@@ -93,21 +89,21 @@ export function ConversationsPage() {
           </div>
 
           <div className="flex items-center justify-between border-b bg-muted/16 px-4 py-2.5 text-xs text-muted-foreground md:px-5">
-            <span>{filteredItems.length} {filteredItems.length === 1 ? "conversation" : "conversations"}</span>
+            <span>{result?.total ?? 0} {(result?.total ?? 0) === 1 ? "conversation" : "conversations"}</span>
             <span>{filtersActive ? "Filtered results" : "All conversations"}</span>
           </div>
 
           <div>
             {conversations.isLoading ? <ConversationSkeleton /> : null}
             {conversations.isError ? <EmptyState title="Conversations could not be loaded" description="Check your connection and try again." action={<Button onClick={() => void conversations.refetch()}>Try again</Button>} /> : null}
-            {!conversations.isLoading && !conversations.isError && filteredItems.length === 0 ? (
+            {!conversations.isLoading && !conversations.isError && items.length === 0 ? (
               <EmptyState
                 title={filtersActive ? "No matching conversations" : "Your first conversation starts here"}
                 description={filtersActive ? "Adjust or clear the filters to see more conversations." : "Ask Repin a question or give it a task to begin."}
                 action={filtersActive ? <Button variant="outline" onClick={resetFilters}>Clear filters</Button> : <Button asChild><Link href="/conversations/new">Start a conversation</Link></Button>}
               />
             ) : null}
-            {filteredItems.map((item) => (
+            {items.map((item) => (
               <Link key={item.id} href={`/conversations/${item.id}`} className="group grid gap-3 border-b px-4 py-5 transition-colors last:border-b-0 hover:bg-muted/35 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start md:px-5">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><MessageSquareText className="size-4" aria-hidden="true" /></span>
                 <div className="min-w-0">
@@ -125,6 +121,11 @@ export function ConversationsPage() {
               </Link>
             ))}
           </div>
+          {result && result.pageCount > 1 ? (
+            <div className="border-t px-4 py-3 md:px-5">
+              <PaginationControls page={result.page} pageCount={result.pageCount} onPageChange={setPage} />
+            </div>
+          ) : null}
       </section>
     </WorkspacePage>
   );
@@ -138,5 +139,5 @@ function getUpdatedAfter(range: UpdatedRange) {
     week: 604_800_000,
     month: 2_592_000_000,
   };
-  return range === "any" ? undefined : Date.now() - ranges[range];
+  return range === "any" ? undefined : new Date(Date.now() - ranges[range]).toISOString();
 }

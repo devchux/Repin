@@ -42,6 +42,7 @@ import {
   MAX_QUEUED_RUNS_PER_USER,
 } from '../constants';
 import type { ExecuteDto } from '../dto/execute.dto';
+import type { FindRunsDto } from '../dto/find-assistant-items.dto';
 import { RunHandler } from './run-handler.service';
 
 @Injectable()
@@ -64,15 +65,36 @@ export class RunService {
     };
   }
 
-  async findRuns(userId: number) {
-    const runs = await this.repository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      take: 100,
-    });
+  async findRuns(userId: number, query: FindRunsDto) {
+    const builder = this.repository
+      .createQueryBuilder('run')
+      .where('run.userId = :userId', { userId });
+    const search = query.search?.trim();
+    if (search) {
+      builder.andWhere(
+        `(run.input ILIKE :search OR run.context ->> 'title' ILIKE :search OR run.context ->> 'url' ILIKE :search OR run.capability::text ILIKE :search)`,
+        { search: `%${search}%` },
+      );
+    }
+    if (query.status?.length) {
+      builder.andWhere('run.status IN (:...statuses)', {
+        statuses: query.status,
+      });
+    }
+    const [runs, total] = await builder
+      .orderBy('run.createdAt', 'DESC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit)
+      .getManyAndCount();
     return {
       message: 'Assistant runs found successfully',
-      data: runs.map((run) => this.toResponse(run)),
+      data: {
+        items: runs.map((run) => this.toResponse(run)),
+        page: query.page,
+        limit: query.limit,
+        total,
+        pageCount: Math.ceil(total / query.limit),
+      },
     };
   }
 
