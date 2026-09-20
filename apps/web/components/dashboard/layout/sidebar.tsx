@@ -12,23 +12,22 @@ import {
   MessageSquareText,
   PanelLeftClose,
   Settings,
-  Sparkles,
 } from "@repo/ui/icons";
 import { cn } from "@repo/ui/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const workspaceItems = [
+const primaryItems = [
   { label: "Overview", icon: LayoutDashboard, link: "/overview" },
   { label: "Conversations", icon: MessageSquareText, link: "/conversations" },
   { label: "Activity", icon: Clock3, link: "/activity" },
 ] as const;
 
 const libraryItems = [
-  { label: "Bookmarks", icon: Bookmark, count: 18, link: "/bookmarks" },
-  { label: "Notes", icon: FileText, count: 7, link: "/notes" },
-  { label: "Highlights", icon: Highlighter, count: 24, link: "/highlights" },
+  { label: "Bookmarks", icon: Bookmark, link: "/bookmarks" },
+  { label: "Notes", icon: FileText, link: "/notes" },
+  { label: "Highlights", icon: Highlighter, link: "/highlights" },
   { label: "Memory", icon: Brain, link: "/memory" },
 ] as const;
 
@@ -123,10 +122,10 @@ export function DashboardSidebar({
         </Link>
       </Button>
 
-      <nav className="mt-6 flex-1 space-y-6" aria-label="Dashboard navigation">
+      <nav className="mt-5 flex-1 space-y-5 overflow-y-auto" aria-label="Dashboard navigation">
         <NavigationGroup
           label="Workspace"
-          items={workspaceItems}
+          items={primaryItems}
           pathname={pathname}
           collapsed={collapsed}
           onNavigate={onCloseMobile}
@@ -139,26 +138,6 @@ export function DashboardSidebar({
           onNavigate={onCloseMobile}
         />
       </nav>
-
-      <div
-        className={cn(
-          "rounded-xl border border-primary/15 bg-primary/[0.045] p-3",
-          collapsed &&
-            "lg:flex lg:justify-center lg:border-0 lg:bg-transparent lg:p-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Sparkles className="size-4" aria-hidden="true" />
-          </div>
-          <div className={cn(collapsed && "lg:hidden")}>
-            <p className="text-sm font-medium">Browser connected</p>
-            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-              Ready to work with your open tabs.
-            </p>
-          </div>
-        </div>
-      </div>
 
       <Link
         href="/settings"
@@ -183,7 +162,6 @@ export function DashboardSidebar({
 type NavigationItem = {
   readonly label: string;
   readonly icon: typeof LayoutDashboard;
-  readonly count?: number;
   readonly link: string;
 };
 
@@ -236,16 +214,6 @@ function NavigationGroup({
               <span className={cn("flex-1", collapsed && "lg:hidden")}>
                 {item.label}
               </span>
-              {item.count ? (
-                <span
-                  className={cn(
-                    "text-xs tabular-nums text-muted-foreground",
-                    collapsed && "lg:hidden",
-                  )}
-                >
-                  {item.count}
-                </span>
-              ) : null}
             </Link>
           );
         })}

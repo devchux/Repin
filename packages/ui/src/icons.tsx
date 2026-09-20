@@ -25,6 +25,7 @@ export {
   Menu,
   MessageSquareText,
   LoaderCircle,
+  LogOut,
   MoreHorizontal,
   Moon,
   Paperclip,
