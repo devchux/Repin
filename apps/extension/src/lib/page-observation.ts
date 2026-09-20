@@ -5,6 +5,7 @@ import type {
   PageInteractiveElementKind,
   PageObservation,
 } from "@repo/contracts/context";
+import { normalizeNavigationUrl } from "@repo/contracts/context";
 
 const MAX_BLOCKS = 500;
 const MAX_BLOCK_TEXT_LENGTH = 10_000;
@@ -265,7 +266,7 @@ const extractInteractiveElements = (
         inputType: type,
         href:
           element instanceof HTMLAnchorElement
-            ? element.href.slice(0, 2_048)
+            ? normalizeNavigationUrl(element.href)
             : undefined,
         headingPath: headingPathFor(element, headingPathCache),
         visible: true,
