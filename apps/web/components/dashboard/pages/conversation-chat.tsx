@@ -3,6 +3,7 @@
 import type {
   AssistantConversation,
   AssistantRun,
+  BrowserActionApproval,
   CreateAssistantRunRequest,
   CreateConversationMessageRequest,
 } from "@repo/contracts/assistant";
@@ -10,14 +11,15 @@ import { useQueryClient } from "@repo/client/query";
 import { Button } from "@repo/ui/button";
 import { ChatComposer } from "@repo/ui/chat-composer";
 import { ChatMessage } from "@repo/ui/chat-message";
-import { MessageSquareText, Sparkles } from "@repo/ui/icons";
-import { TypingIndicator } from "@repo/ui/typing-indicator";
+import { Sparkles } from "@repo/ui/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { useFetch } from "@/hooks/useFetch";
 import { useSend } from "@/hooks/useSend";
 import { ChatSkeleton } from "../features/conversations/chat-skeleton";
+import { ConversationHeader } from "../features/conversations/conversation-header";
+import { RunFeedback } from "../features/conversations/run-feedback";
 
 const prompts = [
   "Summarize what I should know from this page",
@@ -34,6 +36,7 @@ export function ConversationChat({
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
+  const shouldAutoScrollRef = useRef(true);
   const handledRunRef = useRef<string | undefined>(undefined);
   const [composerKey, setComposerKey] = useState(0);
   const [suggestedMessage, setSuggestedMessage] = useState("");
@@ -85,6 +88,53 @@ export function ConversationChat({
   );
   const isSending = createRun.isPending || sendMessage.isPending;
   const watchedRunStatus = watchedRun.data?.data.data.status;
+  const currentRun = watchedRun.data?.data.data;
+  const approvals = useFetch<BrowserActionApproval[]>(
+    currentRun ? `/assistant/runs/${currentRun.id}/approvals` : "/assistant/runs/unused/approvals",
+    {
+      enabled: currentRun?.status === "awaiting_approval",
+      hideToast: "all",
+    },
+  );
+  const pendingApproval = approvals.data?.data.data[0];
+  const cancelRun = useSend<Record<string, never>>(
+    currentRun ? `/assistant/runs/${currentRun.id}/cancel` : "/assistant/runs/unused/cancel",
+    {
+      hideToast: "all",
+      onSuccess: () => void watchedRun.refetch(),
+    },
+  );
+  const resumeRun = useSend<Record<string, never>>(
+    currentRun ? `/assistant/runs/${currentRun.id}/resume` : "/assistant/runs/unused/resume",
+    {
+      hideToast: "all",
+      onSuccess: () => void watchedRun.refetch(),
+    },
+  );
+  const approveAction = useSend<Record<string, never>>(
+    currentRun && pendingApproval
+      ? `/assistant/runs/${currentRun.id}/approvals/${pendingApproval.id}/approve`
+      : "/assistant/runs/unused/approvals/unused/approve",
+    {
+      hideToast: "all",
+      onSuccess: () => {
+        void approvals.refetch();
+        void watchedRun.refetch();
+      },
+    },
+  );
+  const denyAction = useSend<Record<string, never>>(
+    currentRun && pendingApproval
+      ? `/assistant/runs/${currentRun.id}/approvals/${pendingApproval.id}/deny`
+      : "/assistant/runs/unused/approvals/unused/deny",
+    {
+      hideToast: "all",
+      onSuccess: () => {
+        void approvals.refetch();
+        void watchedRun.refetch();
+      },
+    },
+  );
   const isResponding =
     isSending ||
     (lastMessage?.role === "user" &&
@@ -107,7 +157,7 @@ export function ConversationChat({
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const container = scrollRef.current;
-      if (!container) return;
+      if (!container || (!shouldAutoScrollRef.current && hasScrolledRef.current)) return;
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
@@ -124,6 +174,11 @@ export function ConversationChat({
     pendingMessage,
     conversationId,
   ]);
+
+  useEffect(() => {
+    shouldAutoScrollRef.current = true;
+    hasScrolledRef.current = false;
+  }, [conversationId]);
 
   function submit(content: string) {
     const trimmed = content.trim();
@@ -148,25 +203,22 @@ export function ConversationChat({
 
   return (
     <main className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col overflow-hidden bg-background">
-      <header className="shrink-0 border-b bg-background/95 px-4 py-3 md:px-6">
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <MessageSquareText className="size-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold">{title}</h1>
-            <p className="text-xs capitalize text-muted-foreground">
-              {currentConversation?.initialCapability ?? "Repin conversation"}
-            </p>
-          </div>
-        </div>
-      </header>
+      <ConversationHeader
+        capability={currentConversation?.initialCapability}
+        context={currentConversation?.context}
+        title={title}
+      />
 
       <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col">
         <div
           ref={scrollRef}
           className="min-h-0 flex-1 overflow-y-auto px-4 md:px-6"
           aria-live="polite"
+          onScroll={(event) => {
+            const target = event.currentTarget;
+            shouldAutoScrollRef.current =
+              target.scrollHeight - target.scrollTop - target.clientHeight < 120;
+          }}
         >
           {conversationId && conversation.isLoading ? <ChatSkeleton /> : null}
           {conversation.isError ? (
@@ -210,12 +262,29 @@ export function ConversationChat({
           ) : null}
 
           {currentConversation ? (
-            <div className="space-y-3 py-6">
+            <div className="space-y-5 py-5 sm:py-7">
               {currentConversation.messages.map((item) => (
                 <ChatMessage key={item.id} content={item.content} role={item.role} />
               ))}
-              {pendingMessage ? <ChatMessage content={pendingMessage} role="user" /> : null}
-              {isResponding ? <TypingIndicator label="Repin is typing" /> : null}
+              {pendingMessage ? <ChatMessage content={pendingMessage} role="user" pending /> : null}
+              {currentRun ? (
+                <RunFeedback
+                  approval={pendingApproval}
+                  approving={approveAction.isPending}
+                  denying={denyAction.isPending}
+                  resuming={resumeRun.isPending}
+                  run={currentRun}
+                  onApprove={pendingApproval ? () => approveAction.mutate({}) : undefined}
+                  onDeny={pendingApproval ? () => denyAction.mutate({}) : undefined}
+                  onResume={currentRun.status === "suspended" ? () => resumeRun.mutate({}) : undefined}
+                  onRetry={currentRun.status === "failed" || currentRun.status === "cancelled" ? () => submit(lastMessage?.content ?? "") : undefined}
+                />
+              ) : isResponding ? (
+                <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
+                  <span className="size-2 animate-pulse rounded-full bg-primary motion-reduce:animate-none" />
+                  Starting response
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -225,7 +294,20 @@ export function ConversationChat({
             key={composerKey}
             disabled={isResponding}
             initialContent={suggestedMessage}
+            isSending={isResponding}
             placeholder={conversationId ? "Ask for follow-up changes" : "Message Repin"}
+            statusLabel={
+              currentRun && isResponding
+                ? currentRun.phase === "executing"
+                  ? "Repin is using browser tools"
+                  : "Repin is working"
+                : undefined
+            }
+            onCancel={
+              currentRun && ["queued", "running", "awaiting_approval", "suspended"].includes(currentRun.status)
+                ? () => cancelRun.mutate({})
+                : undefined
+            }
             onSend={submit}
           />
         </div>
