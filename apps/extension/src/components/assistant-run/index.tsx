@@ -18,13 +18,13 @@ import {
   isAssistantRunActive,
 } from "../../lib/assistant-run";
 import { capabilityCopy } from "@/lib/constants";
-import { ChatMessage } from "./chat-message";
 import { FailureMessage } from "./failure-message";
 import { RunProgress } from "./run-progress";
 import { TranslationPrompt } from "./translation-prompt";
-import { ChatComposer } from "../chat-composer";
 import { ApprovalPanel } from "./approval-panel";
 import { ResumePanel } from "./resume-panel";
+import { ChatMessage } from "@repo/ui/chat-message";
+import { ChatComposer } from "@repo/ui/chat-composer";
 
 interface AssistantRunProps {
   readonly capability: AiAssistantCapability;

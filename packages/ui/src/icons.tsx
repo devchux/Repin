@@ -1,5 +1,6 @@
 export {
   ArrowRight,
+  ArrowUp,
   AlertCircle,
   Archive,
   ArrowLeft,
