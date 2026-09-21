@@ -18,6 +18,9 @@ COPY packages/typescript-config/package.json packages/typescript-config/package.
 # Install the server and its workspace dependencies
 RUN pnpm install --filter server... --frozen-lockfile
 
+# Install the managed-browser runtime used by web-originated automation tasks.
+RUN pnpm --filter server exec playwright install --with-deps chromium
+
 # Copy the source files needed by the server build
 COPY apps/server apps/server
 COPY packages/contracts packages/contracts

@@ -101,12 +101,12 @@ export function ActivityDetailPage({ runId }: { runId: string }) {
         <ActivityDetailMetric
           icon="bot"
           label="Model calls"
-          value={`${run.execution.modelCalls} of ${run.execution.maxModelCalls}`}
+          value={String(run.execution.modelCalls)}
         />
         <ActivityDetailMetric
           icon="zap"
           label="Tool calls"
-          value={`${run.execution.toolCalls} of ${run.execution.maxToolCalls}`}
+          value={String(run.execution.toolCalls)}
         />
       </section>
 

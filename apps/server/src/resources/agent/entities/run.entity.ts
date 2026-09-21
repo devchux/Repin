@@ -92,12 +92,6 @@ export class Run {
   @Column({ type: 'integer', default: 0 })
   toolCallCount: number;
 
-  @Column({ type: 'integer', default: 12 })
-  maxModelCalls: number;
-
-  @Column({ type: 'integer', default: 30 })
-  maxToolCalls: number;
-
   @Column({ type: 'jsonb' })
   context: PageContextDto;
 

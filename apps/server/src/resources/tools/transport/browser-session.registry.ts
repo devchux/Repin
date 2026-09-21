@@ -11,6 +11,10 @@ interface Connection {
   readonly send: (message: unknown) => void;
 }
 
+interface RegisteredConnection extends Connection {
+  readonly connectedAt: Date;
+}
+
 interface PendingCommand {
   readonly sessionKey: string;
   readonly resolve: (value: unknown) => void;
@@ -21,7 +25,7 @@ interface PendingCommand {
 
 @Injectable()
 export class BrowserSessionRegistry {
-  private readonly connections = new Map<string, Connection>();
+  private readonly connections = new Map<string, RegisteredConnection>();
   private readonly pending = new Map<string, PendingCommand>();
 
   register(
@@ -35,9 +39,10 @@ export class BrowserSessionRegistry {
       sessionId,
       new BrowserCommandOutcomeUnknownError('Browser session replaced'),
     );
-    this.connections.set(key, connection);
+    const registeredConnection = { ...connection, connectedAt: new Date() };
+    this.connections.set(key, registeredConnection);
     return () => {
-      if (this.connections.get(key) === connection) {
+      if (this.connections.get(key) === registeredConnection) {
         this.disconnect(
           userId,
           sessionId,
@@ -47,6 +52,17 @@ export class BrowserSessionRegistry {
         );
       }
     };
+  }
+
+  list(userId: number): ReadonlyArray<{ id: string; connectedAt: string }> {
+    const prefix = `${userId}:`;
+    return [...this.connections.entries()]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, connection]) => ({
+        id: key.slice(prefix.length),
+        connectedAt: connection.connectedAt.toISOString(),
+      }))
+      .sort((left, right) => right.connectedAt.localeCompare(left.connectedAt));
   }
 
   execute<TResult>(

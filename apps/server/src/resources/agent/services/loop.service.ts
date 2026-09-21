@@ -7,7 +7,6 @@ import type {
 import { AiService } from '../../ai/ai.service';
 import { ToolsService } from '../../tools/services/tools.service';
 import type { Run } from '../entities/run.entity';
-import { MAX_ITERATIONS } from '../constants';
 import type { AssistantAgentDecision } from '@repo/contracts/assistant';
 import { ExecutionService } from './execution.service';
 import { BrowserToolApprovalRequiredError } from '../../tools/policy/browser-tool-approval.service';
@@ -27,6 +26,12 @@ import {
 import { MemoryService } from '../../memory/services/memory.service';
 import { MemoryToolsService } from '../../memory/services/tools.service';
 import type { ContextManifest } from '@repo/contracts/context';
+
+const LIVE_BROWSER_ACCESS_INSTRUCTION =
+  'A live browser session is attached to this run. You have real-time web access through the available browser tools. Requests containing terms such as trending, latest, current, today, news, or what people are discussing are external web-discovery requests: formulate a relevant web search, open its results in a new tab, inspect multiple useful current sources, and synthesize the findings. When visiting a new website, search, or URL, use browser_open_tab with the absolute target URL and active=true, then inspect the returned tab with browser_get_snapshot. Preserve existing tabs instead of replacing them. Never treat the conversation page itself as evidence for an external discovery request. For requests requiring current or online information, browse before answering. Do not claim that browsing is unavailable unless a browser tool actually fails for the requested external destination, and then explain the specific failure.';
+
+const REPIN_APP_SHELL_INSTRUCTION =
+  'The Page URL in the conversation context identifies the Repin application shell; it is metadata, not a research destination. Do not open or navigate to that context URL unless the user explicitly requests that exact URL.';
 
 @Injectable()
 export class LoopService {
@@ -72,7 +77,11 @@ export class LoopService {
     const continuation = await this.execution.getContinuation(run.id);
     if (continuation) {
       messages = continuation.messages as AiMessage[];
-      initialIteration = continuation.iteration;
+      // The saved model decision already consumed this iteration. Resume by
+      // executing its pending tools, then continue with the next model turn.
+      // Reusing the saved iteration would replay a model turn after every
+      // approval or browser reconnect and eventually exhaust the call budget.
+      initialIteration = continuation.iteration + 1;
       const pendingToolCalls = continuation.pendingToolCalls as AiToolCall[];
       if (
         continuation.dispatchState === 'unknown' &&
@@ -106,11 +115,29 @@ export class LoopService {
       }
     }
 
-    for (
-      let iteration = initialIteration;
-      iteration < MAX_ITERATIONS;
-      iteration += 1
+    const browserAccessInstruction =
+      run.context?.title === 'Repin web conversation'
+        ? `${LIVE_BROWSER_ACCESS_INSTRUCTION} ${REPIN_APP_SHELL_INSTRUCTION}`
+        : LIVE_BROWSER_ACCESS_INSTRUCTION;
+    if (
+      run.browserSessionId &&
+      !messages.some(
+        (message) =>
+          message.role === 'system' &&
+          message.content.startsWith(LIVE_BROWSER_ACCESS_INSTRUCTION),
+      )
     ) {
+      const firstNonSystemMessage = messages.findIndex(
+        (message) => message.role !== 'system',
+      );
+      messages.splice(
+        firstNonSystemMessage === -1 ? messages.length : firstNonSystemMessage,
+        0,
+        { role: 'system', content: browserAccessInstruction },
+      );
+    }
+
+    for (let iteration = initialIteration; ; iteration += 1) {
       signal?.throwIfAborted();
       await this.execution.transition(run.id, {
         expectedStatuses: ['running'],
@@ -143,20 +170,23 @@ export class LoopService {
             ...this.memoryTools.getDefinitions(),
           ],
           signal,
-          onTextDelta: async (delta) => {
-            pendingDelta += delta;
-            streamedContent += delta;
-            this.execution.publishLiveEvent(run.id, 'assistant.delta', {
-              content: streamedContent,
-            });
-            if (
-              pendingDelta.length >= 80 ||
-              Date.now() - lastDeltaFlush >= 100
-            ) {
-              await flushDelta();
-            }
-          },
+          onTextDelta: run.browserSessionId
+            ? undefined
+            : async (delta) => {
+                pendingDelta += delta;
+                streamedContent += delta;
+                this.execution.publishLiveEvent(run.id, 'assistant.delta', {
+                  content: streamedContent,
+                });
+                if (
+                  pendingDelta.length >= 80 ||
+                  Date.now() - lastDeltaFlush >= 100
+                ) {
+                  await flushDelta();
+                }
+              },
         });
+        result = this.recoverBrowserToolCall(run, result);
         await flushDelta();
         await this.execution.completeStep(modelStep.id, {
           decision: this.toDecision(result),
@@ -193,9 +223,6 @@ export class LoopService {
       );
     }
 
-    throw new Error(
-      `Agent exceeded the ${MAX_ITERATIONS}-iteration tool limit`,
-    );
   }
 
   private async withMemoryContext(
@@ -436,6 +463,50 @@ export class LoopService {
     return result.toolCalls?.length
       ? { kind: 'tool', calls: result.toolCalls }
       : { kind: 'complete', content: result.content };
+  }
+
+  private recoverBrowserToolCall(
+    run: Run,
+    result: AiGenerateResult,
+  ): AiGenerateResult {
+    if (result.toolCalls?.length || !run.browserSessionId) return result;
+    let candidate: unknown;
+    try {
+      candidate = JSON.parse(result.content);
+    } catch {
+      return result;
+    }
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+      return result;
+    const input = candidate as Record<string, unknown>;
+    const keys = Object.keys(input);
+    if (
+      typeof input.url !== 'string' ||
+      !keys.every((key) => key === 'url' || key === 'active') ||
+      (input.active !== undefined && typeof input.active !== 'boolean')
+    ) {
+      return result;
+    }
+    try {
+      const url = new URL(input.url);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return result;
+    } catch {
+      return result;
+    }
+    return {
+      ...result,
+      content: '',
+      toolCalls: [
+        {
+          id: randomUUID(),
+          name: 'browser_open_tab',
+          arguments: {
+            url: input.url,
+            ...(input.active === undefined ? {} : { active: input.active }),
+          },
+        },
+      ],
+    };
   }
 
   private async verifyTool(

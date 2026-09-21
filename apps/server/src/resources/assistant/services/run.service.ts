@@ -412,9 +412,7 @@ export class RunService {
       cancelledAt: run.cancelledAt,
       execution: {
         modelCalls: run.modelCallCount,
-        maxModelCalls: run.maxModelCalls,
         toolCalls: run.toolCallCount,
-        maxToolCalls: run.maxToolCalls,
       },
     };
   }

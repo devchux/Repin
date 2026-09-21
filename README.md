@@ -36,6 +36,22 @@ incrementally as those safeguards mature.
 - Persist data in PostgreSQL and process background work with Redis and BullMQ
 - Export vendor-neutral traces and metrics through OpenTelemetry
 
+### Browser access from the web application
+
+Web conversations include a **Browser access** selector. Managed browsing is
+enabled by default so requests for current online information can use browser
+tools without additional setup:
+
+- **Off** keeps the conversation text-only.
+- **Managed browser** runs automation in an isolated server-side Chromium
+  session. Docker builds install the required Playwright browser automatically.
+- **Connected browser** routes tools through an authenticated Repin extension
+  and can use that browser's existing tabs and signed-in sessions.
+
+The connected-browser option appears while the extension is authenticated and
+its browser-session status is connected. Consequential actions continue to use
+the run approval flow.
+
 ## Project structure
 
 | Path                     | Purpose                                                                                        |

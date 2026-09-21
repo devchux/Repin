@@ -189,7 +189,8 @@ export const BROWSER_TOOL_DEFINITIONS = [
   },
   {
     name: 'browser_open_tab',
-    description: 'Open a new browser tab, optionally at an HTTP or HTTPS URL.',
+    description:
+      'Open a new browser tab, optionally at an HTTP or HTTPS URL. Prefer this when visiting a new website so existing application and research tabs remain unchanged.',
     inputSchema: objectSchema({
       url: { type: 'string', format: 'uri', description: 'Initial tab URL.' },
       active: {

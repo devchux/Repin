@@ -1,9 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import type { AuthUser, Configuration } from 'src/shared/types';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { BrowserSessionRegistry } from './browser-session.registry';
 
 class CreateBrowserSessionTicketDto {
   @IsString()
@@ -17,7 +18,16 @@ export class BrowserSessionController {
   constructor(
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<Configuration>,
+    private readonly sessions: BrowserSessionRegistry,
   ) {}
+
+  @Get()
+  findConnected(@CurrentUser() user: AuthUser) {
+    return {
+      message: 'Connected browser sessions found successfully',
+      data: this.sessions.list(user.id),
+    };
+  }
 
   @Post('ticket')
   async createTicket(

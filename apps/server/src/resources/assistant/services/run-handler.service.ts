@@ -21,7 +21,6 @@ import { Run } from '../../agent/entities/run.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { ConversationMessage } from '../entities/conversation-message.entity';
 import {
-  BudgetExceededError,
   ExecutionService,
   LoopDetectedError,
 } from '../../agent/services/execution.service';
@@ -265,7 +264,6 @@ export class RunHandler {
       if (currentRun?.status !== 'cancelled') {
         const finalAttempt =
           error instanceof ExecutionDeadlineExceededError ||
-          error instanceof BudgetExceededError ||
           error instanceof LoopDetectedError ||
           job.attemptsMade + 1 >= (job.opts.attempts || 1);
         await this.execution.transition(run.id, {

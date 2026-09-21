@@ -160,14 +160,8 @@ export class ExecutionService {
     return this.runRepository.manager.transaction(async (manager) => {
       const run = await this.lockRun(manager, runId);
       if (type === 'model') {
-        if (run.modelCallCount >= run.maxModelCalls) {
-          throw new BudgetExceededError('model calls');
-        }
         run.modelCallCount += 1;
       } else if (type === 'tool') {
-        if (run.toolCallCount >= run.maxToolCalls) {
-          throw new BudgetExceededError('tool calls');
-        }
         await this.assertToolProgress(manager, runId, input);
         run.toolCallCount += 1;
       }
@@ -382,13 +376,6 @@ export class ExecutionService {
         data,
       }),
     );
-  }
-}
-
-export class BudgetExceededError extends Error {
-  constructor(resource: string) {
-    super(`Assistant run exhausted its ${resource} budget`);
-    this.name = 'BudgetExceededError';
   }
 }
 
