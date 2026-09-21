@@ -2,6 +2,7 @@
 
 import type {
   AssistantConversation,
+  AssistantConversationMessage,
   AssistantRun,
   BrowserActionApproval,
   CreateAssistantRunRequest,
@@ -13,19 +14,37 @@ import { ChatComposer } from "@repo/ui/chat-composer";
 import { ChatMessage } from "@repo/ui/chat-message";
 import { Sparkles } from "@repo/ui/icons";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useFetch } from "@/hooks/useFetch";
 import { useSend } from "@/hooks/useSend";
+import { useAssistantRunStream } from "@/hooks/useAssistantRunStream";
+import { api } from "@/lib/api";
 import { ChatSkeleton } from "../features/conversations/chat-skeleton";
 import { ConversationHeader } from "../features/conversations/conversation-header";
 import { RunFeedback } from "../features/conversations/run-feedback";
+import { RunTimeline } from "../features/conversations/run-timeline";
 
 const prompts = [
   "Summarize what I should know from this page",
   "Help me plan a focused research session",
   "Turn my saved highlights into an outline",
 ];
+
+const terminalRunStatuses = new Set(["completed", "failed", "cancelled"]);
+
+function newestRun(
+  streamed?: AssistantRun,
+  polled?: AssistantRun,
+): AssistantRun | undefined {
+  if (!streamed) return polled;
+  if (!polled) return streamed;
+  if (terminalRunStatuses.has(polled.status)) return polled;
+  if (terminalRunStatuses.has(streamed.status)) return streamed;
+  return new Date(polled.updatedAt) > new Date(streamed.updatedAt)
+    ? polled
+    : streamed;
+}
 
 export function ConversationChat({
   conversationId,
@@ -41,13 +60,26 @@ export function ConversationChat({
   const [composerKey, setComposerKey] = useState(0);
   const [suggestedMessage, setSuggestedMessage] = useState("");
   const [pendingMessage, setPendingMessage] = useState("");
+  const [messages, setMessages] = useState<AssistantConversationMessage[]>([]);
+  const [messageCursor, setMessageCursor] = useState<string>();
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [olderMessagesError, setOlderMessagesError] = useState(false);
+  const loadedConversationRef = useRef<string | undefined>(undefined);
+  const loadedOlderMessagesRef = useRef(false);
+  const scrollRestoreRef = useRef<{ height: number; top: number } | undefined>(
+    undefined,
+  );
   const conversationUrl = `/assistant/conversations/${conversationId ?? "unused"}`;
   const conversation = useFetch<AssistantConversation>(conversationUrl, {
     enabled: Boolean(conversationId),
     hideToast: "all",
   });
   const currentConversation = conversation.data?.data.data;
-  const lastMessage = currentConversation?.messages.at(-1);
+  const lastMessage = messages.at(-1);
+  const streamingRunId =
+    lastMessage?.role === "user" ? lastMessage.runId : undefined;
+  const runStream = useAssistantRunStream(streamingRunId);
   const watchedRun = useFetch<AssistantRun>(
     lastMessage?.runId
       ? `/assistant/runs/${lastMessage.runId}`
@@ -59,7 +91,9 @@ export function ConversationChat({
         const status = query.state.data?.data.data.status;
         return status && ["completed", "failed", "cancelled"].includes(status)
           ? false
-          : 2_000;
+          : runStream.connected
+            ? 5_000
+            : 2_000;
       },
     },
   );
@@ -87,10 +121,14 @@ export function ConversationChat({
     },
   );
   const isSending = createRun.isPending || sendMessage.isPending;
-  const watchedRunStatus = watchedRun.data?.data.data.status;
-  const currentRun = watchedRun.data?.data.data;
+  const currentRun = streamingRunId
+    ? newestRun(runStream.run, watchedRun.data?.data.data)
+    : undefined;
+  const watchedRunStatus = currentRun?.status;
   const approvals = useFetch<BrowserActionApproval[]>(
-    currentRun ? `/assistant/runs/${currentRun.id}/approvals` : "/assistant/runs/unused/approvals",
+    currentRun
+      ? `/assistant/runs/${currentRun.id}/approvals`
+      : "/assistant/runs/unused/approvals",
     {
       enabled: currentRun?.status === "awaiting_approval",
       hideToast: "all",
@@ -98,14 +136,18 @@ export function ConversationChat({
   );
   const pendingApproval = approvals.data?.data.data[0];
   const cancelRun = useSend<Record<string, never>>(
-    currentRun ? `/assistant/runs/${currentRun.id}/cancel` : "/assistant/runs/unused/cancel",
+    currentRun
+      ? `/assistant/runs/${currentRun.id}/cancel`
+      : "/assistant/runs/unused/cancel",
     {
       hideToast: "all",
       onSuccess: () => void watchedRun.refetch(),
     },
   );
   const resumeRun = useSend<Record<string, never>>(
-    currentRun ? `/assistant/runs/${currentRun.id}/resume` : "/assistant/runs/unused/resume",
+    currentRun
+      ? `/assistant/runs/${currentRun.id}/resume`
+      : "/assistant/runs/unused/resume",
     {
       hideToast: "all",
       onSuccess: () => void watchedRun.refetch(),
@@ -142,7 +184,7 @@ export function ConversationChat({
         !["completed", "failed", "cancelled"].includes(watchedRunStatus)));
 
   useEffect(() => {
-    const run = watchedRun.data?.data.data;
+    const run = currentRun;
     if (
       !run ||
       !["completed", "failed", "cancelled"].includes(run.status) ||
@@ -152,26 +194,71 @@ export function ConversationChat({
     }
     handledRunRef.current = run.id;
     void conversation.refetch();
-  }, [conversation, watchedRun.data]);
+  }, [conversation, currentRun]);
+
+  useEffect(() => {
+    if (!currentConversation) return;
+    const isNewConversation =
+      loadedConversationRef.current !== currentConversation.id;
+    if (isNewConversation) {
+      loadedConversationRef.current = currentConversation.id;
+      loadedOlderMessagesRef.current = false;
+      setMessages([...currentConversation.messages]);
+      setMessageCursor(currentConversation.messagePage.nextCursor);
+      setHasOlderMessages(currentConversation.messagePage.hasMore);
+      return;
+    }
+    setMessages((existing) => {
+      const byId = new Map(existing.map((message) => [message.id, message]));
+      for (const message of currentConversation.messages)
+        byId.set(message.id, message);
+      return [...byId.values()].sort(
+        (left, right) =>
+          new Date(left.createdAt).getTime() -
+          new Date(right.createdAt).getTime(),
+      );
+    });
+    if (!loadedOlderMessagesRef.current) {
+      setMessageCursor(currentConversation.messagePage.nextCursor);
+      setHasOlderMessages(currentConversation.messagePage.hasMore);
+    }
+  }, [currentConversation]);
+
+  useLayoutEffect(() => {
+    const restore = scrollRestoreRef.current;
+    const container = scrollRef.current;
+    if (!restore || !container) return;
+    container.scrollTop =
+      restore.top + (container.scrollHeight - restore.height);
+    scrollRestoreRef.current = undefined;
+  }, [messages.length]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const container = scrollRef.current;
-      if (!container || (!shouldAutoScrollRef.current && hasScrolledRef.current)) return;
+      if (
+        !container ||
+        (!shouldAutoScrollRef.current && hasScrolledRef.current)
+      )
+        return;
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
       container.scrollTo({
-        behavior: hasScrolledRef.current && !reduceMotion ? "smooth" : "auto",
+        behavior:
+          hasScrolledRef.current && !reduceMotion && !runStream.content
+            ? "smooth"
+            : "auto",
         top: container.scrollHeight,
       });
       hasScrolledRef.current = true;
     });
     return () => cancelAnimationFrame(frame);
   }, [
-    currentConversation?.messages.length,
+    messages.length,
     isResponding,
     pendingMessage,
+    runStream.content,
     conversationId,
   ]);
 
@@ -179,6 +266,42 @@ export function ConversationChat({
     shouldAutoScrollRef.current = true;
     hasScrolledRef.current = false;
   }, [conversationId]);
+
+  async function loadOlderMessages() {
+    const container = scrollRef.current;
+    if (!conversationId || !messageCursor || !container || loadingOlderMessages)
+      return;
+    setLoadingOlderMessages(true);
+    setOlderMessagesError(false);
+    try {
+      const response = await api.get<AssistantConversation>(
+        "base",
+        conversationUrl,
+        { before: messageCursor, limit: 50 },
+      );
+      scrollRestoreRef.current = {
+        height: container.scrollHeight,
+        top: container.scrollTop,
+      };
+      loadedOlderMessagesRef.current = true;
+      setMessages((existing) => {
+        const byId = new Map(existing.map((message) => [message.id, message]));
+        for (const message of response.data.data.messages)
+          byId.set(message.id, message);
+        return [...byId.values()].sort(
+          (left, right) =>
+            new Date(left.createdAt).getTime() -
+            new Date(right.createdAt).getTime(),
+        );
+      });
+      setMessageCursor(response.data.data.messagePage.nextCursor);
+      setHasOlderMessages(response.data.data.messagePage.hasMore);
+    } catch {
+      setOlderMessagesError(true);
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  }
 
   function submit(content: string) {
     const trimmed = content.trim();
@@ -198,8 +321,8 @@ export function ConversationChat({
   }
 
   const title =
-    currentConversation?.messages.find((message) => message.role === "user")
-      ?.content ?? "New conversation";
+    messages.find((message) => message.role === "user")?.content ??
+    "New conversation";
 
   return (
     <main className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col overflow-hidden bg-background">
@@ -217,15 +340,22 @@ export function ConversationChat({
           onScroll={(event) => {
             const target = event.currentTarget;
             shouldAutoScrollRef.current =
-              target.scrollHeight - target.scrollTop - target.clientHeight < 120;
+              target.scrollHeight - target.scrollTop - target.clientHeight <
+              120;
           }}
         >
           {conversationId && conversation.isLoading ? <ChatSkeleton /> : null}
           {conversation.isError ? (
             <div className="flex min-h-full items-center justify-center py-10 text-center">
               <div>
-                <p className="font-medium">This conversation could not be loaded.</p>
-                <Button variant="outline" className="mt-4" onClick={() => void conversation.refetch()}>
+                <p className="font-medium">
+                  This conversation could not be loaded.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => void conversation.refetch()}
+                >
                   Try again
                 </Button>
               </div>
@@ -238,9 +368,12 @@ export function ConversationChat({
                 <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
                   <Sparkles className="size-6" aria-hidden="true" />
                 </span>
-                <h2 className="mt-5 text-2xl font-semibold tracking-tight md:text-3xl">What can I help you with?</h2>
+                <h2 className="mt-5 text-2xl font-semibold tracking-tight md:text-3xl">
+                  What can I help you with?
+                </h2>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Ask a question, explore an idea, or start a task that can continue across Repin.
+                  Ask a question, explore an idea, or start a task that can
+                  continue across Repin.
                 </p>
                 <div className="mt-7 grid gap-2 text-left sm:grid-cols-3">
                   {prompts.map((prompt) => (
@@ -263,10 +396,49 @@ export function ConversationChat({
 
           {currentConversation ? (
             <div className="space-y-5 py-5 sm:py-7">
-              {currentConversation.messages.map((item) => (
-                <ChatMessage key={item.id} content={item.content} role={item.role} />
+              {hasOlderMessages ? (
+                <div className="flex flex-col items-center gap-1 pb-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={loadingOlderMessages}
+                    onClick={() => void loadOlderMessages()}
+                  >
+                    {loadingOlderMessages
+                      ? "Loading earlier messages..."
+                      : "Load earlier messages"}
+                  </Button>
+                  {olderMessagesError ? (
+                    <p className="text-xs text-destructive" role="alert">
+                      Earlier messages could not be loaded. Try again.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {messages.map((item) => (
+                <ChatMessage
+                  key={item.id}
+                  content={item.content}
+                  role={item.role}
+                />
               ))}
-              {pendingMessage ? <ChatMessage content={pendingMessage} role="user" pending /> : null}
+              {pendingMessage ? (
+                <ChatMessage content={pendingMessage} role="user" pending />
+              ) : null}
+              {runStream.content ? (
+                <ChatMessage
+                  content={runStream.content}
+                  role="assistant"
+                  pending
+                />
+              ) : null}
+              {currentRun ? (
+                <RunTimeline
+                  liveEvents={runStream.events}
+                  runId={currentRun.id}
+                  runStatus={currentRun.status}
+                />
+              ) : null}
               {currentRun ? (
                 <RunFeedback
                   approval={pendingApproval}
@@ -274,10 +446,23 @@ export function ConversationChat({
                   denying={denyAction.isPending}
                   resuming={resumeRun.isPending}
                   run={currentRun}
-                  onApprove={pendingApproval ? () => approveAction.mutate({}) : undefined}
-                  onDeny={pendingApproval ? () => denyAction.mutate({}) : undefined}
-                  onResume={currentRun.status === "suspended" ? () => resumeRun.mutate({}) : undefined}
-                  onRetry={currentRun.status === "failed" || currentRun.status === "cancelled" ? () => submit(lastMessage?.content ?? "") : undefined}
+                  onApprove={
+                    pendingApproval ? () => approveAction.mutate({}) : undefined
+                  }
+                  onDeny={
+                    pendingApproval ? () => denyAction.mutate({}) : undefined
+                  }
+                  onResume={
+                    currentRun.status === "suspended"
+                      ? () => resumeRun.mutate({})
+                      : undefined
+                  }
+                  onRetry={
+                    currentRun.status === "failed" ||
+                    currentRun.status === "cancelled"
+                      ? () => submit(lastMessage?.content ?? "")
+                      : undefined
+                  }
                 />
               ) : isResponding ? (
                 <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
@@ -289,28 +474,31 @@ export function ConversationChat({
           ) : null}
         </div>
 
-        <div className="shrink-0 border-t bg-muted/25 px-3 pb-3 pt-2.5 md:px-6 md:pb-5">
-          <ChatComposer
-            key={composerKey}
-            disabled={isResponding}
-            initialContent={suggestedMessage}
-            isSending={isResponding}
-            placeholder={conversationId ? "Ask for follow-up changes" : "Message Repin"}
-            statusLabel={
-              currentRun && isResponding
-                ? currentRun.phase === "executing"
-                  ? "Repin is using browser tools"
-                  : "Repin is working"
-                : undefined
-            }
-            onCancel={
-              currentRun && ["queued", "running", "awaiting_approval", "suspended"].includes(currentRun.status)
-                ? () => cancelRun.mutate({})
-                : undefined
-            }
-            onSend={submit}
-          />
-        </div>
+        <ChatComposer
+          key={composerKey}
+          disabled={isResponding}
+          initialContent={suggestedMessage}
+          isSending={isResponding}
+          placeholder={
+            conversationId ? "Ask for follow-up changes" : "Message Repin"
+          }
+          statusLabel={
+            currentRun && isResponding
+              ? currentRun.phase === "executing"
+                ? "Repin is using browser tools"
+                : "Repin is working"
+              : undefined
+          }
+          onCancel={
+            currentRun &&
+            ["queued", "running", "awaiting_approval", "suspended"].includes(
+              currentRun.status,
+            )
+              ? () => cancelRun.mutate({})
+              : undefined
+          }
+          onSend={submit}
+        />
       </div>
     </main>
   );

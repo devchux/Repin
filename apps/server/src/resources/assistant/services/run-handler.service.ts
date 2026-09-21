@@ -294,6 +294,15 @@ export class RunHandler {
       throw error;
     } finally {
       this.activeRuns.delete(run.id);
+      const settledRun = await this.runRepository.findOne({
+        where: { id: run.id },
+      });
+      if (
+        settledRun &&
+        ['completed', 'failed', 'cancelled'].includes(settledRun.status)
+      ) {
+        this.execution.closeLiveEvents(run.id);
+      }
     }
   }
 

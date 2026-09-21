@@ -27,6 +27,10 @@ export class OpenAiCompatibleProvider implements AiProvider {
       throw new Error(`${this.options.provider} API key is not configured`);
     }
 
+    if (options.onTextDelta) {
+      return this.generateStream(options);
+    }
+
     const response = await this.client.chat.completions.create(
       {
         model: options.model || this.options.model,
@@ -74,6 +78,82 @@ export class OpenAiCompatibleProvider implements AiProvider {
             outputTokens: response.usage.completion_tokens,
           }
         : undefined,
+    };
+  }
+
+  private async generateStream(
+    options: AiGenerateOptions,
+  ): Promise<AiGenerateResult> {
+    const stream = await this.client.chat.completions.create(
+      {
+        model: options.model || this.options.model,
+        messages: options.messages.map((message) =>
+          this.toChatMessage(message),
+        ),
+        tools: this.toChatTools(options),
+        response_format: options.responseSchema
+          ? {
+              type: 'json_schema',
+              json_schema: {
+                name: 'response',
+                strict: true,
+                schema: options.responseSchema,
+              },
+            }
+          : undefined,
+        stream: true,
+        stream_options: { include_usage: true },
+      },
+      { signal: options.signal },
+    );
+    let content = '';
+    let model = options.model || this.options.model;
+    let usage: AiGenerateResult['usage'];
+    const streamedToolCalls = new Map<
+      number,
+      { id: string; name: string; arguments: string }
+    >();
+
+    for await (const chunk of stream) {
+      model = chunk.model || model;
+      if (chunk.usage) {
+        usage = {
+          inputTokens: chunk.usage.prompt_tokens,
+          outputTokens: chunk.usage.completion_tokens,
+        };
+      }
+      const delta = chunk.choices[0]?.delta;
+      if (delta?.content) {
+        content += delta.content;
+        await options.onTextDelta?.(delta.content);
+      }
+      for (const toolCall of delta?.tool_calls ?? []) {
+        const current = streamedToolCalls.get(toolCall.index) ?? {
+          id: '',
+          name: '',
+          arguments: '',
+        };
+        if (toolCall.id) current.id = toolCall.id;
+        if (toolCall.function?.name) current.name += toolCall.function.name;
+        if (toolCall.function?.arguments) {
+          current.arguments += toolCall.function.arguments;
+        }
+        streamedToolCalls.set(toolCall.index, current);
+      }
+    }
+
+    return {
+      provider: this.options.provider,
+      model,
+      content,
+      toolCalls: [...streamedToolCalls.entries()]
+        .sort(([left], [right]) => left - right)
+        .map(([, toolCall]) => ({
+          id: toolCall.id,
+          name: toolCall.name,
+          arguments: this.parseToolArguments(toolCall.arguments),
+        })),
+      usage,
     };
   }
 

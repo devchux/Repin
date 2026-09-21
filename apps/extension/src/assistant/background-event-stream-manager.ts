@@ -8,7 +8,7 @@ import {
   type EventStreamKind,
   type EventStreamServerMessage,
 } from "./event-stream-protocol";
-import { parseServerEvents, type ParsedServerEvent } from "./sse-parser";
+import { parseServerEvents, type ParsedServerEvent } from "@repo/client/sse";
 import { isExpectedRuntimeDisconnect } from "../lib/runtime-errors";
 
 const TERMINAL_RUN_STATUSES = new Set(["cancelled", "completed", "failed"]);

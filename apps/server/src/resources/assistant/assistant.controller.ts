@@ -18,7 +18,9 @@ import { SkipTimeout } from 'src/shared/decorators/skip-timeout.decorator';
 import { SkipResponseTransform } from 'src/shared/decorators/skip-response-transform.decorator';
 import { CreateConversationMessageDto } from './dto/create-conversation-message.dto';
 import {
+  FindConversationDto,
   FindConversationsDto,
+  FindRunTimelineDto,
   FindRunsDto,
 } from './dto/find-assistant-items.dto';
 
@@ -102,8 +104,22 @@ export class AssistantController {
   findConversation(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) conversationId: string,
+    @Query() query: FindConversationDto,
   ) {
-    return this.assistantService.findConversation(user.id, conversationId);
+    return this.assistantService.findConversation(
+      user.id,
+      conversationId,
+      query,
+    );
+  }
+
+  @Get('runs/:id/timeline')
+  findRunTimeline(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) runId: string,
+    @Query() query: FindRunTimelineDto,
+  ) {
+    return this.assistantService.findRunTimeline(user.id, runId, query);
   }
 
   @Get('conversations')

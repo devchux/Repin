@@ -19,7 +19,6 @@ import {
   ExternalLink,
   LoaderCircle,
   Save,
-  Sparkles,
   Trash2,
 } from "@repo/ui/icons";
 import { useEffect } from "react";
@@ -169,10 +168,6 @@ export function BookmarkDetail({
               <a href={item.url} target="_blank" rel="noreferrer">
                 Open original <ExternalLink />
               </a>
-            </Button>
-            <Button type="button" variant="outline">
-              <Sparkles />
-              Ask Repin about this
             </Button>
             <AddBookmarkToMemoryDialog
               bookmarkId={item.id}

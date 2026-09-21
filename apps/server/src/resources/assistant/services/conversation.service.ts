@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,7 +10,10 @@ import { In, Repository } from 'typeorm';
 import { Run } from '../../agent/entities/run.entity';
 import { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
 import { ExecuteDto } from '../dto/execute.dto';
-import type { FindConversationsDto } from '../dto/find-assistant-items.dto';
+import type {
+  FindConversationDto,
+  FindConversationsDto,
+} from '../dto/find-assistant-items.dto';
 import { ConversationMessage } from '../entities/conversation-message.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { RunService } from './run.service';
@@ -94,32 +98,86 @@ export class ConversationService {
     };
   }
 
-  async findConversation(userId: number, conversationId: string) {
+  async findConversation(
+    userId: number,
+    conversationId: string,
+    query: FindConversationDto,
+  ) {
     const conversation = await this.findUserConversation(
       userId,
       conversationId,
     );
-    const messages = await this.repository.manager.find(ConversationMessage, {
-      where: { conversationId },
-      order: { createdAt: 'ASC' },
-    });
+    const cursor = query.before
+      ? this.decodeMessageCursor(query.before)
+      : undefined;
+    const messageBuilder = this.repository.manager
+      .createQueryBuilder(ConversationMessage, 'message')
+      .where('message.conversationId = :conversationId', { conversationId })
+      .orderBy('message.createdAt', 'DESC')
+      .addOrderBy('message.id', 'DESC')
+      .take(query.limit + 1);
+    if (cursor) {
+      messageBuilder.andWhere(
+        '(message.createdAt < :createdAt OR (message.createdAt = :createdAt AND message.id < :messageId))',
+        { createdAt: cursor.createdAt, messageId: cursor.id },
+      );
+    }
+    const descendingMessages = await messageBuilder.getMany();
+    const hasMore = descendingMessages.length > query.limit;
+    const pageMessages = descendingMessages.slice(0, query.limit).reverse();
+    const oldestMessage = pageMessages[0];
     return {
       message: 'Assistant conversation found successfully',
       data: {
         id: conversation.id,
         initialCapability: conversation.initialCapability,
         context: conversation.context,
-        messages: messages.map((message) => ({
+        messages: pageMessages.map((message) => ({
           id: message.id,
           runId: message.runId,
           role: message.role,
           content: message.content,
           createdAt: message.createdAt,
         })),
+        messagePage: {
+          hasMore,
+          nextCursor:
+            hasMore && oldestMessage
+              ? this.encodeMessageCursor(oldestMessage)
+              : undefined,
+        },
         createdAt: conversation.createdAt,
         updatedAt: conversation.updatedAt,
       },
     };
+  }
+
+  private encodeMessageCursor(message: ConversationMessage): string {
+    return Buffer.from(
+      JSON.stringify({
+        createdAt: message.createdAt.toISOString(),
+        id: message.id,
+      }),
+    ).toString('base64url');
+  }
+
+  private decodeMessageCursor(cursor: string): { createdAt: Date; id: string } {
+    try {
+      const parsed = JSON.parse(
+        Buffer.from(cursor, 'base64url').toString('utf8'),
+      ) as { createdAt?: unknown; id?: unknown };
+      if (
+        typeof parsed.createdAt !== 'string' ||
+        Number.isNaN(Date.parse(parsed.createdAt)) ||
+        typeof parsed.id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.id)
+      ) {
+        throw new Error('Invalid cursor values');
+      }
+      return { createdAt: new Date(parsed.createdAt), id: parsed.id };
+    } catch {
+      throw new BadRequestException('Invalid conversation message cursor');
+    }
   }
 
   async findConversations(userId: number, query: FindConversationsDto) {

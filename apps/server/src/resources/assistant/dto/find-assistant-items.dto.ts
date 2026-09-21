@@ -75,3 +75,38 @@ export class FindConversationsDto extends AssistantPageDto {
   @IsIn(['recent', 'created', 'oldest', 'messages'])
   sort: 'recent' | 'created' | 'oldest' | 'messages' = 'recent';
 }
+
+export class FindConversationDto {
+  @ApiPropertyOptional({
+    description: 'Opaque cursor for messages older than the current page',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  before?: string;
+
+  @ApiPropertyOptional({ default: 50, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit = 50;
+}
+
+export class FindRunTimelineDto {
+  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @ApiPropertyOptional({ default: 100, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit = 100;
+}

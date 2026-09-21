@@ -82,11 +82,18 @@ GET /api/assistant/runs/:id/events
 Accept: text/event-stream
 ```
 
-The authenticated SSE stream emits the current run immediately, emits again
-when its persisted status changes, and sends a heartbeat every 15 seconds. A
-terminal `completed`, `failed`, or `cancelled` event includes the latest run
-data and closes the server stream. Clients must call `EventSource.close()` when
-they receive a terminal event; browsers otherwise reconnect automatically.
+The authenticated SSE stream emits the current run immediately, streams
+`assistant.delta` text updates while the provider generates, replays persisted
+events after reconnect using `Last-Event-ID`, and sends a heartbeat every 15
+seconds. Delta payloads contain cumulative `content`, so replay and live-event
+overlap are idempotent. A terminal `completed`, `failed`, or `cancelled` event
+includes the latest run data and closes the server stream.
+
+Run activity without text deltas is available as a paginated timeline:
+
+```http
+GET /api/assistant/runs/:id/timeline?page=1&limit=100
+```
 
 The regular `GET /api/assistant/runs/:id` endpoint remains the recovery path
 after reconnects, browser suspension, or extension restarts.
@@ -104,6 +111,14 @@ POST /api/assistant/conversations/:conversationId/messages
 {
   "content": "Can you explain the second point in simpler terms?"
 }
+```
+
+Conversation reads return the newest 50 messages in chronological display
+order. `messagePage.nextCursor` can be passed as `before` to prepend older
+messages without offset drift:
+
+```http
+GET /api/assistant/conversations/:conversationId?before=opaqueCursor&limit=50
 ```
 
 Each follow-up creates another run on `assistant-interactive`. Subscribe to

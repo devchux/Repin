@@ -1,4 +1,5 @@
 import type { AiService } from '../../ai/ai.service';
+import type { AiGenerateOptions } from '../../ai/types/provider';
 import type { ToolsService } from '../../tools/services/tools.service';
 import { LoopService } from './loop.service';
 import type { Run } from '../entities/run.entity';
@@ -23,6 +24,9 @@ describe('LoopService', () => {
     saveContinuation: jest.fn().mockResolvedValue(undefined),
     markContinuation: jest.fn().mockResolvedValue(undefined),
     clearContinuation: jest.fn().mockResolvedValue(undefined),
+    recordEvent: jest.fn().mockResolvedValue(undefined),
+    publishLiveEvent: jest.fn(),
+    closeLiveEvents: jest.fn(),
   } as unknown as ExecutionService;
   const memoryService = {
     getContext: jest.fn().mockResolvedValue([]),
@@ -34,6 +38,44 @@ describe('LoopService', () => {
   } as unknown as MemoryToolsService;
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('records streamed assistant text as durable delta events', async () => {
+    const aiService = {
+      generate: jest
+        .fn()
+        .mockImplementation(async (options: AiGenerateOptions) => {
+          await options.onTextDelta?.('Hello');
+          await options.onTextDelta?.(' from Repin');
+          return {
+            provider: 'test',
+            model: 'model',
+            content: 'Hello from Repin',
+          };
+        }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+    } as unknown as ToolsService;
+
+    await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+    ).run(run, [{ role: 'user', content: 'Say hello' }]);
+
+    expect(execution.recordEvent).toHaveBeenCalledWith(
+      run.id,
+      'assistant.delta',
+      { content: 'Hello from Repin' },
+    );
+    expect(execution.publishLiveEvent).toHaveBeenLastCalledWith(
+      run.id,
+      'assistant.delta',
+      { content: 'Hello from Repin' },
+    );
+  });
 
   it('records the context manifest on model steps for replay', async () => {
     const aiService = {

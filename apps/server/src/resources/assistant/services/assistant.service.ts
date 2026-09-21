@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import type { ExecuteDto } from '../dto/execute.dto';
 import type { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
 import type {
+  FindConversationDto,
   FindConversationsDto,
+  FindRunTimelineDto,
   FindRunsDto,
 } from '../dto/find-assistant-items.dto';
 import { ApprovalService } from './approval.service';
@@ -22,8 +24,16 @@ export class AssistantService {
     return this.conversations.createRun(userId, request, idempotencyKey);
   }
 
-  findConversation(userId: number, conversationId: string) {
-    return this.conversations.findConversation(userId, conversationId);
+  findConversation(
+    userId: number,
+    conversationId: string,
+    query: FindConversationDto,
+  ) {
+    return this.conversations.findConversation(userId, conversationId, query);
+  }
+
+  findRunTimeline(userId: number, runId: string, query: FindRunTimelineDto) {
+    return this.runs.findTimeline(userId, runId, query);
   }
 
   findConversations(userId: number, query: FindConversationsDto) {

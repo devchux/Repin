@@ -61,6 +61,7 @@ describe('AssistantService', () => {
     queue,
     runHandler,
     execution,
+    { watch: jest.fn() } as never,
   );
   const conversationService = new ConversationService(
     runRepository,

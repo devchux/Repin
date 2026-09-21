@@ -130,15 +130,37 @@ export interface BrowserActionApproval {
 export type AssistantRunEventType = AssistantRunStatus | "heartbeat";
 
 export interface AssistantRunEvent {
-  readonly type: AssistantRunEventType;
-  readonly data: AssistantRun | { readonly runId: string };
+  readonly id?: string;
+  readonly type: string;
+  readonly data:
+    | (AssistantRun & {
+        readonly event?: Readonly<Record<string, unknown>>;
+      })
+    | {
+        readonly runId: string;
+        readonly event?: Readonly<Record<string, unknown>>;
+      };
 }
+
+export interface AssistantRunTimelineEvent {
+  readonly id: string;
+  readonly sequence: number;
+  readonly type: string;
+  readonly data: Readonly<Record<string, unknown>>;
+  readonly createdAt: string;
+}
+
+export type AssistantRunTimelinePage = PaginatedResult<AssistantRunTimelineEvent>;
 
 export interface AssistantConversation {
   readonly id: string;
   readonly initialCapability: AiAssistantCapability;
   readonly context: PageContext;
   readonly messages: readonly AssistantConversationMessage[];
+  readonly messagePage: {
+    readonly hasMore: boolean;
+    readonly nextCursor?: string;
+  };
   readonly createdAt: string;
   readonly updatedAt: string;
 }

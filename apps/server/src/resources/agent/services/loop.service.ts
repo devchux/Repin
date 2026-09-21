@@ -67,6 +67,7 @@ export class LoopService {
     let inputTokens = 0;
     let outputTokens = 0;
     let initialIteration = 0;
+    let streamedContent = '';
 
     const continuation = await this.execution.getContinuation(run.id);
     if (continuation) {
@@ -124,6 +125,16 @@ export class LoopService {
         ...(contextManifest ? { contextManifest } : {}),
       });
       let result: AiGenerateResult;
+      let pendingDelta = '';
+      let lastDeltaFlush = Date.now();
+      const flushDelta = async () => {
+        if (!pendingDelta) return;
+        pendingDelta = '';
+        lastDeltaFlush = Date.now();
+        await this.execution.recordEvent(run.id, 'assistant.delta', {
+          content: streamedContent,
+        });
+      };
       try {
         result = await this.aiService.generate({
           messages,
@@ -132,7 +143,21 @@ export class LoopService {
             ...this.memoryTools.getDefinitions(),
           ],
           signal,
+          onTextDelta: async (delta) => {
+            pendingDelta += delta;
+            streamedContent += delta;
+            this.execution.publishLiveEvent(run.id, 'assistant.delta', {
+              content: streamedContent,
+            });
+            if (
+              pendingDelta.length >= 80 ||
+              Date.now() - lastDeltaFlush >= 100
+            ) {
+              await flushDelta();
+            }
+          },
         });
+        await flushDelta();
         await this.execution.completeStep(modelStep.id, {
           decision: this.toDecision(result),
           provider: result.provider,
