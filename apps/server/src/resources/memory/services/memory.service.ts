@@ -18,6 +18,7 @@ import { Memory } from '../entities/memory.entity';
 import { MemorySource } from '../entities/memory-source.entity';
 import { LibraryService } from '../../library/library.service';
 import { CreateMemoryFromSourceDto } from '../dto/create-memory-from-source.dto';
+import { UpdateMemoryDto } from '../dto/update-memory.dto';
 import type { LibraryItemType } from '@repo/contracts/library';
 import { AiService } from '../../ai/ai.service';
 import type { MemoryKind, MemoryScope } from '@repo/contracts/memory';
@@ -27,6 +28,7 @@ import {
   EMBED_MEMORY_JOB,
   MEMORY_EMBEDDING_QUEUE,
   MEMORY_RANKING,
+  memoryEmbeddingJobId,
 } from '../constants';
 import {
   MemoryTelemetryEvents,
@@ -36,6 +38,9 @@ import {
 } from '@repo/observability';
 import { ConfigService } from '@nestjs/config';
 import type { Configuration } from 'src/shared/types';
+import { BookmarkService } from '../../bookmark/services/bookmark.service';
+import { NoteService } from '../../note/note.service';
+import { HighlightService } from '../../highlight/highlight.service';
 
 const UNTRUSTED_SOURCES = new Set<MemorySourceType>([
   'webpage',
@@ -60,6 +65,9 @@ export class MemoryService {
     @InjectRepository(MemorySource)
     private readonly sources: Repository<MemorySource>,
     private readonly library: LibraryService,
+    private readonly bookmarks: BookmarkService,
+    private readonly notes: NoteService,
+    private readonly highlights: HighlightService,
     private readonly ai: AiService,
     @Optional()
     @InjectQueue(MEMORY_EMBEDDING_QUEUE)
@@ -95,23 +103,11 @@ export class MemoryService {
 
   async findAll(userId: number, request: FindMemoriesDto) {
     this.validateOptionalScope(request.scope, request.scopeId);
-    if (request.query) {
-      const data = await this.retrieve(userId, {
-        query: request.query,
-        kind: request.kind,
-        scope: request.scope,
-        scopeId: request.scopeId,
-        includeGlobal: false,
-        limit: request.limit ?? 20,
-      });
-      return { message: 'Memories found successfully', data };
-    }
     const query = this.memories
       .createQueryBuilder('memory')
       .leftJoinAndSelect('memory.sources', 'source')
       .where('memory.userId = :userId', { userId })
-      .orderBy('memory.updatedAt', 'DESC')
-      .take(request.limit ?? 20);
+      .distinct(true);
 
     if (request.kind)
       query.andWhere('memory.kind = :kind', { kind: request.kind });
@@ -119,27 +115,44 @@ export class MemoryService {
       query.andWhere('memory.scope = :scope', { scope: request.scope });
     if (request.scopeId)
       query.andWhere('memory.scopeId = :scopeId', { scopeId: request.scopeId });
-    const data = await query.getMany();
-    return { message: 'Memories found successfully', data };
+    if (request.query?.trim()) {
+      query.andWhere('memory.content ILIKE :search', {
+        search: `%${request.query.trim()}%`,
+      });
+    }
+    if (request.sourceType) {
+      query.andWhere(
+        `EXISTS (SELECT 1 FROM memory_sources filtered_source WHERE filtered_source."memoryId" = memory.id AND filtered_source.type = :sourceType)`,
+        { sourceType: request.sourceType },
+      );
+    }
+    if (request.embeddingStatus) {
+      query.andWhere('memory.embeddingStatus = :embeddingStatus', {
+        embeddingStatus: request.embeddingStatus,
+      });
+    }
+    const [items, total] = await query
+      .orderBy('memory.updatedAt', 'DESC')
+      .skip((request.page - 1) * request.limit)
+      .take(request.limit)
+      .getManyAndCount();
+    return {
+      message: 'Memories found successfully',
+      data: {
+        items,
+        page: request.page,
+        limit: request.limit,
+        total,
+        pageCount: Math.ceil(total / request.limit),
+      },
+    };
   }
 
   async createFromSource(userId: number, request: CreateMemoryFromSourceDto) {
     const item = await this.library.findOwned(userId, request.sourceId);
     const content = request.content.trim();
     const sourceType = LIBRARY_MEMORY_SOURCE[item.type];
-    const duplicate = await this.sources
-      .createQueryBuilder('source')
-      .innerJoin('source.memory', 'memory')
-      .where('memory.userId = :userId', { userId })
-      .andWhere('source.type = :sourceType', { sourceType })
-      .andWhere('source.sourceId = :sourceId', { sourceId: item.id })
-      .andWhere('LOWER(TRIM(memory.content)) = LOWER(:content)', { content })
-      .getOne();
-    if (duplicate) {
-      throw new ConflictException(
-        'This source has already created that memory',
-      );
-    }
+    await this.ensureUniqueSourceMemory(userId, sourceType, item.id, content);
 
     return this.create(userId, {
       content,
@@ -152,6 +165,63 @@ export class MemoryService {
         url: item.url,
       },
     });
+  }
+
+  async createFromBookmark(userId: number, request: CreateMemoryFromSourceDto) {
+    const { data: bookmark } = await this.bookmarks.findOne(
+      userId,
+      request.sourceId,
+    );
+    return this.upsertSourceMemory(userId, request, {
+      type: 'bookmark',
+      id: bookmark.id,
+      url: bookmark.url,
+      label: 'Bookmark',
+    });
+  }
+
+  async findByBookmark(userId: number, bookmarkId: string) {
+    await this.bookmarks.findOne(userId, bookmarkId);
+    const data = await this.findSourceMemory(userId, 'bookmark', bookmarkId);
+    return { message: 'Bookmark memory found successfully', data };
+  }
+
+  async createFromNote(userId: number, request: CreateMemoryFromSourceDto) {
+    const { data: note } = await this.notes.findOne(userId, request.sourceId);
+    return this.upsertSourceMemory(userId, request, {
+      type: 'note',
+      id: note.id,
+      url: note.sourceUrl ?? undefined,
+      label: 'Note',
+    });
+  }
+
+  async findByNote(userId: number, noteId: string) {
+    await this.notes.findOne(userId, noteId);
+    const data = await this.findSourceMemory(userId, 'note', noteId);
+    return { message: 'Note memory found successfully', data };
+  }
+
+  async createFromHighlight(
+    userId: number,
+    request: CreateMemoryFromSourceDto,
+  ) {
+    const { data: highlight } = await this.highlights.findOne(
+      userId,
+      request.sourceId,
+    );
+    return this.upsertSourceMemory(userId, request, {
+      type: 'highlight',
+      id: highlight.id,
+      url: highlight.url,
+      label: 'Highlight',
+    });
+  }
+
+  async findByHighlight(userId: number, highlightId: string) {
+    await this.highlights.findOne(userId, highlightId);
+    const data = await this.findSourceMemory(userId, 'highlight', highlightId);
+    return { message: 'Highlight memory found successfully', data };
   }
 
   async findContext(userId: number, request: FindMemoryContextDto) {
@@ -194,14 +264,19 @@ export class MemoryService {
     return query.getMany();
   }
 
-  private async queueEmbedding(id: string): Promise<void> {
+  private async queueEmbedding(id: string, replace = false): Promise<void> {
     if (!this.embeddingQueue) return;
     try {
+      const jobId = memoryEmbeddingJobId(id);
+      if (replace) {
+        const existing = await this.embeddingQueue.getJob(jobId);
+        await existing?.remove();
+      }
       await this.embeddingQueue.add(
         EMBED_MEMORY_JOB,
         { memoryId: id },
         {
-          jobId: `memory:${id}`,
+          jobId,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: 1000,
@@ -333,6 +408,123 @@ export class MemoryService {
     const result = await this.memories.delete({ id, userId });
     if (!result.affected) throw new NotFoundException('Memory not found');
     return { message: 'Memory forgotten successfully' };
+  }
+
+  async update(userId: number, id: string, request: UpdateMemoryDto) {
+    const memory = await this.memories.findOne({
+      where: { id, userId },
+      relations: { sources: true },
+    });
+    if (!memory) throw new NotFoundException('Memory not found');
+
+    const scope = request.scope ?? memory.scope;
+    const scopeId =
+      request.scope === undefined ? memory.scopeId : request.scopeId;
+    this.validateScope(scope, scopeId);
+    const content = request.content?.trim() ?? memory.content;
+    const data = await this.memories.save(
+      this.memories.merge(memory, {
+        content,
+        scope,
+        scopeId: scope === 'global' ? undefined : scopeId,
+        embedding: null,
+        embeddingStatus: 'pending',
+        embeddingError: null,
+        embeddedAt: null,
+      }),
+    );
+    await this.queueEmbedding(data.id, true);
+    return { message: 'Memory updated successfully', data };
+  }
+
+  private async ensureUniqueSourceMemory(
+    userId: number,
+    sourceType: MemorySourceType,
+    sourceId: string,
+    content: string,
+  ) {
+    const duplicate = await this.sources
+      .createQueryBuilder('source')
+      .innerJoin('source.memory', 'memory')
+      .where('memory.userId = :userId', { userId })
+      .andWhere('source.type = :sourceType', { sourceType })
+      .andWhere('source.sourceId = :sourceId', { sourceId })
+      .andWhere('LOWER(TRIM(memory.content)) = LOWER(:content)', { content })
+      .getOne();
+    if (duplicate) {
+      throw new ConflictException(
+        'This source has already created that memory',
+      );
+    }
+  }
+
+  private findSourceMemory(
+    userId: number,
+    sourceType: MemorySourceType,
+    sourceId: string,
+  ) {
+    return this.memories
+      .createQueryBuilder('memory')
+      .innerJoinAndSelect(
+        'memory.sources',
+        'source',
+        'source.type = :sourceType AND source.sourceId = :sourceId',
+        { sourceType, sourceId },
+      )
+      .where('memory.userId = :userId', { userId })
+      .orderBy('memory.updatedAt', 'DESC')
+      .getOne();
+  }
+
+  private async upsertSourceMemory(
+    userId: number,
+    request: CreateMemoryFromSourceDto,
+    source: {
+      readonly type: 'bookmark' | 'note' | 'highlight';
+      readonly id: string;
+      readonly url?: string;
+      readonly label: 'Bookmark' | 'Note' | 'Highlight';
+    },
+  ) {
+    const content = request.content.trim();
+    const existing = await this.findSourceMemory(
+      userId,
+      source.type,
+      source.id,
+    );
+
+    if (!existing) {
+      return this.create(userId, {
+        content,
+        kind: request.kind,
+        scope: request.scope,
+        scopeId: request.scopeId,
+        source: {
+          type: source.type,
+          sourceId: source.id,
+          url: source.url,
+        },
+      });
+    }
+
+    const scope = request.scope ?? existing.scope;
+    const scopeId =
+      request.scope === undefined ? existing.scopeId : request.scopeId;
+    this.validateScope(scope, scopeId);
+    const data = await this.memories.save(
+      this.memories.merge(existing, {
+        content,
+        kind: request.kind ?? existing.kind,
+        scope,
+        scopeId: scope === 'global' ? undefined : scopeId,
+        embedding: null,
+        embeddingStatus: 'pending',
+        embeddingError: null,
+        embeddedAt: null,
+      }),
+    );
+    await this.queueEmbedding(data.id, true);
+    return { message: `${source.label} memory updated successfully`, data };
   }
 
   private trustFor(type: MemorySourceType): MemoryTrust {

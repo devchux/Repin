@@ -3,6 +3,7 @@
 import { Button } from "@repo/ui/button";
 import {
   Bookmark,
+  Brain,
   Bot,
   Clock3,
   FileText,
@@ -11,23 +12,23 @@ import {
   MessageSquareText,
   PanelLeftClose,
   Settings,
-  Sparkles,
 } from "@repo/ui/icons";
 import { cn } from "@repo/ui/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const workspaceItems = [
+const primaryItems = [
   { label: "Overview", icon: LayoutDashboard, link: "/overview" },
   { label: "Conversations", icon: MessageSquareText, link: "/conversations" },
   { label: "Activity", icon: Clock3, link: "/activity" },
 ] as const;
 
 const libraryItems = [
-  { label: "Bookmarks", icon: Bookmark, count: 18, link: "/bookmarks" },
-  { label: "Notes", icon: FileText, count: 7, link: "/notes" },
-  { label: "Highlights", icon: Highlighter, count: 24, link: "/highlights" },
+  { label: "Bookmarks", icon: Bookmark, link: "/bookmarks" },
+  { label: "Notes", icon: FileText, link: "/notes" },
+  { label: "Highlights", icon: Highlighter, link: "/highlights" },
+  { label: "Memory", icon: Brain, link: "/memory" },
 ] as const;
 
 export function DashboardSidebar({
@@ -52,8 +53,20 @@ export function DashboardSidebar({
         collapsed && "lg:w-20",
       )}
     >
-      <div className={cn("flex h-12 items-center px-2", collapsed ? "lg:justify-center lg:px-0" : "justify-between")}>
-        <Link href="/overview" className={cn("flex min-w-0 items-center gap-2.5 font-semibold", collapsed && "lg:hidden")} onClick={onCloseMobile}>
+      <div
+        className={cn(
+          "flex h-12 items-center px-2",
+          collapsed ? "lg:justify-center lg:px-0" : "justify-between",
+        )}
+      >
+        <Link
+          href="/overview"
+          className={cn(
+            "flex min-w-0 items-center gap-2.5 font-semibold",
+            collapsed && "lg:hidden",
+          )}
+          onClick={onCloseMobile}
+        >
           <Image
             src="/images/repin-logo-icon.png"
             alt=""
@@ -62,7 +75,11 @@ export function DashboardSidebar({
             className="size-8 shrink-0 object-contain"
             priority
           />
-          <span className={cn("truncate tracking-tight", collapsed && "lg:hidden")}>Repin AI</span>
+          <span
+            className={cn("truncate tracking-tight", collapsed && "lg:hidden")}
+          >
+            Repin AI
+          </span>
         </Link>
         <Button
           variant="ghost"
@@ -81,33 +98,46 @@ export function DashboardSidebar({
           aria-expanded={!collapsed}
           onClick={onToggleCollapsed}
         >
-          <PanelLeftClose className={cn("transition-transform", collapsed && "rotate-180")} aria-hidden="true" />
+          <PanelLeftClose
+            className={cn("transition-transform", collapsed && "rotate-180")}
+            aria-hidden="true"
+          />
         </Button>
       </div>
 
-      <Button asChild className={cn("mt-4 shadow-none", collapsed ? "lg:size-10 lg:p-0" : "w-full justify-start")}>
-        <Link href="/conversations/new" onClick={onCloseMobile} title={collapsed ? "New conversation" : undefined}>
+      <Button
+        asChild
+        className={cn(
+          "mt-4 shadow-none",
+          collapsed ? "lg:size-10 lg:p-0" : "w-full justify-start",
+        )}
+      >
+        <Link
+          href="/conversations/new"
+          onClick={onCloseMobile}
+          title={collapsed ? "New conversation" : undefined}
+        >
           <Bot aria-hidden="true" />
           <span className={cn(collapsed && "lg:hidden")}>New conversation</span>
         </Link>
       </Button>
 
-      <nav className="mt-6 flex-1 space-y-6" aria-label="Dashboard navigation">
-        <NavigationGroup label="Workspace" items={workspaceItems} pathname={pathname} collapsed={collapsed} onNavigate={onCloseMobile} />
-        <NavigationGroup label="Library" items={libraryItems} pathname={pathname} collapsed={collapsed} onNavigate={onCloseMobile} />
+      <nav className="mt-5 flex-1 space-y-5 overflow-y-auto" aria-label="Dashboard navigation">
+        <NavigationGroup
+          label="Workspace"
+          items={primaryItems}
+          pathname={pathname}
+          collapsed={collapsed}
+          onNavigate={onCloseMobile}
+        />
+        <NavigationGroup
+          label="Library"
+          items={libraryItems}
+          pathname={pathname}
+          collapsed={collapsed}
+          onNavigate={onCloseMobile}
+        />
       </nav>
-
-      <div className={cn("rounded-xl border border-primary/15 bg-primary/[0.045] p-3", collapsed && "lg:flex lg:justify-center lg:border-0 lg:bg-transparent lg:p-0")}>
-        <div className="flex items-start gap-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Sparkles className="size-4" aria-hidden="true" />
-          </div>
-          <div className={cn(collapsed && "lg:hidden")}>
-            <p className="text-sm font-medium">Browser connected</p>
-            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">Ready to work with your open tabs.</p>
-          </div>
-        </div>
-      </div>
 
       <Link
         href="/settings"
@@ -116,7 +146,9 @@ export function DashboardSidebar({
         aria-current={pathname.startsWith("/settings") ? "page" : undefined}
         className={cn(
           "mt-2 flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
-          pathname.startsWith("/settings") ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          pathname.startsWith("/settings")
+            ? "bg-accent font-medium text-accent-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
           collapsed && "lg:justify-center lg:px-0",
         )}
       >
@@ -130,7 +162,6 @@ export function DashboardSidebar({
 type NavigationItem = {
   readonly label: string;
   readonly icon: typeof LayoutDashboard;
-  readonly count?: number;
   readonly link: string;
 };
 
@@ -149,10 +180,18 @@ function NavigationGroup({
 }) {
   return (
     <div>
-      <p className={cn("mb-2 px-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/80", collapsed && "lg:sr-only")}>{label}</p>
+      <p
+        className={cn(
+          "mb-2 px-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/80",
+          collapsed && "lg:sr-only",
+        )}
+      >
+        {label}
+      </p>
       <div className="space-y-1">
         {items.map((item) => {
-          const active = pathname === item.link || pathname.startsWith(`${item.link}/`);
+          const active =
+            pathname === item.link || pathname.startsWith(`${item.link}/`);
           return (
             <Link
               key={item.label}
@@ -162,13 +201,19 @@ function NavigationGroup({
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
-                active ? "bg-background font-medium text-foreground shadow-xs ring-1 ring-border/70" : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+                active
+                  ? "bg-background font-medium text-foreground shadow-xs ring-1 ring-border/70"
+                  : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
                 collapsed && "lg:justify-center lg:px-0",
               )}
             >
-              <item.icon className={cn("size-4 shrink-0", active && "text-primary")} aria-hidden="true" />
-              <span className={cn("flex-1", collapsed && "lg:hidden")}>{item.label}</span>
-              {item.count ? <span className={cn("text-xs tabular-nums text-muted-foreground", collapsed && "lg:hidden")}>{item.count}</span> : null}
+              <item.icon
+                className={cn("size-4 shrink-0", active && "text-primary")}
+                aria-hidden="true"
+              />
+              <span className={cn("flex-1", collapsed && "lg:hidden")}>
+                {item.label}
+              </span>
             </Link>
           );
         })}

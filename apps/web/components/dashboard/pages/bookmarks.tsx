@@ -1,42 +1,28 @@
 "use client";
 
 import { EmptyLibrary } from "@/components/dashboard/features/bookmarks/empty-library";
+import { BookmarkCard } from "@/components/dashboard/features/bookmarks/bookmark-card";
+import { CollectionFilter } from "@/components/dashboard/features/bookmarks/collection-filter";
+import { CreateBookmarkDialog } from "@/components/dashboard/features/bookmarks/create-bookmark-dialog";
 import { LibraryToolbar } from "@/components/dashboard/features/common/library-toolbar";
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
-import { bookmarks } from "@/lib/library-data";
-import { Badge } from "@repo/ui/badge";
+import { PaginationControls } from "@/components/dashboard/features/common/pagination-controls";
+import { useBookmarkCollections, useBookmarks } from "@/hooks/useBookmarks";
 import { Button } from "@repo/ui/button";
-import {
-  Bookmark,
-  ChevronDown,
-  ExternalLink,
-  Folder,
-  MoreHorizontal,
-} from "@repo/ui/icons";
-import { Tabs, TabsList, TabsTrigger } from "@repo/ui/tabs";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { WorkspacePage } from "../layout/workspace-page";
 
 export function BookmarksPage() {
   const [query, setQuery] = useState("");
-  const [folder, setFolder] = useState("All saved");
+  const [collectionId, setCollectionId] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
-  const folders = [
-    "All saved",
-    ...new Set(bookmarks.map((item) => item.folder)),
-  ];
-  const filtered = useMemo(
-    () =>
-      bookmarks.filter(
-        (item) =>
-          (folder === "All saved" || item.folder === folder) &&
-          `${item.title} ${item.description} ${item.tags.join(" ")}`
-            .toLowerCase()
-            .includes(query.toLowerCase()),
-      ),
-    [folder, query],
-  );
+  const [pageNumber, setPageNumber] = useState(1);
+  const deferredQuery = useDeferredValue(query.trim());
+  const bookmarks = useBookmarks({ search: deferredQuery, collectionId, page: pageNumber });
+  const collections = useBookmarkCollections();
+  const page = bookmarks.data?.data.data;
+  const items = page?.items ?? [];
+  const collectionItems = collections.data?.data.data ?? [];
 
   return (
     <WorkspacePage>
@@ -44,44 +30,26 @@ export function BookmarksPage() {
         eyebrow="Library"
         title="Bookmarks"
         description="Articles, references, and pages you saved from Repin on any device."
-        action={
-          <Button>
-            <Bookmark /> Save current page
-          </Button>
-        }
+        action={<CreateBookmarkDialog />}
       />
       <LibraryToolbar
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={(value) => { setQuery(value); setPageNumber(1); }}
         placeholder="Search bookmarks"
         layout={layout}
         onLayoutChange={setLayout}
       >
-        <div className="flex items-center rounded-md border bg-background p-1">
-          <Tabs value={folder} onValueChange={setFolder}>
-            <TabsList className="h-auto bg-transparent p-0" aria-label="Filter bookmarks by folder">
-              {folders.slice(0, 4).map((item) => (
-                <TabsTrigger key={item} value={item} className="h-7 px-2.5 text-xs">
-                  {item}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7"
-            aria-label="More folders"
-          >
-            <ChevronDown />
-          </Button>
-        </div>
+        <CollectionFilter collections={collectionItems} value={collectionId} onChange={(value) => { setCollectionId(value); setPageNumber(1); }} />
       </LibraryToolbar>
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-        <span>{filtered.length} bookmarks</span>
-        <span>Sorted by recently saved</span>
+        <span>{bookmarks.isLoading ? "Loading bookmarks…" : `${page?.total ?? 0} ${(page?.total ?? 0) === 1 ? "bookmark" : "bookmarks"}`}</span>
+        <span>{deferredQuery || collectionId ? "Filtered results" : "Sorted by recently saved"}</span>
       </div>
-      {filtered.length ? (
+      {bookmarks.isError ? (
+        <EmptyLibrary title="Bookmarks could not be loaded" description="Check your connection and try again." />
+      ) : null}
+      {bookmarks.isError ? <div className="mt-4 text-center"><Button variant="outline" onClick={() => void bookmarks.refetch()}>Try again</Button></div> : null}
+      {!bookmarks.isLoading && !bookmarks.isError && items.length ? (
         <section
           className={
             layout === "grid"
@@ -89,86 +57,22 @@ export function BookmarksPage() {
               : "mt-4 divide-y border-y"
           }
         >
-          {filtered.map((item) => (
-            <article
-              key={item.id}
-              className={
-                layout === "grid"
-                  ? "group flex min-h-64 flex-col rounded-xl border bg-card p-5 transition-colors hover:border-primary/35"
-                  : "group grid gap-4 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
-              }
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Bookmark className="size-4" />
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-8 opacity-60 group-hover:opacity-100"
-                  aria-label={`Actions for ${item.title}`}
-                >
-                  <MoreHorizontal />
-                </Button>
-              </div>
-              <div
-                className={
-                  layout === "grid"
-                    ? "mt-5 flex flex-1 flex-col"
-                    : "mt-3 md:col-start-1"
-                }
-              >
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="size-1.5 rounded-full bg-primary" />
-                  {item.domain}
-                </p>
-                <Link
-                  href={`/bookmarks/${item.id}`}
-                  className="mt-2 text-base font-semibold leading-6 tracking-tight hover:text-primary"
-                >
-                  {item.title}
-                </Link>
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                  {item.description}
-                </p>
-                <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-                  <Badge variant="secondary">
-                    <Folder className="size-3" />
-                    {item.folder}
-                  </Badge>
-                  {item.tags.slice(0, 1).map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div
-                className={
-                  layout === "grid"
-                    ? "mt-4 flex items-center justify-between border-t pt-4 text-xs text-muted-foreground"
-                    : "md:row-span-2 md:text-right text-xs text-muted-foreground"
-                }
-              >
-                <span>{item.savedAt}</span>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 hover:text-foreground"
-                >
-                  Open <ExternalLink className="size-3" />
-                </a>
-              </div>
-            </article>
+          {items.map((item) => (
+            <BookmarkCard key={item.id} item={item} collections={collectionItems} collectionId={collectionId || undefined} layout={layout} />
           ))}
         </section>
-      ) : (
+      ) : null}
+      {!bookmarks.isLoading && !bookmarks.isError && !items.length ? (
         <EmptyLibrary
-          title="No bookmarks found"
-          description="Try another search or folder."
+          title={deferredQuery || collectionId ? "No bookmarks found" : "Your bookmark library is empty"}
+          description={deferredQuery || collectionId ? "Try another search or collection." : "Save a page here or from the Repin extension."}
         />
-      )}
+      ) : null}
+      {page ? (
+        <div className="mt-5">
+          <PaginationControls page={page.page} pageCount={page.pageCount} onPageChange={setPageNumber} />
+        </div>
+      ) : null}
     </WorkspacePage>
   );
 }

@@ -14,6 +14,11 @@ export type ConversationMessageRole = 'user' | 'assistant';
 
 @Entity('assistant_conversation_messages')
 @Index(['conversationId', 'createdAt'])
+@Index('IDX_conversation_messages_role_created', [
+  'conversationId',
+  'role',
+  'createdAt',
+])
 @Index(['runId', 'role'], { unique: true })
 export class ConversationMessage {
   @PrimaryGeneratedColumn('uuid')

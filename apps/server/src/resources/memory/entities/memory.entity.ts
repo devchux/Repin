@@ -15,6 +15,11 @@ import { MemorySource } from './memory-source.entity';
 
 @Entity('memories')
 @Index(['userId', 'scope', 'scopeId', 'updatedAt'])
+@Index('IDX_memories_user_status_updated', [
+  'userId',
+  'embeddingStatus',
+  'updatedAt',
+])
 export class Memory {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -11,7 +11,8 @@ The optional `saveReason` field records why the user saved the page.
 All routes require an authenticated user. Records are always scoped by the
 authenticated user ID.
 
-- `GET /api/bookmarks` returns newest-first paginated records. `searchMode`
+- `GET /api/bookmarks` returns newest-first paginated records, including the
+  collection IDs that contain each bookmark. `searchMode`
   accepts `lexical`, `semantic`, or `hybrid` (the default). Hybrid search
   combines PostgreSQL full-text rank with cosine similarity. `collectionId`
   limits results to one collection. Repeated `tags` query parameters require
@@ -29,6 +30,14 @@ authenticated user ID.
   on `/api/bookmark-collections/:id` update and delete it.
 - `POST` or `DELETE /api/bookmark-collections/:id/bookmarks/:bookmarkId` adds
   or removes a bookmark. Collections are many-to-many.
+- `GET /api/memories/from-bookmark/:bookmarkId` returns the user's existing
+  memory for that bookmark, or `null`.
+- `POST /api/memories/from-bookmark` creates the bookmark memory once and
+  updates its content and scope on later saves.
+- `GET /api/memories/from-note/:noteId` and `POST /api/memories/from-note`
+  provide the same explicit, update-in-place memory workflow for notes.
+- `GET /api/memories/from-highlight/:highlightId` and
+  `POST /api/memories/from-highlight` provide that workflow for highlights.
 
 URLs are normalized for identity by removing fragments and common tracking
 parameters, sorting query parameters, and preferring the canonical URL when one

@@ -10,6 +10,7 @@ import { RunStep } from './entities/run-step.entity';
 import { ExecutionService } from './services/execution.service';
 import { LoopService } from './services/loop.service';
 import { MemoryModule } from '../memory/memory.module';
+import { RunLiveEventService } from './services/run-live-event.service';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { MemoryModule } from '../memory/memory.module';
       RunContinuation,
     ]),
   ],
-  providers: [ExecutionService, LoopService],
-  exports: [TypeOrmModule, ExecutionService, LoopService],
+  providers: [ExecutionService, LoopService, RunLiveEventService],
+  exports: [TypeOrmModule, ExecutionService, LoopService, RunLiveEventService],
 })
 export class AgentModule {}

@@ -31,6 +31,7 @@ export interface AiGenerateOptions {
   tools?: AiTool[];
   responseSchema?: Record<string, unknown>;
   signal?: AbortSignal;
+  onTextDelta?: (delta: string) => Promise<void> | void;
 }
 
 export interface AiGenerateResult {

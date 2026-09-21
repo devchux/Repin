@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,10 @@ import { In, Repository } from 'typeorm';
 import { Run } from '../../agent/entities/run.entity';
 import { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
 import { ExecuteDto } from '../dto/execute.dto';
+import type {
+  FindConversationDto,
+  FindConversationsDto,
+} from '../dto/find-assistant-items.dto';
 import { ConversationMessage } from '../entities/conversation-message.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { RunService } from './run.service';
@@ -93,61 +98,178 @@ export class ConversationService {
     };
   }
 
-  async findConversation(userId: number, conversationId: string) {
+  async findConversation(
+    userId: number,
+    conversationId: string,
+    query: FindConversationDto,
+  ) {
     const conversation = await this.findUserConversation(
       userId,
       conversationId,
     );
-    const messages = await this.repository.manager.find(ConversationMessage, {
-      where: { conversationId },
-      order: { createdAt: 'ASC' },
-    });
+    const cursor = query.before
+      ? this.decodeMessageCursor(query.before)
+      : undefined;
+    const messageBuilder = this.repository.manager
+      .createQueryBuilder(ConversationMessage, 'message')
+      .where('message.conversationId = :conversationId', { conversationId })
+      .orderBy('message.createdAt', 'DESC')
+      .addOrderBy('message.id', 'DESC')
+      .take(query.limit + 1);
+    if (cursor) {
+      messageBuilder.andWhere(
+        '(message.createdAt < :createdAt OR (message.createdAt = :createdAt AND message.id < :messageId))',
+        { createdAt: cursor.createdAt, messageId: cursor.id },
+      );
+    }
+    const descendingMessages = await messageBuilder.getMany();
+    const hasMore = descendingMessages.length > query.limit;
+    const pageMessages = descendingMessages.slice(0, query.limit).reverse();
+    const oldestMessage = pageMessages[0];
     return {
       message: 'Assistant conversation found successfully',
       data: {
         id: conversation.id,
         initialCapability: conversation.initialCapability,
         context: conversation.context,
-        messages: messages.map((message) => ({
+        messages: pageMessages.map((message) => ({
           id: message.id,
           runId: message.runId,
           role: message.role,
           content: message.content,
           createdAt: message.createdAt,
         })),
+        messagePage: {
+          hasMore,
+          nextCursor:
+            hasMore && oldestMessage
+              ? this.encodeMessageCursor(oldestMessage)
+              : undefined,
+        },
         createdAt: conversation.createdAt,
         updatedAt: conversation.updatedAt,
       },
     };
   }
 
-  async findConversations(userId: number) {
-    const conversations = await this.repository.manager.find(Conversation, {
-      where: { userId },
-      relations: { messages: true },
-      order: { updatedAt: 'DESC', messages: { createdAt: 'ASC' } },
-      take: 50,
-    });
+  private encodeMessageCursor(message: ConversationMessage): string {
+    return Buffer.from(
+      JSON.stringify({
+        createdAt: message.createdAt.toISOString(),
+        id: message.id,
+      }),
+    ).toString('base64url');
+  }
 
+  private decodeMessageCursor(cursor: string): { createdAt: Date; id: string } {
+    try {
+      const parsed = JSON.parse(
+        Buffer.from(cursor, 'base64url').toString('utf8'),
+      ) as { createdAt?: unknown; id?: unknown };
+      if (
+        typeof parsed.createdAt !== 'string' ||
+        Number.isNaN(Date.parse(parsed.createdAt)) ||
+        typeof parsed.id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.id)
+      ) {
+        throw new Error('Invalid cursor values');
+      }
+      return { createdAt: new Date(parsed.createdAt), id: parsed.id };
+    } catch {
+      throw new BadRequestException('Invalid conversation message cursor');
+    }
+  }
+
+  async findConversations(userId: number, query: FindConversationsDto) {
+    const builder = this.repository.manager
+      .createQueryBuilder(Conversation, 'conversation')
+      .where('conversation.userId = :userId', { userId });
+    const search = query.search?.trim();
+    if (search) {
+      builder.andWhere(
+        `(conversation.context ->> 'title' ILIKE :search OR EXISTS (
+          SELECT 1 FROM assistant_conversation_messages searched_message
+          WHERE searched_message."conversationId" = conversation.id
+          AND searched_message.content ILIKE :search
+        ))`,
+        { search: `%${search}%` },
+      );
+    }
+    if (query.capability) {
+      builder.andWhere('conversation.initialCapability = :capability', {
+        capability: query.capability,
+      });
+    }
+    if (query.updatedAfter) {
+      builder.andWhere('conversation.updatedAt >= :updatedAfter', {
+        updatedAfter: new Date(query.updatedAfter),
+      });
+    }
+    const total = await builder.getCount();
+    const messageCountExpression = `(SELECT COUNT(*)::int FROM assistant_conversation_messages message_count WHERE message_count."conversationId" = conversation.id)`;
+    const orderBy =
+      query.sort === 'oldest'
+        ? { field: 'conversation.updatedAt', direction: 'ASC' as const }
+        : query.sort === 'created'
+          ? { field: 'conversation.createdAt', direction: 'DESC' as const }
+          : query.sort === 'messages'
+            ? { field: messageCountExpression, direction: 'DESC' as const }
+            : { field: 'conversation.updatedAt', direction: 'DESC' as const };
+    const conversations = await builder
+      .select('conversation.id', 'id')
+      .addSelect('conversation.initialCapability', 'initialCapability')
+      .addSelect('conversation.context', 'context')
+      .addSelect('conversation.createdAt', 'createdAt')
+      .addSelect('conversation.updatedAt', 'updatedAt')
+      .addSelect(messageCountExpression, 'messageCount')
+      .addSelect(
+        `(SELECT first_message.content FROM assistant_conversation_messages first_message WHERE first_message."conversationId" = conversation.id AND first_message.role = 'user' ORDER BY first_message."createdAt" ASC LIMIT 1)`,
+        'firstUserMessage',
+      )
+      .addSelect(
+        `(SELECT last_message.content FROM assistant_conversation_messages last_message WHERE last_message."conversationId" = conversation.id ORDER BY last_message."createdAt" DESC LIMIT 1)`,
+        'lastMessage',
+      )
+      .orderBy(orderBy.field, orderBy.direction)
+      .offset((query.page - 1) * query.limit)
+      .limit(query.limit)
+      .getRawMany<{
+        id: string;
+        initialCapability: Conversation['initialCapability'];
+        context: Conversation['context'];
+        createdAt: Date;
+        updatedAt: Date;
+        messageCount: number;
+        firstUserMessage: string | null;
+        lastMessage: string | null;
+      }>();
     return {
       message: 'Assistant conversations found successfully',
-      data: conversations.map((conversation) => {
-        const firstUserMessage = conversation.messages.find(
-          (message) => message.role === 'user',
-        );
-        const lastMessage = conversation.messages.at(-1);
-        const fallbackTitle = conversation.context.title || 'New conversation';
-
-        return {
-          id: conversation.id,
-          initialCapability: conversation.initialCapability,
-          title: truncateText(firstUserMessage?.content || fallbackTitle, 80),
-          preview: truncateText(lastMessage?.content || fallbackTitle, 180),
-          messageCount: conversation.messages.length,
-          createdAt: conversation.createdAt,
-          updatedAt: conversation.updatedAt,
-        };
-      }),
+      data: {
+        items: conversations.map((conversation) => {
+          const fallbackTitle =
+            conversation.context.title || 'New conversation';
+          return {
+            id: conversation.id,
+            initialCapability: conversation.initialCapability,
+            title: truncateText(
+              conversation.firstUserMessage || fallbackTitle,
+              80,
+            ),
+            preview: truncateText(
+              conversation.lastMessage || fallbackTitle,
+              180,
+            ),
+            messageCount: Number(conversation.messageCount),
+            createdAt: conversation.createdAt,
+            updatedAt: conversation.updatedAt,
+          };
+        }),
+        page: query.page,
+        limit: query.limit,
+        total,
+        pageCount: Math.ceil(total / query.limit),
+      },
     };
   }
 

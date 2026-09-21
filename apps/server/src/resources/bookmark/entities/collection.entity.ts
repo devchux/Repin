@@ -3,9 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinTable,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Bookmark } from './bookmark.entity';
 
 @Entity('bookmark_collections')
 @Index('IDX_bookmark_collections_user_name', ['userId', 'name'], {
@@ -32,4 +35,18 @@ export class BookmarkCollection {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToMany(() => Bookmark, (bookmark) => bookmark.collections)
+  @JoinTable({
+    name: 'bookmark_collection_items',
+    joinColumn: {
+      name: 'collectionId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'bookmarkId',
+      referencedColumnName: 'id',
+    },
+  })
+  bookmarks: Bookmark[];
 }

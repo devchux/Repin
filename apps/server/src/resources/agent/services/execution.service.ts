@@ -17,6 +17,7 @@ import { RunStep } from '../entities/run-step.entity';
 import { REPEATED_ACTION_LIMIT } from '../constants';
 import { RunContinuation } from '../entities/run-continuation.entity';
 import type { AiMessage, AiToolCall } from '../../ai/types/provider';
+import { RunLiveEventService } from './run-live-event.service';
 import {
   isRecord,
   redactProperties,
@@ -59,6 +60,7 @@ export class ExecutionService {
   constructor(
     @InjectRepository(Run)
     private readonly runRepository: Repository<Run>,
+    private readonly liveEvents: RunLiveEventService,
   ) {}
 
   async transition(runId: string, input: TransitionInput): Promise<Run> {
@@ -189,6 +191,9 @@ export class ExecutionService {
         stepId: step.id,
         sequence: step.sequence,
         stepType: type,
+        ...(type === 'tool' || type === 'verification'
+          ? { detail: step.input }
+          : {}),
       });
       return step;
     });
@@ -265,6 +270,29 @@ export class ExecutionService {
       undefined,
       error instanceof Error ? error.message : 'Unknown execution error',
     );
+  }
+
+  async recordEvent(
+    runId: string,
+    type: string,
+    data: Readonly<Record<string, unknown>>,
+  ): Promise<void> {
+    await this.runRepository.manager.transaction(async (manager) => {
+      await this.lockRun(manager, runId);
+      await this.appendEvent(manager, runId, type, data);
+    });
+  }
+
+  publishLiveEvent(
+    runId: string,
+    type: string,
+    data: Readonly<Record<string, unknown>>,
+  ): void {
+    this.liveEvents.publish(runId, { type, data });
+  }
+
+  closeLiveEvents(runId: string): void {
+    this.liveEvents.close(runId);
   }
 
   private async finishStep(

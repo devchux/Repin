@@ -1,19 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { isUniqueViolation } from '../../../shared/utils/database';
 import { CreateBookmarkCollectionDto } from '../dto/create-bookmark-collection.dto';
 import { UpdateBookmarkCollectionDto } from '../dto/update-bookmark-collection.dto';
 import { Bookmark } from '../entities/bookmark.entity';
 import { BookmarkCollection } from '../entities/collection.entity';
-import { BookmarkCollectionItem } from '../entities/collection-item.entity';
 
 @Injectable()
 export class BookmarkCollectionService {
   constructor(
     @InjectRepository(BookmarkCollection)
     private readonly collections: Repository<BookmarkCollection>,
-    @InjectRepository(BookmarkCollectionItem)
-    private readonly items: Repository<BookmarkCollectionItem>,
     @InjectRepository(Bookmark)
     private readonly bookmarks: Repository<Bookmark>,
   ) {}
@@ -33,14 +31,10 @@ export class BookmarkCollectionService {
   async findAll(userId: number) {
     const data = await this.collections
       .createQueryBuilder('collection')
-      .leftJoin(
-        BookmarkCollectionItem,
-        'item',
-        'item."collectionId" = collection.id',
-      )
+      .leftJoin('collection.bookmarks', 'bookmark')
       .where('collection."userId" = :userId', { userId })
       .select('collection')
-      .addSelect('COUNT(item."bookmarkId")', 'bookmarkCount')
+      .addSelect('COUNT(bookmark.id)', 'bookmarkCount')
       .groupBy('collection.id')
       .orderBy('collection."updatedAt"', 'DESC')
       .getRawAndEntities();
@@ -78,14 +72,19 @@ export class BookmarkCollectionService {
   }
 
   async addBookmark(userId: number, collectionId: string, bookmarkId: string) {
-    await Promise.all([
+    const [collection, bookmark] = await Promise.all([
       this.findUserCollection(userId, collectionId),
       this.findUserBookmark(userId, bookmarkId),
     ]);
-    await this.items.upsert({ collectionId, bookmarkId }, [
-      'collectionId',
-      'bookmarkId',
-    ]);
+    try {
+      await this.collections
+        .createQueryBuilder()
+        .relation(BookmarkCollection, 'bookmarks')
+        .of(collection)
+        .add(bookmark);
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
     return { message: 'Bookmark added to collection successfully' };
   }
 
@@ -94,8 +93,12 @@ export class BookmarkCollectionService {
     collectionId: string,
     bookmarkId: string,
   ) {
-    await this.findUserCollection(userId, collectionId);
-    await this.items.delete({ collectionId, bookmarkId });
+    const collection = await this.findUserCollection(userId, collectionId);
+    await this.collections
+      .createQueryBuilder()
+      .relation(BookmarkCollection, 'bookmarks')
+      .of(collection)
+      .remove(bookmarkId);
     return { message: 'Bookmark removed from collection successfully' };
   }
 

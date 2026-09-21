@@ -4,7 +4,7 @@ import type { ApiResponse, RequestParams, Response } from "@/types/api";
 
 export type ProxyService = "base";
 
-function createProxyUrl(
+export function createProxyUrl(
   service: ProxyService,
   endpoint: string,
   params?: RequestParams,

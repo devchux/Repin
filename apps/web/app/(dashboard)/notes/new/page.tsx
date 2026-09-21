@@ -1,2 +1,4 @@
-import { NoteDetail } from "@/components/dashboard/pages/library-detail";
-export default function Page() { return <NoteDetail isNew />; }
+import { NoteEditor } from "@/components/dashboard/features/notes/note-editor";
+export default function Page() {
+  return <NoteEditor isNew />;
+}

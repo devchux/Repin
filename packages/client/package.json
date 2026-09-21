@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./http": "./src/http.ts",
     "./query": "./src/query.tsx",
+    "./sse": "./src/sse.ts",
     "./state": "./src/store/state.ts",
     "./types/auth": "./src/types/auth.ts"
   },

@@ -5,10 +5,12 @@ import {
   Entity,
   Index,
   JoinColumn,
+  ManyToMany,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { BookmarkCollection } from './collection.entity';
 import { User } from '../../user/entities/user.entity';
 
 @Entity('bookmarks')
@@ -105,4 +107,9 @@ export class Bookmark {
 
   @DeleteDateColumn()
   deletedAt?: Date | null;
+
+  @ManyToMany(() => BookmarkCollection, (collection) => collection.bookmarks)
+  collections: BookmarkCollection[];
+
+  collectionIds?: string[];
 }

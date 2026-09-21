@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Page } from 'playwright';
+import { normalizeNavigationUrl } from '@repo/contracts/context';
 import { PlaywrightBrowserSessionRegistry } from './playwright-browser-session.registry';
 import type {
   BrowserInteractionCommand,
@@ -84,7 +85,7 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
       );
     const viewport = page.viewportSize() ?? { width: 0, height: 0 };
     const position = await page.evaluate(() => ({ scrollX, scrollY }));
-    const observation = input.includeText
+    const rawObservation = input.includeText
       ? await page.evaluate(
           ({ currentTabId, revision }) => {
             const selector =
@@ -407,6 +408,17 @@ export class PlaywrightBrowserExecutor implements BrowserToolExecutor {
           },
           { currentTabId: tabId, revision: documentRevision },
         )
+      : undefined;
+    const observation = rawObservation
+      ? {
+          ...rawObservation,
+          interactiveElements: rawObservation.interactiveElements.map(
+            (element) => ({
+              ...element,
+              href: normalizeNavigationUrl(element.href),
+            }),
+          ),
+        }
       : undefined;
     const groundedRefs = new Set(
       observation?.interactiveElements?.flatMap(({ actionRef }) =>

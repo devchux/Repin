@@ -2,30 +2,24 @@
 
 import { LibraryToolbar } from "@/components/dashboard/features/common/library-toolbar";
 import { PageHeading } from "@/components/dashboard/features/common/page-heading";
-import { useFetch } from "@/hooks/useFetch";
-import type { Note, NotesPage as NotesPageData } from "@repo/contracts/note";
-import { Badge } from "@repo/ui/badge";
+import { PaginationControls } from "@/components/dashboard/features/common/pagination-controls";
+import { EmptyNotes } from "@/components/dashboard/features/notes/empty-notes";
+import { NoteCard } from "@/components/dashboard/features/notes/note-card";
+import { useNotes } from "@/hooks/useNotes";
 import { Button } from "@repo/ui/button";
-import { FileText, MoreHorizontal, Plus } from "@repo/ui/icons";
+import { Plus } from "@repo/ui/icons";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { WorkspacePage } from "../layout/workspace-page";
 
 export function NotesPage() {
   const [query, setQuery] = useState("");
-  const request = useFetch<NotesPageData>("/notes", {
-    hideToast: "all",
-    params: { limit: 100 },
-  });
-  const filtered = useMemo(
-    () =>
-      (request.data?.data.data.items ?? []).filter((note) =>
-        `${note.title} ${note.body} ${note.tags.join(" ")}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-      ),
-    [request.data, query],
-  );
+  const [pageNumber, setPageNumber] = useState(1);
+  const deferredQuery = useDeferredValue(query.trim());
+  const notes = useNotes({ search: deferredQuery, page: pageNumber });
+  const page = notes.data?.data.data;
+  const items = page?.items ?? [];
+
   return (
     <WorkspacePage>
       <PageHeading
@@ -43,64 +37,54 @@ export function NotesPage() {
       />
       <LibraryToolbar
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={(value) => { setQuery(value); setPageNumber(1); }}
         placeholder="Search notes"
-      >
-        <Button variant="outline" className="shadow-none">
-          Recently updated
-        </Button>
-      </LibraryToolbar>
+      />
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-        <span>{request.isLoading ? "Loading notes…" : `${filtered.length} notes`}</span>
-        <span>Updated across web and extension</span>
+        <span>
+          {notes.isLoading
+            ? "Loading notes…"
+            : `${page?.total ?? 0} ${(page?.total ?? 0) === 1 ? "note" : "notes"}`}
+        </span>
+        <span>
+          {deferredQuery ? "Filtered results" : "Sorted by recently updated"}
+        </span>
       </div>
-      <section className="mt-4 grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2 xl:grid-cols-3">
-        {request.isError ? (
-          <div className="bg-card p-5 text-sm text-destructive">
-            Notes could not be loaded. <Button variant="link" onClick={() => void request.refetch()}>Try again</Button>
+      {notes.isError ? (
+        <>
+          <EmptyNotes
+            title="Notes could not be loaded"
+            description="Check your connection and try again."
+          />
+          <div className="mt-4 text-center">
+            <Button variant="outline" onClick={() => void notes.refetch()}>
+              Try again
+            </Button>
           </div>
-        ) : null}
-        {filtered.map((note: Note) => (
-          <article
-            key={note.id}
-            className="group flex min-h-64 flex-col bg-card p-5 transition-colors hover:bg-muted/30"
-          >
-            <div className="flex items-center justify-between">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <FileText className="size-4" />
-              </span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-8 opacity-50 group-hover:opacity-100"
-                aria-label={`Actions for ${note.title}`}
-              >
-                <MoreHorizontal />
-              </Button>
-            </div>
-            <Link
-              href={`/notes/${note.id}`}
-              className="mt-5 text-base font-semibold tracking-tight hover:text-primary"
-            >
-              {note.title}
-            </Link>
-            <p className="mt-2 line-clamp-4 text-sm leading-6 text-muted-foreground">
-              {note.body}
-            </p>
-            <div className="mt-auto flex flex-wrap gap-1.5 pt-5">
-              {note.tags.map((tag) => (
-                <Badge variant="secondary" key={tag}>
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-            <div className="mt-4 flex justify-between border-t pt-4 text-xs text-muted-foreground">
-              <span>{note.sourceUrl ? new URL(note.sourceUrl).hostname : "Personal note"}</span>
-              <time dateTime={note.updatedAt}>{new Date(note.updatedAt).toLocaleDateString()}</time>
-            </div>
-          </article>
-        ))}
-      </section>
+        </>
+      ) : null}
+      {!notes.isLoading && !notes.isError && items.length ? (
+        <section className="mt-4 grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2 xl:grid-cols-3">
+          {items.map((note) => (
+            <NoteCard key={note.id} note={note} />
+          ))}
+        </section>
+      ) : null}
+      {!notes.isLoading && !notes.isError && !items.length ? (
+        <EmptyNotes
+          title={deferredQuery ? "No notes found" : "Your notes are empty"}
+          description={
+            deferredQuery
+              ? "Try a different title, phrase, or keyword."
+              : "Create a note here or save one from the Repin extension."
+          }
+        />
+      ) : null}
+      {page ? (
+        <div className="mt-5">
+          <PaginationControls page={page.page} pageCount={page.pageCount} onPageChange={setPageNumber} />
+        </div>
+      ) : null}
     </WorkspacePage>
   );
 }

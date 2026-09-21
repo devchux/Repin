@@ -1,163 +1,468 @@
+"use client";
+
 import { SectionHeader } from "@/components/dashboard/features/overview/section-header";
-import { Badge } from "@repo/ui/badge";
+import { useAssistantConversations, useAssistantRuns } from "@/hooks/useAssistant";
+import { useBookmarks } from "@/hooks/useBookmarks";
+import { useHighlights } from "@/hooks/useHighlights";
+import { useNotes } from "@/hooks/useNotes";
+import { useProfile } from "@/hooks/useProfile";
+import { formatRelativeDate, getRunTitle, getStatus } from "@/lib/utils";
 import { Button } from "@repo/ui/button";
 import {
-  ArrowRight,
+  AlertCircle,
   Bookmark,
   Bot,
   ChevronRight,
-  Clock3,
   FileText,
-  Globe2,
   Highlighter,
-  Languages,
   MessageSquareText,
-  Search,
-  Sparkles,
-  Wifi,
+  Plus,
 } from "@repo/ui/icons";
+import { Skeleton } from "@repo/ui/skeleton";
 import Link from "next/link";
+import { useMemo } from "react";
 import { WorkspacePage } from "../layout/workspace-page";
 
-const stats = [
-  { label: "Conversations", value: "12", detail: "3 this week", icon: MessageSquareText },
-  { label: "Saved items", value: "49", detail: "Across your library", icon: Bookmark },
-  { label: "Browser actions", value: "28", detail: "Last 30 days", icon: Globe2 },
-] as const;
-
-const activity = [
-  { title: "Summarized a product strategy article", source: "hbr.org", time: "18 min ago", icon: Sparkles },
-  { title: "Saved a note about agent memory", source: "Repin note", time: "2 hours ago", icon: FileText },
-  { title: "Translated a selected paragraph", source: "medium.com", time: "Yesterday", icon: Languages },
-  { title: "Highlighted an authentication pattern", source: "github.com", time: "Yesterday", icon: Highlighter },
-] as const;
-
-const library = [
-  { icon: Bookmark, title: "Designing effective AI agents", meta: "openai.com" },
-  { icon: Highlighter, title: "Human approval in agent workflows", meta: "anthropic.com" },
-  { icon: FileText, title: "Ideas for Repin memory", meta: "Personal note" },
-] as const;
+type SavedItem = {
+  readonly id: string;
+  readonly title: string;
+  readonly meta: string;
+  readonly updatedAt: string;
+  readonly href: string;
+  readonly icon: typeof Bookmark;
+};
 
 export function OverviewPage() {
+  const profile = useProfile();
+  const conversations = useAssistantConversations({ limit: 1 });
+  const runs = useAssistantRuns({
+    limit: 4,
+    refetchInterval: 10_000,
+  });
+  const attention = useAssistantRuns({
+    limit: 1,
+    status: ["failed", "awaiting_approval", "suspended"],
+    refetchInterval: 10_000,
+  });
+  const bookmarks = useBookmarks({ limit: 3 });
+  const notes = useNotes({ limit: 3 });
+  const highlights = useHighlights({ limit: 3 });
+
+  const conversationPage = conversations.data?.data.data;
+  const runsPage = runs.data?.data.data;
+  const conversationItems = conversationPage?.items ?? [];
+  const runItems = runsPage?.items ?? [];
+  const bookmarkPage = bookmarks.data?.data.data;
+  const notePage = notes.data?.data.data;
+  const highlightPage = highlights.data?.data.data;
+  const profileItem = profile.data?.data.data;
+  const recentConversation = conversationItems[0];
+  const recentRuns = runItems;
+  const attentionTotal = attention.data?.data.data.total ?? 0;
+  const savedTotal =
+    (bookmarkPage?.total ?? 0) +
+    (notePage?.total ?? 0) +
+    (highlightPage?.total ?? 0);
+
+  const recentSaved = useMemo<readonly SavedItem[]>(() => {
+    const items: SavedItem[] = [
+      ...(bookmarkPage?.items ?? []).map((item) => ({
+        id: `bookmark-${item.id}`,
+        title: item.title,
+        meta: item.siteName || getHostname(item.url),
+        updatedAt: item.updatedAt,
+        href: `/bookmarks/${item.id}`,
+        icon: Bookmark,
+      })),
+      ...(notePage?.items ?? []).map((item) => ({
+        id: `note-${item.id}`,
+        title: item.title || "Untitled note",
+        meta: "Note",
+        updatedAt: item.updatedAt,
+        href: `/notes/${item.id}`,
+        icon: FileText,
+      })),
+      ...(highlightPage?.items ?? []).map((item) => ({
+        id: `highlight-${item.id}`,
+        title: item.quote,
+        meta: item.pageTitle,
+        updatedAt: item.updatedAt,
+        href: `/highlights/${item.id}`,
+        icon: Highlighter,
+      })),
+    ];
+
+    return items
+      .sort(
+        (left, right) =>
+          new Date(right.updatedAt).getTime() -
+          new Date(left.updatedAt).getTime(),
+      )
+      .slice(0, 4);
+  }, [bookmarkPage?.items, highlightPage?.items, notePage?.items]);
+
+  const libraryLoading =
+    bookmarks.isLoading || notes.isLoading || highlights.isLoading;
+  const libraryError = bookmarks.isError && notes.isError && highlights.isError;
+
   return (
     <WorkspacePage>
-      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <header className="flex flex-col gap-5 border-b pb-7 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-medium text-primary">Your workspace</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-[2rem]">Good morning, Chukwudi</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Continue your research, work with an open tab, or start a new conversation.</p>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-[2rem]">
+            {profile.isLoading ? (
+              <Skeleton className="h-9 w-64" />
+            ) : (
+              `Welcome back ${profileItem?.firstName ? `, ${profileItem.firstName}` : ""}`
+            )}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+            Pick up where you left off or start something new.
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock3 className="size-3.5" aria-hidden="true" />
-          Sunday, August 30
-        </div>
-      </section>
-
-      <section className="mt-7 overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.03),0_10px_30px_oklch(0_0_0/0.025)]">
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <Bot className="size-5" aria-hidden="true" />
-          </span>
-          <button type="button" className="flex min-h-11 flex-1 items-center gap-3 rounded-xl border bg-muted/30 px-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/25 hover:bg-muted/50">
-            <Search className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">Ask Repin to research, explain, organize, or act on the web</span>
-          </button>
-          <Button asChild className="shrink-0 shadow-none">
-            <Link href="/conversations/new">Start conversation <ArrowRight aria-hidden="true" /></Link>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="shadow-none">
+            <Link href="/notes/new">
+              <FileText aria-hidden="true" /> New note
+            </Link>
+          </Button>
+          <Button asChild className="shadow-none">
+            <Link href="/conversations/new">
+              <Plus aria-hidden="true" /> New conversation
+            </Link>
           </Button>
         </div>
-        <div className="grid border-t bg-muted/18 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <div key={stat.label} className={`flex items-center gap-4 px-5 py-4 ${index ? "border-t sm:border-l sm:border-t-0" : ""}`}>
-              <stat.icon className="size-4 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs text-muted-foreground">{stat.label}</p>
-                <p className="mt-0.5 text-sm font-medium">{stat.detail}</p>
-              </div>
-              <p className="font-mono text-xl font-medium tabular-nums tracking-tight">{stat.value}</p>
-            </div>
-          ))}
-        </div>
+      </header>
+
+      <section
+        className="mt-6 grid overflow-hidden rounded-xl border bg-card sm:grid-cols-3"
+        aria-label="Workspace summary"
+      >
+        <WorkspaceMetric
+          label="Conversations"
+          value={conversations.isLoading ? undefined : conversationPage?.total ?? 0}
+          detail="Across web and extension"
+          icon={MessageSquareText}
+          href="/conversations"
+        />
+        <WorkspaceMetric
+          label="Saved items"
+          value={libraryLoading ? undefined : savedTotal}
+          detail="Bookmarks, notes, highlights"
+          icon={Bookmark}
+          href="/bookmarks"
+          bordered
+        />
+        <WorkspaceMetric
+          label="Needs attention"
+          value={attention.isLoading ? undefined : attentionTotal}
+          detail={
+            attentionTotal ? "Review interrupted runs" : "No blocked runs"
+          }
+          icon={AlertCircle}
+          href="/activity"
+          bordered
+          emphasized={attentionTotal > 0}
+        />
       </section>
 
-      <section className="mt-7 grid gap-7 xl:grid-cols-[minmax(0,1.55fr)_minmax(19rem,0.72fr)]">
-        <div className="space-y-7">
-          <section className="rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)]">
-            <SectionHeader title="Continue working" description="Your most recent conversation" href="/conversations" />
-            <div className="border-t p-3 md:p-4">
-              <Link href="/conversations" className="group block rounded-xl p-3 transition-colors hover:bg-muted/45 md:p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="rounded-md font-normal">Conversation</Badge>
-                  <span className="text-xs text-muted-foreground">Updated 18 minutes ago</span>
-                </div>
-                <div className="mt-5 flex items-end justify-between gap-6">
-                  <div>
-                    <h2 className="text-lg font-semibold tracking-tight transition-colors group-hover:text-primary">How should browser agent permissions work?</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Approval boundaries, resumable runs, and typed tools for safe browser actions.</p>
-                  </div>
-                  <span className="hidden size-9 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:flex">
-                    <ArrowRight className="size-4" aria-hidden="true" />
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.75fr)]">
+        <div className="space-y-6">
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <SectionHeader
+              title="Continue working"
+              description="Your most recently active conversation"
+              href="/conversations"
+            />
+            <div className="border-t">
+              {conversations.isLoading ? <ContinueSkeleton /> : null}
+              {conversations.isError ? (
+                <InlineState
+                  title="Conversations could not be loaded"
+                  action="Try again"
+                  onAction={() => void conversations.refetch()}
+                />
+              ) : null}
+              {!conversations.isLoading &&
+              !conversations.isError &&
+              recentConversation ? (
+                <Link
+                  href={`/conversations/${recentConversation.id}`}
+                  className="group flex items-start gap-4 p-5 transition-colors hover:bg-muted/35 active:bg-muted"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <MessageSquareText className="size-4" aria-hidden="true" />
                   </span>
-                </div>
-              </Link>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="truncate font-medium tracking-tight">
+                        {recentConversation.title}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatRelativeDate(recentConversation.updatedAt)}
+                      </span>
+                    </span>
+                    <span className="mt-1.5 line-clamp-2 block text-sm leading-6 text-muted-foreground">
+                      {recentConversation.preview}
+                    </span>
+                    <span className="mt-3 block text-xs text-muted-foreground">
+                      {recentConversation.messageCount}{" "}
+                      {recentConversation.messageCount === 1
+                        ? "message"
+                        : "messages"}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="mt-3 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+              ) : null}
+              {!conversations.isLoading &&
+              !conversations.isError &&
+              !recentConversation ? (
+                <InlineState
+                  title="No conversations yet"
+                  description="Ask a question or give Repin a task to begin."
+                  action="Start a conversation"
+                  href="/conversations/new"
+                />
+              ) : null}
             </div>
           </section>
 
-          <section className="rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)]">
-            <SectionHeader title="Recent activity" description="Actions from the web app and extension" href="/activity" />
-            <div className="border-t px-4 md:px-5">
-              {activity.map((item) => (
-                <div key={item.title} className="group flex items-center gap-3 border-b py-4 last:border-b-0">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/70 text-muted-foreground transition-colors group-hover:text-foreground">
-                    <item.icon className="size-4" aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.title}</p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.source}</p>
-                  </div>
-                  <time className="hidden shrink-0 text-xs text-muted-foreground sm:block">{item.time}</time>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
-                </div>
-              ))}
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <SectionHeader
+              title="Recent activity"
+              description="Assistant runs from every Repin surface"
+              href="/activity"
+            />
+            <div className="border-t">
+              {runs.isLoading ? <RowsSkeleton /> : null}
+              {runs.isError ? (
+                <InlineState
+                  title="Activity could not be loaded"
+                  action="Try again"
+                  onAction={() => void runs.refetch()}
+                />
+              ) : null}
+              {!runs.isLoading && !runs.isError && recentRuns.length === 0 ? (
+                <InlineState
+                  title="No activity yet"
+                  description="Completed and in-progress assistant runs will appear here."
+                />
+              ) : null}
+              {recentRuns.map((run) => {
+                const status = getStatus(run.status);
+                return (
+                  <Link
+                    key={run.id}
+                    href={`/activity/${run.id}`}
+                    className="group flex items-center gap-3 border-b px-5 py-4 transition-colors last:border-b-0 hover:bg-muted/35 active:bg-muted"
+                  >
+                    <span
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${status.className}`}
+                    >
+                      <status.icon
+                        className={`size-4 ${status.spin ? "animate-spin" : ""}`}
+                        aria-hidden="true"
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {getRunTitle(run)}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        {status.label} · {formatRelativeDate(run.createdAt)}
+                      </span>
+                    </span>
+                    <ChevronRight
+                      className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                );
+              })}
             </div>
           </section>
         </div>
 
-        <aside className="space-y-7">
-          <section className="overflow-hidden rounded-2xl border border-primary/20 bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)]">
-            <div className="border-b bg-primary/5.5 p-5">
-              <div className="flex items-center justify-between">
-                <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Wifi className="size-4" aria-hidden="true" /></span>
-                <span className="rounded-full border border-primary/20 bg-background/70 px-2.5 py-1 text-[11px] font-medium text-primary">Connected</span>
-              </div>
-              <h2 className="mt-5 font-semibold tracking-tight">Chrome on this Mac</h2>
-              <p className="mt-1.5 text-sm leading-6 text-muted-foreground">Repin can work with the page in your active tab.</p>
-            </div>
-            <div className="grid gap-1 p-2">
-              {["Summarize the current page", "Turn highlights into notes", "Explain selected text"].map((action) => (
-                <button key={action} type="button" className="flex min-h-10 items-center justify-between rounded-lg px-3 text-left text-sm font-medium transition-colors hover:bg-muted">
-                  {action}<ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.025)]">
-            <SectionHeader title="Recently saved" description="From your library" href="/bookmarks" />
-            <div className="border-t p-2">
-              {library.map((item) => (
-                <Link key={item.title} href="/bookmarks" className="group flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-muted/60">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background text-muted-foreground group-hover:text-primary"><item.icon className="size-3.5" aria-hidden="true" /></span>
+        <aside className="space-y-6">
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <SectionHeader
+              title="Recently saved"
+              description="Latest additions to your library"
+              href="/bookmarks"
+            />
+            <div className="border-t">
+              {libraryLoading ? <RowsSkeleton count={3} /> : null}
+              {libraryError ? (
+                <InlineState title="Library could not be loaded" />
+              ) : null}
+              {!libraryLoading && !libraryError && recentSaved.length === 0 ? (
+                <InlineState
+                  title="Your library is empty"
+                  description="Save a page, highlight text, or create a note."
+                  action="Create a note"
+                  href="/notes/new"
+                />
+              ) : null}
+              {recentSaved.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="group flex items-center gap-3 border-b px-4 py-3.5 transition-colors last:border-b-0 hover:bg-muted/35 active:bg-muted"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-foreground">
+                    <item.icon className="size-3.5" aria-hidden="true" />
+                  </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{item.title}</span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{item.meta}</span>
+                    <span className="block truncate text-sm font-medium">
+                      {item.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                      {item.meta} · {formatRelativeDate(item.updatedAt)}
+                    </span>
                   </span>
                 </Link>
               ))}
             </div>
           </section>
+
+          <section className="rounded-xl border bg-card p-5">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Bot className="size-4" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold">
+                  Use Repin in your browser
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Select text or open the extension to summarize, explain, and
+                  save what matters.
+                </p>
+              </div>
+            </div>
+          </section>
         </aside>
-      </section>
+      </div>
     </WorkspacePage>
   );
+}
+
+function WorkspaceMetric({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  href,
+  bordered = false,
+  emphasized = false,
+}: {
+  readonly label: string;
+  readonly value: number | undefined;
+  readonly detail: string;
+  readonly icon: typeof Bookmark;
+  readonly href: string;
+  readonly bordered?: boolean;
+  readonly emphasized?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`group flex items-center gap-4 p-5 transition-colors hover:bg-muted/35 ${bordered ? "border-t sm:border-l sm:border-t-0" : ""}`}
+    >
+      <Icon
+        className={`size-4 shrink-0 ${emphasized ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}
+        aria-hidden="true"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs text-muted-foreground">{label}</span>
+        <span className="mt-0.5 block truncate text-sm font-medium">
+          {detail}
+        </span>
+      </span>
+      {value === undefined ? (
+        <Skeleton className="h-7 w-8" />
+      ) : (
+        <span className="font-mono text-xl font-medium tabular-nums tracking-tight">
+          {value}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function InlineState({
+  title,
+  description,
+  action,
+  href,
+  onAction,
+}: {
+  readonly title: string;
+  readonly description?: string;
+  readonly action?: string;
+  readonly href?: string;
+  readonly onAction?: () => void;
+}) {
+  return (
+    <div className="px-5 py-8 text-center">
+      <p className="text-sm font-medium">{title}</p>
+      {description ? (
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      ) : null}
+      {action && href ? (
+        <Button asChild variant="outline" size="sm" className="mt-4">
+          <Link href={href}>{action}</Link>
+        </Button>
+      ) : null}
+      {action && onAction ? (
+        <Button variant="outline" size="sm" className="mt-4" onClick={onAction}>
+          {action}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function ContinueSkeleton() {
+  return (
+    <div className="flex gap-4 p-5" aria-label="Loading recent conversation">
+      <Skeleton className="size-10 shrink-0 rounded-lg" />
+      <div className="flex-1">
+        <Skeleton className="h-4 w-2/5" />
+        <Skeleton className="mt-3 h-3 w-4/5" />
+        <Skeleton className="mt-3 h-3 w-20" />
+      </div>
+    </div>
+  );
+}
+
+function RowsSkeleton({ count = 4 }: { readonly count?: number }) {
+  return (
+    <div aria-label="Loading workspace items">
+      {Array.from({ length: count }, (_, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-3 border-b px-5 py-4 last:border-b-0"
+        >
+          <Skeleton className="size-9 shrink-0 rounded-lg" />
+          <div className="flex-1">
+            <Skeleton className="h-3.5 w-3/5" />
+            <Skeleton className="mt-2 h-3 w-2/5" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function getHostname(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "Bookmark";
+  }
 }

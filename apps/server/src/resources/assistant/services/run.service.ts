@@ -42,7 +42,12 @@ import {
   MAX_QUEUED_RUNS_PER_USER,
 } from '../constants';
 import type { ExecuteDto } from '../dto/execute.dto';
+import type {
+  FindRunsDto,
+  FindRunTimelineDto,
+} from '../dto/find-assistant-items.dto';
 import { RunHandler } from './run-handler.service';
+import { RunLiveEventService } from '../../agent/services/run-live-event.service';
 
 @Injectable()
 export class RunService {
@@ -55,6 +60,7 @@ export class RunService {
     @InjectQueue(BACKGROUND_QUEUE) private readonly longQueue: Queue,
     private readonly handler: RunHandler,
     private readonly execution: ExecutionService,
+    private readonly liveEvents: RunLiveEventService,
   ) {}
 
   async findRun(userId: number, runId: string) {
@@ -64,15 +70,64 @@ export class RunService {
     };
   }
 
-  async findRuns(userId: number) {
-    const runs = await this.repository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      take: 100,
-    });
+  async findRuns(userId: number, query: FindRunsDto) {
+    const builder = this.repository
+      .createQueryBuilder('run')
+      .where('run.userId = :userId', { userId });
+    const search = query.search?.trim();
+    if (search) {
+      builder.andWhere(
+        `(run.input ILIKE :search OR run.context ->> 'title' ILIKE :search OR run.context ->> 'url' ILIKE :search OR run.capability::text ILIKE :search)`,
+        { search: `%${search}%` },
+      );
+    }
+    if (query.status?.length) {
+      builder.andWhere('run.status IN (:...statuses)', {
+        statuses: query.status,
+      });
+    }
+    const [runs, total] = await builder
+      .orderBy('run.createdAt', 'DESC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit)
+      .getManyAndCount();
     return {
       message: 'Assistant runs found successfully',
-      data: runs.map((run) => this.toResponse(run)),
+      data: {
+        items: runs.map((run) => this.toResponse(run)),
+        page: query.page,
+        limit: query.limit,
+        total,
+        pageCount: Math.ceil(total / query.limit),
+      },
+    };
+  }
+
+  async findTimeline(userId: number, runId: string, query: FindRunTimelineDto) {
+    await this.findUserRun(userId, runId);
+    const [events, total] = await this.eventRepository
+      .createQueryBuilder('event')
+      .where('event.runId = :runId', { runId })
+      .andWhere('event.type != :deltaType', { deltaType: 'assistant.delta' })
+      .orderBy('event.sequence', 'ASC')
+      .offset((query.page - 1) * query.limit)
+      .limit(query.limit)
+      .getManyAndCount();
+    return {
+      message: 'Assistant run timeline found successfully',
+      data: {
+        items: events.map((event) => ({
+          id: event.id,
+          sequence: event.sequence,
+          type: event.type,
+          data: event.data,
+          createdAt: event.createdAt,
+        })),
+        page: query.page,
+        limit: query.limit,
+        total,
+        pageCount: Math.ceil(total / query.limit),
+      },
     };
   }
 
@@ -108,12 +163,23 @@ export class RunService {
             id: String(event.sequence),
             type: event.type,
             retry: 2000,
-            data: this.toResponse(run),
+            data: {
+              ...this.toResponse(run),
+              event: event.data,
+            },
           };
         }),
       );
     });
-    const statusEvents = merge(initial, persisted).pipe(
+    const live = this.liveEvents.watch(runId).pipe(
+      map(
+        (event): MessageEvent => ({
+          type: event.type,
+          data: { runId, event: event.data },
+        }),
+      ),
+    );
+    const statusEvents = merge(initial, persisted, live).pipe(
       takeWhile((event) => !this.isTerminalEvent(event), true),
       share(),
     );

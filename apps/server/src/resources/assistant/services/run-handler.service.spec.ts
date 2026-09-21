@@ -48,6 +48,7 @@ describe('RunHandler', () => {
   const execution = {
     transition: jest.fn().mockResolvedValue(undefined),
     recoverAbandonedRun: jest.fn(),
+    closeLiveEvents: jest.fn(),
   } as unknown as ExecutionService;
   const config = {
     get: jest.fn((key: string) =>

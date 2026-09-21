@@ -80,8 +80,8 @@ models:
 2. Domain-specific deterministic verification strategies for workflow goals.
 3. Versioned workflow definitions whose agent nodes create the same steps and
    events.
-4. Redis-assisted stream wake-ups to remove the bounded database polling delay
-   while retaining the database as the replay source of truth.
+4. Redis-assisted cross-instance stream wake-ups while retaining the database
+   as the replay source of truth.
 
 ## Live event delivery
 
@@ -89,6 +89,15 @@ Assistant runs and workflow instances expose authenticated server-sent event
 streams. Event IDs are durable database sequence numbers, so reconnecting
 clients send `Last-Event-ID` and replay every missed event in order. The stream
 closes after a terminal event and emits heartbeats while a run is active.
+
+Assistant text is delivered through two coordinated paths. Provider text
+deltas are published immediately on the local live-event channel for
+token-level rendering. Periodic cumulative `assistant.delta` events are also
+persisted, making reconnect replay idempotent without writing one database row
+per token. In a multi-instance deployment, clients that are not connected to
+the worker's process still receive the durable cumulative snapshots. A future
+Redis notification layer can make the immediate channel cross-instance without
+changing the event contract.
 
 The browser extension owns connections in its background worker and exposes a
 small typed `runtime.Port` protocol to React hooks. This keeps authentication,
@@ -98,9 +107,8 @@ HTTP polling when a stream cannot be established, so transient proxy or browser
 limitations degrade freshness rather than correctness.
 
 The database remains the durability and replay boundary. Each server instance
-currently checks for newly committed events on a short interval; a future Redis
-notification layer may wake streams immediately without changing event IDs,
-replay semantics, or client contracts.
+checks for newly committed events on a short interval. The local live channel
+reduces latency when the API stream and queue worker share a process.
 
 ## Workflow goal validation
 

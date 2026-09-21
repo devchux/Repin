@@ -6,21 +6,30 @@ import { MemorySource } from '../entities/memory-source.entity';
 import type { LibraryService } from '../../library/library.service';
 import type { AiService } from '../../ai/ai.service';
 import type { Queue } from 'bullmq';
+import type { BookmarkService } from '../../bookmark/services/bookmark.service';
+import type { NoteService } from '../../note/note.service';
+import type { HighlightService } from '../../highlight/highlight.service';
 
 describe('MemoryService', () => {
   const memoryQuery = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    innerJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
     whereInIds: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
     getMany: jest.fn(),
+    getOne: jest.fn(),
   };
   const repository = {
     create: jest.fn((value) => value),
+    merge: jest.fn((target, value) => Object.assign(target, value)),
     save: jest.fn(async (value) => ({ id: 'memory-1', ...value })),
     update: jest.fn(),
     delete: jest.fn(),
     query: jest.fn(),
     createQueryBuilder: jest.fn().mockReturnValue(memoryQuery),
+    findOne: jest.fn(),
   } as unknown as jest.Mocked<Repository<Memory>>;
   const sourceQuery = {
     innerJoin: jest.fn().mockReturnThis(),
@@ -34,16 +43,29 @@ describe('MemoryService', () => {
   const library = {
     findOwned: jest.fn(),
   } as unknown as jest.Mocked<LibraryService>;
+  const bookmarks = {
+    findOne: jest.fn(),
+  } as unknown as jest.Mocked<BookmarkService>;
+  const notes = {
+    findOne: jest.fn(),
+  } as unknown as jest.Mocked<NoteService>;
+  const highlights = {
+    findOne: jest.fn(),
+  } as unknown as jest.Mocked<HighlightService>;
   const ai = {
     embed: jest.fn().mockResolvedValue([[0.1, 0.2]]),
   } as unknown as jest.Mocked<AiService>;
   const embeddingQueue = {
     add: jest.fn(),
+    getJob: jest.fn(),
   } as unknown as jest.Mocked<Queue>;
   const service = new MemoryService(
     repository,
     sourceRepository,
     library,
+    bookmarks,
+    notes,
+    highlights,
     ai,
     embeddingQueue,
   );
@@ -52,7 +74,10 @@ describe('MemoryService', () => {
     jest.clearAllMocks();
     ai.embed.mockResolvedValue([[0.1, 0.2]]);
     embeddingQueue.add.mockResolvedValue({} as never);
+    embeddingQueue.getJob.mockResolvedValue(undefined);
+    memoryQuery.getOne.mockResolvedValue(null);
     sourceQuery.getOne.mockResolvedValue(null);
+    repository.findOne.mockResolvedValue(null);
   });
 
   it('creates an explicit global user memory by default', async () => {
@@ -75,7 +100,7 @@ describe('MemoryService', () => {
     expect(embeddingQueue.add).toHaveBeenCalledWith(
       'embed-memory',
       { memoryId: 'memory-1' },
-      expect.objectContaining({ jobId: 'memory:memory-1', attempts: 3 }),
+      expect.objectContaining({ jobId: 'memory-memory-1', attempts: 3 }),
     );
   });
 
@@ -174,6 +199,43 @@ describe('MemoryService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('updates only a memory owned by the user and requeues its embedding', async () => {
+    repository.findOne.mockResolvedValueOnce({
+      id: 'memory-1',
+      userId: 7,
+      kind: 'user',
+      content: 'Old context',
+      scope: 'global',
+      sources: [],
+    } as never);
+
+    const result = await service.update(7, 'memory-1', {
+      content: '  Updated context  ',
+      scope: 'domain',
+      scopeId: 'example.com',
+    });
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { id: 'memory-1', userId: 7 },
+      relations: { sources: true },
+    });
+    expect(repository.merge).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'memory-1' }),
+      expect.objectContaining({
+        content: 'Updated context',
+        scope: 'domain',
+        scopeId: 'example.com',
+        embeddingStatus: 'pending',
+      }),
+    );
+    expect(result.message).toBe('Memory updated successfully');
+    expect(embeddingQueue.add).toHaveBeenCalledWith(
+      'embed-memory',
+      { memoryId: 'memory-1' },
+      expect.objectContaining({ jobId: 'memory-memory-1' }),
+    );
+  });
+
   it('creates memory only after loading an owned library source', async () => {
     library.findOwned.mockResolvedValueOnce({
       id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
@@ -222,5 +284,147 @@ describe('MemoryService', () => {
       }),
     ).rejects.toThrow('already created');
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('creates memory only after loading an owned bookmark', async () => {
+    bookmarks.findOne.mockResolvedValueOnce({
+      message: 'Bookmark found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        url: 'https://example.com/article',
+      },
+    } as never);
+
+    await service.createFromBookmark(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'This article explains durable agent memory',
+      scope: 'domain',
+      scopeId: 'example.com',
+    });
+
+    expect(bookmarks.findOne).toHaveBeenCalledWith(
+      7,
+      '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: [
+          expect.objectContaining({
+            type: 'bookmark',
+            sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+            url: 'https://example.com/article',
+            trust: 'untrusted',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('updates the existing memory for a bookmark instead of creating another', async () => {
+    bookmarks.findOne.mockResolvedValueOnce({
+      message: 'Bookmark found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        url: 'https://example.com/article',
+      },
+    } as never);
+    memoryQuery.getOne.mockResolvedValueOnce({
+      id: 'memory-1',
+      kind: 'user',
+      content: 'Old note',
+      scope: 'global',
+      sources: [],
+    });
+
+    const result = await service.createFromBookmark(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'Updated note',
+      scope: 'global',
+    });
+
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.merge).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'memory-1' }),
+      expect.objectContaining({
+        content: 'Updated note',
+        embeddingStatus: 'pending',
+      }),
+    );
+    expect(result.message).toBe('Bookmark memory updated successfully');
+    expect(embeddingQueue.add).toHaveBeenCalledWith(
+      'embed-memory',
+      { memoryId: 'memory-1' },
+      expect.objectContaining({ jobId: 'memory-memory-1' }),
+    );
+  });
+
+  it('creates memory only after loading an owned note', async () => {
+    notes.findOne.mockResolvedValueOnce({
+      message: 'Note found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        title: 'Agent notes',
+        body: 'Durable context belongs in memory',
+        sourceUrl: 'https://example.com/article',
+        tags: [],
+      },
+    } as never);
+
+    await service.createFromNote(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'Durable context belongs in memory',
+      scope: 'global',
+    });
+
+    expect(notes.findOne).toHaveBeenCalledWith(
+      7,
+      '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: [
+          expect.objectContaining({
+            type: 'note',
+            sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+            url: 'https://example.com/article',
+            trust: 'trusted',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('creates memory only after loading an owned highlight', async () => {
+    highlights.findOne.mockResolvedValueOnce({
+      message: 'Highlight found successfully',
+      data: {
+        id: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+        url: 'https://example.com/article',
+        quote: 'Durable context belongs in memory',
+      },
+    } as never);
+
+    await service.createFromHighlight(7, {
+      sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+      content: 'Durable context belongs in memory',
+      scope: 'global',
+    });
+
+    expect(highlights.findOne).toHaveBeenCalledWith(
+      7,
+      '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: [
+          expect.objectContaining({
+            type: 'highlight',
+            sourceId: '2cc3d0f3-f95a-497d-9d6d-d5943585257d',
+            url: 'https://example.com/article',
+            trust: 'untrusted',
+          }),
+        ],
+      }),
+    );
   });
 });

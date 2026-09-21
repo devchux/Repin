@@ -115,6 +115,7 @@ async function proxy(request: NextRequest) {
       "user-agent",
       "accept-language",
       "cookie",
+      "last-event-id",
     ];
 
     const filteredHeaders: Record<string, string> = {};
@@ -124,6 +125,34 @@ async function proxy(request: NextRequest) {
         filteredHeaders[key] = value;
       }
     });
+
+    if (
+      request.method === "GET" &&
+      filteredHeaders.accept?.includes("text/event-stream")
+    ) {
+      const upstream = await fetch(finalURL, {
+        method: "GET",
+        headers: filteredHeaders,
+        cache: "no-store",
+        signal: request.signal,
+      });
+      if (!upstream.ok || !upstream.body) {
+        const detail = await upstream.text();
+        return NextResponse.json(
+          { error: detail || "Unable to open event stream" },
+          { status: upstream.status },
+        );
+      }
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
 
     let requestData;
 

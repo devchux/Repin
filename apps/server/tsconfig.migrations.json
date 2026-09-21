@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "rootDir": "./src",
+    "sourceMap": false
+  },
+  "include": [
+    "src/config/typeorm.ts",
+    "src/database/data-source.ts",
+    "src/database/migrations/**/*.ts"
+  ]
+}

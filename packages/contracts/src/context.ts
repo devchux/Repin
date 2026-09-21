@@ -69,6 +69,26 @@ export interface PageInteractiveElement {
   readonly sourceFrameUrl?: string;
 }
 
+export const normalizeNavigationUrl = (
+  value: string | undefined,
+): string | undefined => {
+  if (!value) return undefined;
+  try {
+    const UrlConstructor = (
+      globalThis as unknown as {
+        URL?: new (input: string) => { href: string; protocol: string };
+      }
+    ).URL;
+    if (!UrlConstructor) return undefined;
+    const url = new UrlConstructor(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.href.slice(0, 2_048)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 /** A provider-neutral, point-in-time reading of a browser document. */
 export interface PageObservation {
   readonly schemaVersion: 1;

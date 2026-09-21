@@ -3,6 +3,9 @@ import { isDeepStrictEqual } from 'node:util';
 
 export type UnknownRecord = Record<string, unknown>;
 
+export const trimStringValue = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
+
 export const isRecord = (value: unknown): value is UnknownRecord =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 

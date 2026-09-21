@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import type { ExecuteDto } from '../dto/execute.dto';
 import type { CreateConversationMessageDto } from '../dto/create-conversation-message.dto';
+import type {
+  FindConversationDto,
+  FindConversationsDto,
+  FindRunTimelineDto,
+  FindRunsDto,
+} from '../dto/find-assistant-items.dto';
 import { ApprovalService } from './approval.service';
 import { ConversationService } from './conversation.service';
 import { RunService } from './run.service';
@@ -18,12 +24,20 @@ export class AssistantService {
     return this.conversations.createRun(userId, request, idempotencyKey);
   }
 
-  findConversation(userId: number, conversationId: string) {
-    return this.conversations.findConversation(userId, conversationId);
+  findConversation(
+    userId: number,
+    conversationId: string,
+    query: FindConversationDto,
+  ) {
+    return this.conversations.findConversation(userId, conversationId, query);
   }
 
-  findConversations(userId: number) {
-    return this.conversations.findConversations(userId);
+  findRunTimeline(userId: number, runId: string, query: FindRunTimelineDto) {
+    return this.runs.findTimeline(userId, runId, query);
+  }
+
+  findConversations(userId: number, query: FindConversationsDto) {
+    return this.conversations.findConversations(userId, query);
   }
 
   createConversationMessage(
@@ -38,8 +52,8 @@ export class AssistantService {
     return this.runs.findRun(userId, runId);
   }
 
-  findRuns(userId: number) {
-    return this.runs.findRuns(userId);
+  findRuns(userId: number, query: FindRunsDto) {
+    return this.runs.findRuns(userId, query);
   }
 
   watchRun(userId: number, runId: string, lastEventId?: string) {

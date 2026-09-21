@@ -2,6 +2,8 @@ export const MEMORY_EMBEDDING_QUEUE = 'memory-embedding';
 export const EMBED_MEMORY_JOB = 'embed-memory';
 export const BACKFILL_MEMORY_EMBEDDINGS_JOB = 'backfill-memory-embeddings';
 
+export const memoryEmbeddingJobId = (memoryId: string) => `memory-${memoryId}`;
+
 export const MEMORY_RANKING = {
   lexicalWeight: 0.4,
   semanticWeight: 0.5,

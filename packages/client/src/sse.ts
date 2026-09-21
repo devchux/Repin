@@ -16,9 +16,8 @@ export async function* parseServerEvents(
       buffer += decoder.decode(value, { stream: !done }).replace(/\r\n/g, "\n");
       let boundary = buffer.indexOf("\n\n");
       while (boundary >= 0) {
-        const block = buffer.slice(0, boundary);
+        const parsed = parseBlock(buffer.slice(0, boundary));
         buffer = buffer.slice(boundary + 2);
-        const parsed = parseBlock(block);
         if (parsed) yield parsed;
         boundary = buffer.indexOf("\n\n");
       }
@@ -29,7 +28,7 @@ export async function* parseServerEvents(
   }
 }
 
-const parseBlock = (block: string): ParsedServerEvent | undefined => {
+function parseBlock(block: string): ParsedServerEvent | undefined {
   let id: string | undefined;
   let type = "message";
   const data: string[] = [];
@@ -37,17 +36,16 @@ const parseBlock = (block: string): ParsedServerEvent | undefined => {
     if (!line || line.startsWith(":")) continue;
     const separator = line.indexOf(":");
     const field = separator < 0 ? line : line.slice(0, separator);
-    const value =
-      separator < 0 ? "" : line.slice(separator + 1).replace(/^ /, "");
+    const value = separator < 0 ? "" : line.slice(separator + 1).replace(/^ /, "");
     if (field === "id") id = value;
     if (field === "event") type = value;
     if (field === "data") data.push(value);
   }
-  if (data.length === 0) return undefined;
+  if (!data.length) return undefined;
   const value = data.join("\n");
   try {
-    return { id, type, data: JSON.parse(value) };
+    return { id, type, data: JSON.parse(value) as unknown };
   } catch {
     return { id, type, data: value };
   }
-};
+}

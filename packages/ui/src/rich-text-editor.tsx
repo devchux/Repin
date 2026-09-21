@@ -3,18 +3,21 @@
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import type { ComponentProps } from "react";
+import { useEffect, useRef, type ComponentProps } from "react";
 
 import { cn } from "./lib/utils";
 
-interface RichTextEditorProps extends Omit<ComponentProps<"div">, "onChange"> {
+interface RichTextEditorProps
+  extends Omit<ComponentProps<"div">, "onChange" | "onSubmit"> {
   content?: string;
   contentClassName?: string;
   editorClassName?: string;
   minHeightClassName?: string;
   placeholder?: string;
   showToolbar?: boolean;
+  disabled?: boolean;
   onChange?: (value: { html: string; text: string }) => void;
+  onSubmit?: (text: string) => void;
 }
 
 const toolbarButtons = [
@@ -54,9 +57,13 @@ export function RichTextEditor({
   minHeightClassName = "min-h-24",
   placeholder = "Write something...",
   showToolbar = true,
+  disabled = false,
   onChange,
+  onSubmit,
   ...props
 }: RichTextEditorProps) {
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -65,6 +72,7 @@ export function RichTextEditor({
       }),
     ],
     content,
+    editable: !disabled,
     editorProps: {
       attributes: {
         class: cn(
@@ -72,6 +80,16 @@ export function RichTextEditor({
           minHeightClassName,
           editorClassName,
         ),
+      },
+      handleKeyDown: (view, event) => {
+        if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+          return false;
+        }
+        event.preventDefault();
+        onSubmitRef.current?.(
+          view.state.doc.textBetween(0, view.state.doc.content.size, "\n"),
+        );
+        return true;
       },
     },
     immediatelyRender: false,
@@ -82,6 +100,10 @@ export function RichTextEditor({
       });
     },
   });
+
+  useEffect(() => {
+    editor?.setEditable(!disabled);
+  }, [disabled, editor]);
 
   return (
     <div

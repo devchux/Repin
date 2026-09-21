@@ -23,6 +23,7 @@ import type { Queue } from 'bullmq';
 import {
   BOOKMARK_ENRICHMENT_QUEUE,
   ENRICH_BOOKMARK_JOB,
+  bookmarkEnrichmentJobId,
 } from '../utils/constants';
 
 @Injectable()
@@ -97,6 +98,7 @@ export class BookmarkService {
   async findAll(userId: number, query: FindBookmarksDto) {
     const builder = this.bookmarks
       .createQueryBuilder('bookmark')
+      .loadRelationIdAndMap('bookmark.collectionIds', 'bookmark.collections')
       .where('bookmark.userId = :userId', { userId });
     const search = query.search?.trim();
     if (search) {
@@ -114,9 +116,9 @@ export class BookmarkService {
     }
     if (query.collectionId) {
       builder.innerJoin(
-        'bookmark_collection_items',
-        'collectionItem',
-        'collectionItem."bookmarkId" = bookmark.id AND collectionItem."collectionId" = :collectionId',
+        'bookmark.collections',
+        'collection',
+        'collection.id = :collectionId',
         { collectionId: query.collectionId },
       );
     }
@@ -218,7 +220,12 @@ export class BookmarkService {
   }
 
   private async findUserBookmark(userId: number, id: string) {
-    const page = await this.bookmarks.findOne({ where: { id, userId } });
+    const page = await this.bookmarks
+      .createQueryBuilder('bookmark')
+      .loadRelationIdAndMap('bookmark.collectionIds', 'bookmark.collections')
+      .where('bookmark.id = :id', { id })
+      .andWhere('bookmark.userId = :userId', { userId })
+      .getOne();
     if (!page) throw new NotFoundException('Bookmark not found');
     return page;
   }
@@ -286,7 +293,7 @@ export class BookmarkService {
 
   private async queueEnrichment(bookmarkId: string, replace = false) {
     if (!this.enrichmentQueue) return;
-    const jobId = `bookmark:${bookmarkId}`;
+    const jobId = bookmarkEnrichmentJobId(bookmarkId);
     if (replace) {
       const existing = await this.enrichmentQueue.getJob(jobId);
       await existing?.remove();

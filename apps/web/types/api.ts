@@ -17,5 +17,5 @@ export type ApiError = {
 
 export type RequestParams = Record<
   string,
-  boolean | number | string | null | undefined
+  boolean | number | string | readonly string[] | null | undefined
 >;

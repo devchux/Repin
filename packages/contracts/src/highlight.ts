@@ -32,6 +32,11 @@ export interface CreateHighlightRequest {
   readonly color: HighlightColor;
 }
 
+export interface UpdateHighlightRequest {
+  readonly note?: string | null;
+  readonly color?: HighlightColor | null;
+}
+
 export interface HighlightsPage {
   readonly items: readonly SavedHighlight[];
   readonly page: number;

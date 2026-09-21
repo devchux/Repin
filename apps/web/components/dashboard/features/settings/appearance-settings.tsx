@@ -2,7 +2,6 @@
 
 import { useTheme } from "@/hooks/useTheme";
 import { Theme } from "@/types/appearance";
-import { Label } from "@repo/ui/label";
 import { Check, Laptop, Moon, Sun } from "@repo/ui/icons";
 import { SectionHeading } from "./section-heading";
 
@@ -52,16 +51,6 @@ export function AppearanceSettings() {
         System follows this device’s light or dark appearance. This preference
         is saved in this browser.
       </p>
-      <div className="mt-8">
-        <Label htmlFor="density">Content density</Label>
-        <select
-          id="density"
-          className="mt-2 h-11 w-full rounded-md border bg-background px-3 text-sm sm:max-w-sm"
-        >
-          <option>Comfortable</option>
-          <option>Compact</option>
-        </select>
-      </div>
     </>
   );
 }

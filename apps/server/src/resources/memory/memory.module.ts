@@ -12,10 +12,16 @@ import { MEMORY_EMBEDDING_QUEUE } from './constants';
 import { MemoryEmbeddingService } from './services/embedding.service';
 import { MemoryEmbeddingProcessor } from './processors/embedding.processor';
 import { MemoryEmbeddingScheduler } from './schedulers/embedding.scheduler';
+import { BookmarkModule } from '../bookmark/bookmark.module';
+import { NoteModule } from '../note/note.module';
+import { HighlightModule } from '../highlight/highlight.module';
 
 @Module({
   imports: [
     AiModule,
+    BookmarkModule,
+    NoteModule,
+    HighlightModule,
     LibraryModule,
     BullModule.registerQueue({ name: MEMORY_EMBEDDING_QUEUE }),
     TypeOrmModule.forFeature([Memory, MemorySource]),
