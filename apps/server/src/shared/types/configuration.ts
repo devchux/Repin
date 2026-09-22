@@ -47,4 +47,17 @@ export type Configuration = {
     shortRunTimeout: number;
     longRunTimeout: number;
   };
+  assistantAgent: {
+    noProgressThreshold: number;
+    budgets: {
+      short: { maxToolCalls: number };
+      long: { maxToolCalls: number };
+      capabilities: Partial<
+        Record<
+          'summarize' | 'explain' | 'translate' | 'chat',
+          { maxToolCalls: number }
+        >
+      >;
+    };
+  };
 };

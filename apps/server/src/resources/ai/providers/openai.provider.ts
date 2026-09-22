@@ -9,7 +9,27 @@ import type {
   AiGenerateResult,
   AiMessage,
   AiProvider,
+  AiStopReason,
 } from '../types/provider';
+
+export function normalizeOpenAiFinishReason(reason?: string | null): {
+  readonly endTurn?: boolean;
+  readonly stopReason: AiStopReason;
+} {
+  switch (reason) {
+    case 'stop':
+      return { endTurn: true, stopReason: 'complete' };
+    case 'tool_calls':
+    case 'function_call':
+      return { endTurn: false, stopReason: 'tool_calls' };
+    case 'length':
+      return { endTurn: false, stopReason: 'length' };
+    case 'content_filter':
+      return { endTurn: true, stopReason: 'content_filter' };
+    default:
+      return { stopReason: 'unknown' };
+  }
+}
 
 export class OpenAiCompatibleProvider implements AiProvider {
   private readonly client: OpenAI;
@@ -52,6 +72,9 @@ export class OpenAiCompatibleProvider implements AiProvider {
       { signal: options.signal },
     );
     const message = response.choices[0]?.message;
+    const terminal = normalizeOpenAiFinishReason(
+      response.choices[0]?.finish_reason,
+    );
 
     if (!message) {
       throw new Error(`${this.options.provider} returned an empty response`);
@@ -61,6 +84,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
       provider: this.options.provider,
       model: response.model,
       content: message.content || '',
+      ...terminal,
       toolCalls: message.tool_calls?.flatMap((toolCall) =>
         toolCall.type === 'function'
           ? [
@@ -109,6 +133,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
     let content = '';
     let model = options.model || this.options.model;
     let usage: AiGenerateResult['usage'];
+    let terminal = normalizeOpenAiFinishReason();
     const streamedToolCalls = new Map<
       number,
       { id: string; name: string; arguments: string }
@@ -123,6 +148,9 @@ export class OpenAiCompatibleProvider implements AiProvider {
         };
       }
       const delta = chunk.choices[0]?.delta;
+      if (chunk.choices[0]?.finish_reason) {
+        terminal = normalizeOpenAiFinishReason(chunk.choices[0].finish_reason);
+      }
       if (delta?.content) {
         content += delta.content;
         await options.onTextDelta?.(delta.content);
@@ -146,6 +174,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
       provider: this.options.provider,
       model,
       content,
+      ...terminal,
       toolCalls: [...streamedToolCalls.entries()]
         .sort(([left], [right]) => left - right)
         .map(([, toolCall]) => ({

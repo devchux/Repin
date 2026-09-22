@@ -4,6 +4,20 @@ import { optionalInt, optionalNumber, required } from 'src/shared/utils/helper';
 
 dotenv.config();
 
+const optionalToolBudget = (
+  key: string,
+): { maxToolCalls: number } | undefined =>
+  process.env[key] === undefined
+    ? undefined
+    : { maxToolCalls: optionalInt(key, 0) };
+
+const capabilityToolBudgets = {
+  summarize: optionalToolBudget('ASSISTANT_SUMMARIZE_MAX_TOOL_CALLS'),
+  explain: optionalToolBudget('ASSISTANT_EXPLAIN_MAX_TOOL_CALLS'),
+  translate: optionalToolBudget('ASSISTANT_TRANSLATE_MAX_TOOL_CALLS'),
+  chat: optionalToolBudget('ASSISTANT_CHAT_MAX_TOOL_CALLS'),
+};
+
 export default (): Configuration => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: optionalInt('PORT', 8080),
@@ -71,5 +85,19 @@ export default (): Configuration => ({
     scaleWaitThreshold: optionalInt('ASSISTANT_SCALE_WAIT_THRESHOLD', 5000),
     shortRunTimeout: optionalInt('ASSISTANT_SHORT_RUN_TIMEOUT', 180000),
     longRunTimeout: optionalInt('ASSISTANT_LONG_RUN_TIMEOUT', 1800000),
+  },
+  assistantAgent: {
+    noProgressThreshold: optionalInt('ASSISTANT_NO_PROGRESS_THRESHOLD', 3),
+    budgets: {
+      short: {
+        maxToolCalls: optionalInt('ASSISTANT_SHORT_MAX_TOOL_CALLS', 24),
+      },
+      long: {
+        maxToolCalls: optionalInt('ASSISTANT_LONG_MAX_TOOL_CALLS', 120),
+      },
+      capabilities: Object.fromEntries(
+        Object.entries(capabilityToolBudgets).filter(([, budget]) => budget),
+      ),
+    },
   },
 });

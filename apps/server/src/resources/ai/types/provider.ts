@@ -34,11 +34,22 @@ export interface AiGenerateOptions {
   onTextDelta?: (delta: string) => Promise<void> | void;
 }
 
+export type AiStopReason =
+  | 'complete'
+  | 'tool_calls'
+  | 'length'
+  | 'content_filter'
+  | 'unknown';
+
 export interface AiGenerateResult {
   provider: string;
   model: string;
   content: string;
   toolCalls?: AiToolCall[];
+  /** Whether the provider intentionally ended the current agent turn. */
+  endTurn?: boolean;
+  /** Provider-neutral explanation for why generation stopped. */
+  stopReason?: AiStopReason;
   usage?: {
     inputTokens: number;
     outputTokens: number;

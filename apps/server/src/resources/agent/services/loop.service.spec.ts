@@ -6,6 +6,8 @@ import type { Run } from '../entities/run.entity';
 import type { ExecutionService } from './execution.service';
 import type { MemoryService } from '../../memory/services/memory.service';
 import type { MemoryToolsService } from '../../memory/services/tools.service';
+import type { ConfigService } from '@nestjs/config';
+import type { Configuration } from '../../../shared/types';
 
 const run = {
   id: 'run-1',
@@ -19,6 +21,7 @@ describe('LoopService', () => {
     transition: jest.fn().mockResolvedValue(undefined),
     startStep: jest.fn().mockResolvedValue({ id: 'step-1' }),
     completeStep: jest.fn().mockResolvedValue(undefined),
+    assertToolResultProgress: jest.fn().mockResolvedValue(undefined),
     failStep: jest.fn().mockResolvedValue(undefined),
     getContinuation: jest.fn().mockResolvedValue(null),
     saveContinuation: jest.fn().mockResolvedValue(undefined),
@@ -552,5 +555,199 @@ describe('LoopService', () => {
     expect(result.content).toBe('Long-running work completed.');
     expect(generate).toHaveBeenCalledTimes(14);
     expect(toolsService.execute).toHaveBeenCalledTimes(13);
+  });
+
+  it('repairs an empty terminal result before completing', async () => {
+    const aiService = {
+      generate: jest
+        .fn()
+        .mockResolvedValueOnce({
+          provider: 'test',
+          model: 'model',
+          content: '   ',
+        })
+        .mockResolvedValueOnce({
+          provider: 'test',
+          model: 'model',
+          content: 'A valid final answer.',
+        }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+    } as unknown as ToolsService;
+
+    const result = await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+    ).run({ ...run, browserSessionId: undefined }, []);
+
+    expect(result.content).toBe('A valid final answer.');
+    expect(aiService.generate).toHaveBeenCalledTimes(2);
+    expect(aiService.generate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringContaining('non-empty final answer'),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it('continues when the provider says the turn has not ended', async () => {
+    const aiService = {
+      generate: jest
+        .fn()
+        .mockResolvedValueOnce({
+          provider: 'test',
+          model: 'model',
+          content: 'The first part was truncated.',
+          endTurn: false,
+          stopReason: 'length',
+        })
+        .mockResolvedValueOnce({
+          provider: 'test',
+          model: 'model',
+          content: 'Here is the completed answer.',
+          endTurn: true,
+          stopReason: 'complete',
+        }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+    } as unknown as ToolsService;
+
+    const result = await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+    ).run({ ...run, browserSessionId: undefined }, []);
+
+    expect(result.content).toBe('Here is the completed answer.');
+    expect(aiService.generate).toHaveBeenCalledTimes(2);
+    expect(aiService.generate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'assistant',
+            content: 'The first part was truncated.',
+          }),
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringContaining('did not end the turn'),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it('rejects a provider-filtered terminal result', async () => {
+    const aiService = {
+      generate: jest.fn().mockResolvedValue({
+        provider: 'test',
+        model: 'model',
+        content: '',
+        endTurn: true,
+        stopReason: 'content_filter',
+      }),
+    } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([]),
+    } as unknown as ToolsService;
+
+    await expect(
+      new LoopService(
+        aiService,
+        toolsService,
+        execution,
+        memoryService,
+        memoryTools,
+      ).run({ ...run, browserSessionId: undefined }, []),
+    ).rejects.toThrow('blocked by the provider content filter');
+  });
+
+  it('forces a final answer when successful tool calls do not terminate', async () => {
+    const generate = jest
+      .fn()
+      .mockImplementation(async (options: AiGenerateOptions) =>
+        options.tools?.length
+          ? {
+              provider: 'test',
+              model: 'model',
+              content: '',
+              toolCalls: [
+                {
+                  id: `call-${generate.mock.calls.length}`,
+                  name: 'save_note',
+                  arguments: { index: generate.mock.calls.length },
+                },
+              ],
+            }
+          : {
+              provider: 'test',
+              model: 'model',
+              content: 'Finished with the results collected so far.',
+              toolCalls: [],
+            },
+      );
+    const aiService = { generate } as unknown as AiService;
+    const toolsService = {
+      getDefinitions: jest.fn().mockReturnValue([
+        {
+          name: 'save_note',
+          description: 'Save a note',
+          inputSchema: { type: 'object' },
+        },
+      ]),
+      supports: jest.fn().mockReturnValue(true),
+      supportsBrowser: jest.fn().mockReturnValue(false),
+      requiresBrowserSession: jest.fn().mockReturnValue(false),
+      execute: jest.fn().mockResolvedValue({ saved: true }),
+    } as unknown as ToolsService;
+    const config = {
+      get: jest.fn((key: string) =>
+        key === 'assistantAgent'
+          ? {
+              noProgressThreshold: 3,
+              budgets: {
+                short: { maxToolCalls: 40 },
+                long: { maxToolCalls: 120 },
+                capabilities: { chat: { maxToolCalls: 24 } },
+              },
+            }
+          : undefined,
+      ),
+    } as unknown as ConfigService<Configuration>;
+
+    const result = await new LoopService(
+      aiService,
+      toolsService,
+      execution,
+      memoryService,
+      memoryTools,
+      config,
+    ).run(
+      {
+        ...run,
+        capability: 'chat',
+        executionLane: 'short',
+        browserSessionId: undefined,
+        toolCallCount: 0,
+      },
+      [],
+    );
+
+    expect(result.content).toBe('Finished with the results collected so far.');
+    expect(toolsService.execute).toHaveBeenCalledTimes(24);
+    expect(generate).toHaveBeenCalledTimes(25);
+    expect(generate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tools: [] }),
+    );
   });
 });

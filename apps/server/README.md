@@ -36,7 +36,21 @@ ASSISTANT_SCALE_DEPTH_THRESHOLD=20
 ASSISTANT_SCALE_WAIT_THRESHOLD=5000
 ASSISTANT_SHORT_RUN_TIMEOUT=180000
 ASSISTANT_LONG_RUN_TIMEOUT=1800000
+ASSISTANT_NO_PROGRESS_THRESHOLD=3
+ASSISTANT_SHORT_MAX_TOOL_CALLS=24
+ASSISTANT_LONG_MAX_TOOL_CALLS=120
+# Optional capability overrides (0 disables the tool-call budget):
+# ASSISTANT_SUMMARIZE_MAX_TOOL_CALLS=8
+# ASSISTANT_EXPLAIN_MAX_TOOL_CALLS=8
+# ASSISTANT_TRANSLATE_MAX_TOOL_CALLS=4
+# ASSISTANT_CHAT_MAX_TOOL_CALLS=48
 ```
+
+The lane budget applies unless a capability-specific override is configured.
+Budget exhaustion removes tools and requests a final answer from the evidence
+already collected. It does not mark the run successful by itself. A value of
+`0` disables that tool-call budget, leaving the run deadline as the final hard
+boundary.
 
 `queueWaitMs` is persisted when a run starts and represents
 `startedAt - createdAt`. Infrastructure autoscaling should use queue depth and
