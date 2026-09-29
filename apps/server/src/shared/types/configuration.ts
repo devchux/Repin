@@ -19,6 +19,20 @@ export type Configuration = {
     extensionRefreshTokenTtl: number;
     refreshTokenTtl: number;
   };
+  email: {
+    provider: 'log' | 'resend' | 'smtp' | 'sendgrid';
+    fromAddress: string;
+    fromName: string;
+    resendApiKey: string;
+    sendGridApiKey: string;
+    smtp: {
+      host: string;
+      port: number;
+      secure: boolean;
+      user?: string;
+      password?: string;
+    };
+  };
   database: {
     url: string;
   };

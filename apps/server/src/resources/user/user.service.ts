@@ -104,6 +104,17 @@ export class UserService {
     return { message: 'User updated successfully', data };
   }
 
+  async updateEmail(id: number, rawEmail: string) {
+    const email = rawEmail.toLowerCase().trim();
+    const existing = await this.userRepository.findOne({ where: { email } });
+    if (existing && existing.id !== id) {
+      throw new BadRequestException('Email address is already in use');
+    }
+
+    const data = await this.updateUser(id, { email });
+    return { message: 'Email address changed successfully', data };
+  }
+
   async activate(id: number) {
     const data = await this.updateUser(id, { status: Status.ACTIVE });
     return { message: 'User activated successfully', data };

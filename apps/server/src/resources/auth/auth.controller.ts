@@ -16,6 +16,8 @@ import { AuthorizeExtensionDto } from './dto/authorize-extension.dto';
 import { ExchangeExtensionCodeDto } from './dto/exchange-extension-code.dto';
 import { RefreshExtensionDto } from './dto/refresh-extension.dto';
 import type { AuthUser } from 'src/shared/types';
+import { RequestEmailChangeDto } from './dto/request-email-change.dto';
+import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -104,6 +106,36 @@ export class AuthController {
       message: 'Authenticated user found successfully',
       data: (request as AuthenticatedRequest).user,
     };
+  }
+
+  @Post('email-change/request')
+  requestEmailChange(
+    @CurrentUser() user: AuthUser,
+    @Body() request: RequestEmailChangeDto,
+  ) {
+    return this.authService.requestEmailChange(user, request);
+  }
+
+  @Post('email-change/confirm')
+  async confirmEmailChange(
+    @CurrentUser() user: AuthUser,
+    @Body() request: ConfirmEmailChangeDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.confirmEmailChange(user, request);
+    response.cookie(
+      AUTH_COOKIE_NAME,
+      result.data.token,
+      this.authService.getAccessCookieOptions(),
+    );
+    response.cookie(
+      REFRESH_AUTH_COOKIE_NAME,
+      result.data.refreshToken,
+      this.authService.getRefreshCookieOptions(),
+    );
+    delete result.data.token;
+    delete result.data.refreshToken;
+    return result;
   }
 
   @Post('extension/authorize')

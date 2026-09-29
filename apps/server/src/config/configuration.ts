@@ -54,6 +54,7 @@ export default (): Configuration => ({
     ),
     refreshTokenTtl: optionalInt('REFRESH_TOKEN_TTL', 604800000),
   },
+  email: emailConfiguration(),
   database: {
     url: required('DATABASE_URL'),
   },
@@ -101,3 +102,47 @@ export default (): Configuration => ({
     },
   },
 });
+
+function emailConfiguration(): Configuration['email'] {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const provider = (process.env.EMAIL_PROVIDER ||
+    (nodeEnv === 'production'
+      ? ''
+      : 'log')) as Configuration['email']['provider'];
+  if (!['log', 'resend', 'smtp', 'sendgrid'].includes(provider)) {
+    throw new Error(
+      'EMAIL_PROVIDER must be one of log, resend, smtp, or sendgrid',
+    );
+  }
+  if (nodeEnv === 'production' && provider === 'log') {
+    throw new Error('EMAIL_PROVIDER=log is not allowed in production');
+  }
+
+  const fromAddress =
+    provider === 'log'
+      ? process.env.EMAIL_FROM_ADDRESS || 'dev@repin.local'
+      : required('EMAIL_FROM_ADDRESS');
+  const resendApiKey = provider === 'resend' ? required('RESEND_API_KEY') : '';
+  const sendGridApiKey =
+    provider === 'sendgrid' ? required('SENDGRID_API_KEY') : '';
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPassword = process.env.SMTP_PASSWORD;
+  if (provider === 'smtp' && Boolean(smtpUser) !== Boolean(smtpPassword)) {
+    throw new Error('SMTP_USER and SMTP_PASSWORD must be configured together');
+  }
+
+  return {
+    provider,
+    fromAddress,
+    fromName: process.env.EMAIL_FROM_NAME || 'Repin',
+    resendApiKey,
+    sendGridApiKey,
+    smtp: {
+      host: provider === 'smtp' ? required('SMTP_HOST') : '',
+      port: optionalInt('SMTP_PORT', 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      user: smtpUser,
+      password: smtpPassword,
+    },
+  };
+}

@@ -14,9 +14,11 @@ import {
   AuthUser,
   Status,
   StoredAuthCode,
+  StoredEmailChangeCode,
 } from 'src/shared/types';
 import {
   getAuthCodeKey,
+  getEmailChangeCodeKey,
   hashAuthCode,
   hashToken,
   isHashMatch,
@@ -29,7 +31,9 @@ import { ExchangeExtensionCodeDto } from '../dto/exchange-extension-code.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { VerifyCodeDto } from '../dto/verify-code.dto';
-import { MockMailService } from './mock-mail.service';
+import { RequestEmailChangeDto } from '../dto/request-email-change.dto';
+import { ConfirmEmailChangeDto } from '../dto/confirm-email-change.dto';
+import { AuthEmailService } from './auth-email.service';
 import { AuthTokenService } from './auth-token.service';
 import { ExtensionAuthService } from './extension-auth.service';
 import { AUTH_CODE_TTL_MS, createAuthCodeResponse } from '../utils/auth.utils';
@@ -41,7 +45,7 @@ export class AuthService {
     private readonly cacheService: CacheService,
     private readonly configService: ConfigService,
     private readonly extensionAuthService: ExtensionAuthService,
-    private readonly mockMailService: MockMailService,
+    private readonly authEmailService: AuthEmailService,
     private readonly userService: UserService,
   ) {}
 
@@ -51,7 +55,11 @@ export class AuthService {
       ...registerDto,
       email,
     });
-    const code = await this.createAndSendCode(email, AuthCodePurpose.REGISTER);
+    const code = await this.createAndSendCode(
+      email,
+      AuthCodePurpose.REGISTER,
+      user.firstName,
+    );
     return this.authCodeResponse(
       'Registration code sent successfully',
       user,
@@ -69,7 +77,11 @@ export class AuthService {
       throw new BadRequestException('Please verify your registration first');
     }
 
-    const code = await this.createAndSendCode(email, AuthCodePurpose.LOGIN);
+    const code = await this.createAndSendCode(
+      email,
+      AuthCodePurpose.LOGIN,
+      user.firstName,
+    );
     return this.authCodeResponse('Login code sent successfully', user, code);
   }
 
@@ -160,6 +172,77 @@ export class AuthService {
     }
   }
 
+  async requestEmailChange(user: AuthUser, request: RequestEmailChangeDto) {
+    const email = normalizeEmail(request.email);
+    if (email === normalizeEmail(user.email)) {
+      throw new BadRequestException('Enter a different email address');
+    }
+    const existing = await this.userService.findOneByEmail(email);
+    if (existing) {
+      throw new BadRequestException('Email address is already in use');
+    }
+
+    const current = (await this.userService.findOne(user.id)).data;
+    if (!current || current.status !== Status.ACTIVE) {
+      throw new UnauthorizedException('User is not active');
+    }
+
+    const code = randomInt(100000, 1000000).toString();
+    const key = getEmailChangeCodeKey(user.id);
+    await this.cacheService.setValue(
+      key,
+      {
+        codeHash: this.hashCode(email, code),
+        email,
+        purpose: AuthCodePurpose.CHANGE_EMAIL,
+      } satisfies StoredEmailChangeCode,
+      AUTH_CODE_TTL_MS,
+    );
+    try {
+      await this.authEmailService.sendAuthCode(
+        email,
+        code,
+        AuthCodePurpose.CHANGE_EMAIL,
+        current.firstName,
+      );
+    } catch (error) {
+      await this.cacheService.deleteValue(key);
+      throw error;
+    }
+
+    return {
+      message: 'Verification code sent to your new email address',
+      data: {
+        email,
+        expiresIn: AUTH_CODE_TTL_MS,
+        ...(this.isDevelopment() ? { mockCode: code } : {}),
+      },
+    };
+  }
+
+  async confirmEmailChange(user: AuthUser, request: ConfirmEmailChangeDto) {
+    const key = getEmailChangeCodeKey(user.id);
+    const stored = await this.cacheService.getValue<StoredEmailChangeCode>(key);
+    if (
+      !stored ||
+      stored.purpose !== AuthCodePurpose.CHANGE_EMAIL ||
+      !isHashMatch(stored.codeHash, this.hashCode(stored.email, request.code))
+    ) {
+      throw new UnauthorizedException('Invalid or expired code');
+    }
+
+    await this.cacheService.deleteValue(key);
+    const updated = await this.userService.updateEmail(user.id, stored.email);
+    const tokens = await this.authTokenService.createAuthTokens(updated.data);
+    return {
+      message: updated.message,
+      data: {
+        user: updated.data,
+        ...tokens,
+      },
+    };
+  }
+
   authorizeExtension(user: AuthUser, request: AuthorizeExtensionDto) {
     return this.extensionAuthService.authorize(user, request);
   }
@@ -188,14 +271,24 @@ export class AuthService {
     return this.getAccessCookieOptions();
   }
 
-  private async createAndSendCode(email: string, purpose: AuthCodePurpose) {
+  private async createAndSendCode(
+    email: string,
+    purpose: AuthCodePurpose,
+    firstName?: string,
+  ) {
     const code = randomInt(100000, 1000000).toString();
+    const key = getAuthCodeKey(email);
     await this.cacheService.setValue(
-      getAuthCodeKey(email),
+      key,
       { codeHash: this.hashCode(email, code), purpose },
       AUTH_CODE_TTL_MS,
     );
-    await this.mockMailService.sendAuthCode(email, code, purpose);
+    try {
+      await this.authEmailService.sendAuthCode(email, code, purpose, firstName);
+    } catch (error) {
+      await this.cacheService.deleteValue(key);
+      throw error;
+    }
     return code;
   }
 
@@ -204,12 +297,7 @@ export class AuthService {
     user: Parameters<typeof createAuthCodeResponse>[1],
     code: string,
   ) {
-    return createAuthCodeResponse(
-      message,
-      user,
-      code,
-      this.configService.get<string>('nodeEnv') !== 'production',
-    );
+    return createAuthCodeResponse(message, user, code, this.isDevelopment());
   }
 
   private isValidCode(email: string, code: string, authCode: StoredAuthCode) {
@@ -222,5 +310,9 @@ export class AuthService {
       code,
       this.configService.get<string>('auth.accessTokenSecret'),
     );
+  }
+
+  private isDevelopment() {
+    return this.configService.get<string>('nodeEnv') !== 'production';
   }
 }

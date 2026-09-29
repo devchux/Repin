@@ -186,6 +186,9 @@ importers:
       keyv:
         specifier: ^5.6.0
         version: 5.6.0
+      nodemailer:
+        specifier: ^7.0.11
+        version: 7.0.13
       openai:
         specifier: ^6.39.0
         version: 6.49.0(ws@8.21.3)(zod@4.4.3)
@@ -232,6 +235,9 @@ importers:
       "@types/node":
         specifier: ^20.3.1
         version: 20.19.43
+      "@types/nodemailer":
+        specifier: ^7.0.4
+        version: 7.0.12
       "@types/supertest":
         specifier: ^7.2.0
         version: 7.2.0
@@ -4588,6 +4594,12 @@ packages:
     resolution:
       {
         integrity: sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw==,
+      }
+
+  "@types/nodemailer@7.0.12":
+    resolution:
+      {
+        integrity: sha512-80vKwiIsVSyFA1rRovH59jNPLBOuc6dRZIHEu40gXTkBkZnQv8vog1xSGEb9j5q/tdMAs5ivvDR2pLTU0hGHXA==,
       }
 
   "@types/oracledb@6.5.2":
@@ -9253,6 +9265,13 @@ packages:
         integrity: sha512-J6l92tKHX6w8Jy5nO1Vuc01NoIiRGi/d6qBKVxh+IQ8Cr3b6HbVNfKiF8ZpFKufTwpwxMmce2W3iQZ861ZRyTg==,
       }
     engines: { node: ">=18" }
+
+  nodemailer@7.0.13:
+    resolution:
+      {
+        integrity: sha512-PNDFSJdP+KFgdsG3ZzMXCgquO7I6McjY2vlqILjtJd0hy8wEvtugS9xKRF2NWlPNGxvLCXlTNIae4serI7dinw==,
+      }
+    engines: { node: ">=6.0.0" }
 
   normalize-path@3.0.0:
     resolution:
@@ -14856,6 +14875,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  "@types/nodemailer@7.0.12":
+    dependencies:
+      "@types/node": 22.15.3
+
   "@types/oracledb@6.5.2":
     dependencies:
       "@types/node": 22.15.3
@@ -17959,6 +17982,8 @@ snapshots:
       which: 2.0.2
 
   node-releases@2.0.50: {}
+
+  nodemailer@7.0.13: {}
 
   normalize-path@3.0.0: {}
 

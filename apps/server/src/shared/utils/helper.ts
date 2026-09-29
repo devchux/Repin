@@ -169,6 +169,9 @@ export const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export const getAuthCodeKey = (email: string) => `auth-code:${email}`;
 
+export const getEmailChangeCodeKey = (userId: number) =>
+  `email-change-code:${userId}`;
+
 export const getRefreshTokenKey = (sessionId: string) =>
   `refresh-token:${sessionId}`;
 
