@@ -1,0 +1,23 @@
+---
+title: "Profile and settings"
+description: "Manage profile details, account email, and workspace appearance."
+---
+
+The Settings area contains implemented controls for profile information,
+account email, and appearance.
+
+## Profile
+
+Users can update their first and last name. The authenticated user endpoint and
+profile query keep the current account state synchronized with the dashboard.
+
+## Email address
+
+Changing the account email is a two-step verified operation. Repin first sends
+a code to the new, unused address. The address changes only after the code is
+confirmed, and new web credentials are issued after the update.
+
+## Appearance
+
+The dashboard includes appearance settings backed by the shared UI theme
+behavior. Profile photos are not implemented in the current codebase.

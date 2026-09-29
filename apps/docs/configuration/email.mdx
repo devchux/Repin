@@ -1,0 +1,44 @@
+---
+title: "Transactional email"
+description: "Configure authentication email delivery through a supported provider."
+---
+
+Repin supports `log`, `resend`, `sendgrid`, and `smtp` email providers.
+
+The `log` provider is for development only. Production startup rejects it.
+
+## Shared settings
+
+```env
+EMAIL_PROVIDER=resend
+EMAIL_FROM_ADDRESS=hello@example.com
+EMAIL_FROM_NAME=Repin
+```
+
+## Resend
+
+```env
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=your-api-key
+```
+
+## SendGrid
+
+```env
+EMAIL_PROVIDER=sendgrid
+SENDGRID_API_KEY=your-api-key
+```
+
+## SMTP
+
+```env
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-user
+SMTP_PASSWORD=your-password
+```
+
+`SMTP_USER` and `SMTP_PASSWORD` must be configured together. They may both be
+omitted for a relay that does not require authentication.

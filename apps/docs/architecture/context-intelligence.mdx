@@ -1,0 +1,44 @@
+---
+title: "Context intelligence"
+description: "See how Repin extracts, ranks, budgets, and secures browser-page observations."
+---
+
+Repin represents a page as a provider-neutral `PageObservation`. Readable
+content blocks and interactive elements remain separate so article text and
+actionable page state do not collapse into one unstructured prompt.
+
+## Observation contents
+
+Content blocks retain their semantic kind, heading path, visibility, viewport
+state, and frame provenance. Interactive elements retain accessible labels,
+roles, safe state, destination, relationships, and frame provenance. Password
+values are never captured.
+
+Browser snapshot tools may attach an action reference to an element. That
+reference belongs to a specific document revision. Ambiguous duplicate
+controls do not receive an actionable reference.
+
+## Intent-aware assembly
+
+The context assembler classifies the request as reading, locating, navigating,
+editing, submitting, comparing, or extracting. It ranks candidates before
+applying the token budget:
+
+- Reading prioritizes semantic content.
+- Interaction prioritizes relevant controls and current state.
+- Extraction favors tables and lists.
+- Comparison favors coverage across sections.
+
+Every model step records a context manifest identifying the observation,
+included block IDs, selection strategy, token estimate, omissions, and
+truncation state.
+
+## Freshness and trust
+
+Relevant DOM changes and navigation invalidate the document revision. Element
+actions must use the current revision, and side effects request a fresh
+snapshot. Page text and screenshots remain untrusted observations and cannot
+grant permission or override system policy.
+
+Captures are bounded to 500 content blocks, 500 controls, 10,000 characters per
+block, and 100,000 characters overall. Hidden content is excluded.

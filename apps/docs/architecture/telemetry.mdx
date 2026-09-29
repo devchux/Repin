@@ -1,0 +1,54 @@
+---
+title: "Telemetry and observability"
+description: "Understand Repin's OpenTelemetry traces, metrics, configuration, and data boundaries."
+---
+
+Repin uses OpenTelemetry for vendor-neutral server traces and metrics. The
+shared `@repo/observability` package defines event names, bounded attribute
+names, and operation instrumentation. The NestJS application owns Node SDK
+startup and OTLP exporters.
+
+## Enable telemetry
+
+Telemetry starts when `OTEL_ENABLED=true` or an OTLP endpoint is configured. It
+can be forced off with `OTEL_SDK_DISABLED=true`.
+
+```env
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=repin-server
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_METRIC_EXPORT_INTERVAL=60000
+```
+
+The server exports traces and metrics over OTLP/HTTP. Node automatic
+instrumentation covers supported HTTP, database, Redis, and network libraries;
+filesystem instrumentation is disabled.
+
+## Domain events
+
+| Area | Span name | Operation metric value |
+| --- | --- | --- |
+| Agent run | `repin.agent.run` | `agent.run` |
+| Tool execution | `repin.tool.execute` | `tool.execution` |
+| Model generation | `gen_ai.generate_content` | `ai.generation` |
+| Assistant queue | `repin.queue.assistant.process` | `queue.assistant.process` |
+| Workflow worker | `repin.workflow.process` | `workflow.process` |
+| Memory retrieval | `repin.memory.retrieve` | `memory.retrieval` |
+
+## Metrics
+
+`repin.operation.duration` records operation latency in milliseconds.
+`repin.operation.count` records success and error outcomes. Memory retrieval
+also records `repin.memory.retrieval.results`, split between hybrid and
+full-text retrieval modes.
+
+## Data boundaries
+
+Metric dimensions remain deliberately low-cardinality. Identifiers may be span
+attributes but not metric dimensions. Prompts, page content, tool arguments,
+model responses, credentials, and other sensitive user data must never be
+added to telemetry attributes.
+
+Telemetry shuts down with the NestJS application so buffered exporter data can
+flush during `SIGTERM` or `SIGINT` handling.

@@ -1,0 +1,57 @@
+---
+title: "Agent harness"
+description: "Understand the provider-neutral loop, durable execution model, and safety boundaries."
+---
+
+The agent harness lives in `apps/server/src/resources/agent`. It is the shared
+runtime for assistant capabilities, browser tools, application tools, and agent
+nodes started by workflows.
+
+## Ownership boundaries
+
+| Component | Owns |
+| --- | --- |
+| `AgentModule` | Run aggregate and exported execution services |
+| `LoopService` | Model decisions, tool dispatch, continuation, verification, and reconciliation |
+| `ExecutionService` | Durable transitions, steps, events, checkpoints, and budgets |
+| `assistant` resource | Conversations, capability prompts, HTTP endpoints, and queue dispatch |
+| AI adapters | Normalized model input and provider output only |
+| Tool resources | Typed execution against application or browser capabilities |
+
+Provider adapters never execute tools or own loop state. This keeps OpenAI-
+compatible and future provider implementations replaceable without rebuilding
+browser automation.
+
+## Durable execution
+
+The harness persists four complementary records:
+
+- A run contains the user-facing lifecycle summary.
+- Run steps contain model and tool invocations, inputs, outputs, attempts,
+  timing, and failures.
+- Run events form an append-only ordered timeline.
+- Checkpoints capture resumable lifecycle state after transitions.
+
+Sequence allocation and lifecycle changes happen under database locking and
+transactions so status, event, and checkpoint state remain consistent.
+
+## Lifecycle
+
+Runs normally move from `queued` to `running`, then to `completed` or `failed`.
+They can also be cancelled, suspended for browser recovery, or moved into an
+approval wait. The active phase moves through initialization, reasoning,
+execution, finalization, and terminal state; reasoning and execution can repeat.
+
+## Guardrails
+
+- Tool-call budgets are configured by lane and can be overridden by capability.
+- Wall-clock deadlines survive retries, approval waits, and worker restarts.
+- A no-progress detector compares repeated actions and their outcomes.
+- Stale browser document revisions are rejected.
+- Sensitive input is redacted from durable approval and step payloads.
+- Side effects are verified before success is reported.
+- Empty terminal responses receive two bounded repair attempts.
+- Worker recovery fails abandoned steps and requeues from persisted state.
+
+The database remains the source of truth. In-memory channels improve live
+latency but are not required for replay or recovery.

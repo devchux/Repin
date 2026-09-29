@@ -1,0 +1,96 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Repin AI",
+  "description": "Documentation for the Repin AI workspace and browser agent.",
+  "colors": {
+    "primary": "#171717",
+    "light": "#404040",
+    "dark": "#FAFAFA"
+  },
+  "logo": {
+    "light": "/logo/repin.png",
+    "dark": "/logo/repin.png"
+  },
+  "modeToggle": {
+    "isHidden": false
+  },
+  "icons": { "library": "lucide" },
+  "navigation": {
+    "pages": [
+      {
+        "group": "Documentation",
+        "pages": [
+          {
+            "group": "Get started",
+            "pages": ["index", "how-repin-works", "quickstart"]
+          },
+          {
+            "group": "Using Repin",
+            "pages": [
+              "features/browser-extension",
+              "features/web-application",
+              "features/authentication",
+              "features/conversations",
+              "features/activity",
+              "features/bookmarks",
+              "features/bookmark-collections",
+              "features/notes",
+              "features/highlights",
+              "features/memory",
+              "features/browser-access",
+              "features/profile-settings"
+            ]
+          },
+          {
+            "group": "Installation",
+            "pages": [
+              "installation/docker",
+              "installation/browser-extension"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment",
+              "configuration/email"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "developers/local-development",
+              "developers/api-reference"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "developers/architecture",
+              "architecture/agent-workflow",
+              "architecture/agent-harness",
+              "architecture/workflow-runtime",
+              "architecture/context-intelligence",
+              "architecture/telemetry"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/devchux/Repin",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "cursor", "vscode"]
+  },
+  "footer": {
+    "socials": { "github": "https://github.com/devchux/Repin" }
+  }
+}

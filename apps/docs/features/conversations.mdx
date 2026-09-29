@@ -1,0 +1,32 @@
+---
+title: "Conversations"
+description: "Continue durable assistant conversations across the web workspace and extension."
+---
+
+Every assistant request belongs to a conversation. The conversation stores the
+user and assistant messages, while each assistant turn links to a durable agent
+run that records how the answer was produced.
+
+## How conversations work
+
+Creating an assistant run creates or attaches to a conversation. The initial
+capability and page context remain associated with that conversation so later
+messages can refer to the original page or selection.
+
+Follow-up messages are sent to
+`POST /api/assistant/conversations/:id/messages`. Turns are processed in order,
+and the model receives a bounded window of recent persisted messages rather
+than the conversation's unlimited history.
+
+## Loading history
+
+Conversation lists are paginated. A conversation read returns messages in
+display order and exposes a cursor for loading older messages without offset
+drift.
+
+## Live answers
+
+The client subscribes to the run's authenticated Server-Sent Events stream.
+Text deltas render while generation is active, while persisted cumulative
+events allow a reconnecting client to catch up. The complete run endpoint is
+the recovery path if streaming is unavailable.

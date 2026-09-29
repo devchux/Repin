@@ -1,0 +1,29 @@
+---
+title: "Memory"
+description: "Store durable facts and instructions that can inform later assistant runs."
+---
+
+Memory is durable user context, separate from conversation messages, saved
+library items, and temporary browser state. A memory stores concise content,
+scope, provenance, trust metadata, and embedding status.
+
+## Scopes and retrieval
+
+Memories can be global or scoped to a project, domain, or conversation. At the
+start of an agent run, Repin retrieves up to ten global and current-domain
+memories relevant to the latest user message. Ranking combines full-text
+relevance, embedding similarity, scope preference, and a small recency weight.
+
+If embedding generation is unavailable, retrieval continues with full-text
+search. Embeddings are created asynchronously through the `memory-embedding`
+BullMQ queue.
+
+## Memory tools
+
+The harness provides `memory_remember`, `memory_search`, and `memory_forget`.
+Remember and forget require an explicit request in the current user message; a
+model tool call alone is not consent.
+
+Bookmarks, notes, and highlights can be explicitly converted into memories.
+Ownership is checked, provenance is recorded, and duplicate memory creation for
+the same source is prevented. Forgetting a memory does not delete its source.

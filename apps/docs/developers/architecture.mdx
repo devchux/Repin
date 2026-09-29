@@ -1,0 +1,40 @@
+---
+title: "Platform overview"
+description: "Understand Repin's clients, backend resources, queues, and persistence boundaries."
+---
+
+Repin is a monorepo with two first-class clients and a shared backend.
+
+| Component | Responsibility |
+| --- | --- |
+| `apps/server` | NestJS API, AI orchestration, tools, workflows, queues, and persistence |
+| `apps/web` | Next.js workspace for conversations, activity, and saved content |
+| `apps/extension` | WXT extension for page context and local browser actions |
+| `apps/docs` | Mintlify product and developer documentation |
+| `packages/contracts` | Shared wire contracts and schemas |
+| `packages/client` | Shared API and client-state utilities |
+| `packages/ui` | Shared React components and design primitives |
+| `packages/observability` | Shared telemetry contracts |
+
+## Agent harness
+
+The browser-agent harness owns planning, observations, typed tools, approvals,
+run state, retries, cancellation, and execution tracing. AI provider adapters
+only translate normalized model input and output. They do not execute browser
+tools or own product workflows.
+
+The `assistant` resource adapts conversations and HTTP endpoints to the shared
+`agent` resource. Both short assistant work and longer browser work enter the
+same run handler, so lifecycle and safety behavior do not diverge by queue.
+
+## Persistent state
+
+PostgreSQL stores durable product and execution data. Redis and BullMQ handle
+short interactive work and longer browser tasks without blocking HTTP
+requests. OpenTelemetry exports vendor-neutral operational traces and metrics.
+
+## Cross-client boundary
+
+The web app and extension share server APIs, contracts, account data,
+conversations, and run history. Browser-specific DOM and browser API work stays
+in the extension. Durable state and AI orchestration stay on the server.

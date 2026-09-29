@@ -1,0 +1,21 @@
+---
+title: "Notes"
+description: "Create durable notes with optional page and selection context."
+---
+
+Notes are standalone user-owned records. They can be created in the web
+workspace or from the extension and can optionally retain a source URL, page
+title, and selected text.
+
+## How notes work
+
+The `/api/notes` resource supports creation, paginated listing and search,
+reading, updating, and soft deletion. Every operation is scoped to the
+authenticated user.
+
+When a note originates in the extension, the content script sends its context
+to the background process. The background process performs the authenticated
+request so access tokens are not exposed to the webpage environment.
+
+Notes currently store plain text. A note can be explicitly promoted into a
+memory; editing or forgetting that memory does not modify the original note.
