@@ -55,4 +55,14 @@ describe('BrowserSessionRegistry', () => {
       'Browser extension session is not connected',
     );
   });
+
+  it('lists only sessions connected by the requested user', () => {
+    const registry = new BrowserSessionRegistry();
+    registry.register(1, 'session-1', { send: jest.fn() });
+    registry.register(2, 'session-2', { send: jest.fn() });
+
+    expect(registry.list(1)).toEqual([
+      expect.objectContaining({ id: 'session-1' }),
+    ]);
+  });
 });

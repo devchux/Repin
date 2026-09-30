@@ -1,0 +1,32 @@
+---
+title: "Authentication"
+description: "Create an account, sign in with a verification code, and connect the browser extension."
+---
+
+Repin uses email verification codes instead of passwords. Registration and
+login both send a six-digit code through the configured transactional email
+provider. Codes are stored as hashes in Redis and expire after ten minutes.
+
+## Web authentication
+
+1. The client submits an email address to `/api/auth/register` or
+   `/api/auth/login`.
+2. The server creates a one-time code and sends it by email.
+3. The client submits the code to `/api/auth/verify-code`.
+4. The server sets HTTP-only access and refresh cookies.
+
+Refreshing a session rotates both tokens. Logging out revokes the stored
+refresh credential and clears both cookies.
+
+## Extension authentication
+
+The extension uses an authorization-code flow with PKCE. The signed-in web user
+approves the extension connection, and the extension exchanges the short-lived,
+single-use code for its own bearer and refresh credentials. Extension access
+tokens remain in the background process rather than webpage content scripts.
+
+## Changing an email address
+
+An authenticated user can request a verification code for a new, unused email
+address. The existing address remains active until the new address is verified.
+Confirmation updates the account email and issues new web credentials.

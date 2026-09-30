@@ -106,9 +106,7 @@ export interface AssistantRun {
   readonly cancelledAt?: string;
   readonly execution: {
     readonly modelCalls: number;
-    readonly maxModelCalls: number;
     readonly toolCalls: number;
-    readonly maxToolCalls: number;
   };
 }
 

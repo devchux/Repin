@@ -1,0 +1,75 @@
+---
+title: "How Repin works"
+description: "Understand how the web workspace, browser extension, backend, and agent runtime work together."
+---
+
+Repin combines a persistent web workspace with a contextual browser extension.
+Both clients use the same authenticated backend, conversations, saved content,
+memories, and assistant run history.
+
+```text
+Web application --------------------|
+                                    |
+Browser extension ------------------|--> NestJS API
+                                           |
+                                           |--> PostgreSQL
+                                           |--> Redis and BullMQ
+                                           |--> Agent harness
+                                                   |
+                                                   |--> AI provider adapter
+                                                   |--> Application tools
+                                                   |--> Browser tools
+```
+
+## Understand
+
+The extension extracts bounded context from the active page, including readable
+content, the current selection, and structured interactive elements. The web
+application can start a text-only conversation or request managed or connected
+browser access.
+
+Page observations are treated as untrusted data. Repin ranks and budgets the
+relevant context before sending it through the provider-neutral AI boundary.
+
+## Remember
+
+Bookmarks, collections, notes, highlights, conversations, and memories are
+stored against the authenticated account. Content captured through the
+extension is therefore available in the web workspace.
+
+Memories are separate from saved library items. Relevant memories can be
+retrieved at the start of an agent run, while bookmarks and other saved sources
+remain available through their own APIs and tools.
+
+## Act
+
+Assistant requests create durable runs. The server-side harness owns model
+decisions, typed tool execution, policy, approvals, verification, retries,
+deadlines, cancellation, and recovery.
+
+Browser actions execute in either an isolated managed Chromium session or an
+authenticated connected browser. Consequential actions pause for approval, and
+side effects are verified from fresh state when possible.
+
+## Continue across clients
+
+The database is the durable boundary for conversation messages, run state,
+events, saved content, and user data. Server-Sent Events deliver live run
+updates, while persisted events and regular API reads support reconnection and
+recovery. This allows a task started in one client to remain visible from the
+other client.
+
+<CardGroup cols={2}>
+  <Card title="Web application" icon="layout-dashboard" href="/features/web-application">
+    Explore the persistent workspace and its capabilities.
+  </Card>
+  <Card title="Browser extension" icon="puzzle" href="/features/browser-extension">
+    Explore contextual assistance and connected-browser execution.
+  </Card>
+  <Card title="Agent workflow" icon="workflow" href="/architecture/agent-workflow">
+    Follow an assistant request through the execution runtime.
+  </Card>
+  <Card title="Agent harness" icon="blocks" href="/architecture/agent-harness">
+    Understand durable state, safety, tools, and provider boundaries.
+  </Card>
+</CardGroup>

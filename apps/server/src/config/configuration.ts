@@ -4,6 +4,20 @@ import { optionalInt, optionalNumber, required } from 'src/shared/utils/helper';
 
 dotenv.config();
 
+const optionalToolBudget = (
+  key: string,
+): { maxToolCalls: number } | undefined =>
+  process.env[key] === undefined
+    ? undefined
+    : { maxToolCalls: optionalInt(key, 0) };
+
+const capabilityToolBudgets = {
+  summarize: optionalToolBudget('ASSISTANT_SUMMARIZE_MAX_TOOL_CALLS'),
+  explain: optionalToolBudget('ASSISTANT_EXPLAIN_MAX_TOOL_CALLS'),
+  translate: optionalToolBudget('ASSISTANT_TRANSLATE_MAX_TOOL_CALLS'),
+  chat: optionalToolBudget('ASSISTANT_CHAT_MAX_TOOL_CALLS'),
+};
+
 export default (): Configuration => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: optionalInt('PORT', 8080),
@@ -40,6 +54,7 @@ export default (): Configuration => ({
     ),
     refreshTokenTtl: optionalInt('REFRESH_TOKEN_TTL', 604800000),
   },
+  email: emailConfiguration(),
   database: {
     url: required('DATABASE_URL'),
   },
@@ -72,4 +87,62 @@ export default (): Configuration => ({
     shortRunTimeout: optionalInt('ASSISTANT_SHORT_RUN_TIMEOUT', 180000),
     longRunTimeout: optionalInt('ASSISTANT_LONG_RUN_TIMEOUT', 1800000),
   },
+  assistantAgent: {
+    noProgressThreshold: optionalInt('ASSISTANT_NO_PROGRESS_THRESHOLD', 3),
+    budgets: {
+      short: {
+        maxToolCalls: optionalInt('ASSISTANT_SHORT_MAX_TOOL_CALLS', 24),
+      },
+      long: {
+        maxToolCalls: optionalInt('ASSISTANT_LONG_MAX_TOOL_CALLS', 120),
+      },
+      capabilities: Object.fromEntries(
+        Object.entries(capabilityToolBudgets).filter(([, budget]) => budget),
+      ),
+    },
+  },
 });
+
+function emailConfiguration(): Configuration['email'] {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const provider = (process.env.EMAIL_PROVIDER ||
+    (nodeEnv === 'production'
+      ? ''
+      : 'log')) as Configuration['email']['provider'];
+  if (!['log', 'resend', 'smtp', 'sendgrid'].includes(provider)) {
+    throw new Error(
+      'EMAIL_PROVIDER must be one of log, resend, smtp, or sendgrid',
+    );
+  }
+  if (nodeEnv === 'production' && provider === 'log') {
+    throw new Error('EMAIL_PROVIDER=log is not allowed in production');
+  }
+
+  const fromAddress =
+    provider === 'log'
+      ? process.env.EMAIL_FROM_ADDRESS || 'dev@repin.local'
+      : required('EMAIL_FROM_ADDRESS');
+  const resendApiKey = provider === 'resend' ? required('RESEND_API_KEY') : '';
+  const sendGridApiKey =
+    provider === 'sendgrid' ? required('SENDGRID_API_KEY') : '';
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPassword = process.env.SMTP_PASSWORD;
+  if (provider === 'smtp' && Boolean(smtpUser) !== Boolean(smtpPassword)) {
+    throw new Error('SMTP_USER and SMTP_PASSWORD must be configured together');
+  }
+
+  return {
+    provider,
+    fromAddress,
+    fromName: process.env.EMAIL_FROM_NAME || 'Repin',
+    resendApiKey,
+    sendGridApiKey,
+    smtp: {
+      host: provider === 'smtp' ? required('SMTP_HOST') : '',
+      port: optionalInt('SMTP_PORT', 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      user: smtpUser,
+      password: smtpPassword,
+    },
+  };
+}

@@ -1,0 +1,30 @@
+---
+title: "Browser access"
+description: "Choose between text-only, managed-browser, and connected-browser execution."
+---
+
+Web conversations expose three implemented browser-access modes.
+
+<AccordionGroup>
+  <Accordion title="Off" icon="ban">
+    The run receives no browser tools and remains text-only.
+  </Accordion>
+  <Accordion title="Managed browser" icon="globe">
+    Repin uses an isolated server-side Playwright Chromium session. This mode
+    does not inherit the user's normal browser cookies or open tabs.
+  </Accordion>
+  <Accordion title="Connected browser" icon="plug">
+    Browser tools are routed through the authenticated Repin extension and can
+    operate on its current browser session.
+  </Accordion>
+</AccordionGroup>
+
+## Safety controls
+
+Both executors use the same typed tool contracts and harness policy. Element
+actions require the current document revision. Stale references are rejected,
+and consequential targets create durable, expiring approvals containing the
+exact action and arguments.
+
+After a side effect, the harness requests fresh state when possible so the
+model verifies the result instead of assuming the action succeeded.

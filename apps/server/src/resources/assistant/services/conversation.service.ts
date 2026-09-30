@@ -65,7 +65,11 @@ export class ConversationService {
           context: retainedContext,
           input: request.input,
           options: request.options,
-          browserSessionId: request.browserSessionId,
+          browserSessionId:
+            request.browserSessionId ??
+            (request.browserExecutionTarget === 'managed'
+              ? conversation.id
+              : undefined),
           browserExecutionTarget: request.browserExecutionTarget ?? 'extension',
           executionLane: this.runs.resolveExecutionLane(request),
           idempotencyKey,
@@ -307,7 +311,11 @@ export class ConversationService {
           context: conversation.context,
           input: content,
           options: conversation.options,
-          browserSessionId: request.browserSessionId,
+          browserSessionId:
+            request.browserSessionId ??
+            (request.browserExecutionTarget === 'managed'
+              ? conversation.id
+              : undefined),
           browserExecutionTarget: request.browserExecutionTarget ?? 'extension',
           executionLane: this.runs.resolveExecutionLane({
             ...request,

@@ -198,8 +198,20 @@ instructions:
   the dead worker, and appends a `run.recovered` event and checkpoint before
   claiming the run again. Workers allow three stalled restarts, matching the
   queue job retry budget.
-- Three identical consecutive tool actions terminate the run as a detected
-  no-progress loop.
+- The configurable no-progress detector compares both normalized tool actions
+  and their persisted outcomes. Repeating an action is allowed while its result
+  changes; the configured number of identical action-result pairs terminates
+  the run as a genuine no-progress loop.
+- The harness validates that a terminal model response contains a non-empty
+  user-facing result and gives the model two bounded repair attempts when it
+  does not. Tool-call budgets are configured per execution lane and may be
+  overridden per assistant capability. Only budget exhaustion removes tools
+  and requests the best final answer from the evidence already collected; a
+  zero budget disables this behavior.
+- Provider adapters normalize native finish reasons into `endTurn` and
+  `stopReason`. The loop trusts explicit completion and continuation signals
+  for normal termination and rejects filtered terminal output. Providers that
+  do not expose a finish signal retain the conservative no-tool-call fallback.
 - Side-effecting actions create a separate verification step. The harness
   captures fresh navigation state when a tab remains available, or records the
   executor acknowledgement when no inspectable tab is returned. Verification

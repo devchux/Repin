@@ -1,0 +1,43 @@
+---
+title: "Workflow runtime"
+description: "Run versioned, durable multi-stage processes through the same agent harness."
+---
+
+The `workflow` resource coordinates durable, versioned process graphs. It does
+not introduce a second agent loop: every agent node creates a normal assistant
+run through the shared harness.
+
+## Stored model
+
+- Definitions are immutable graph versions.
+- Instances store lifecycle state, input, accumulated output, and current node.
+- Node executions store one durable attempt per node and link agent nodes to
+  their assistant run.
+- Events form an ordered, append-only workflow timeline.
+
+## Node types
+
+The implemented graph is a bounded acyclic graph with three node types:
+
+- `agent` starts one idempotent assistant run.
+- `condition` routes with an `exists` or strict `equals` comparison.
+- `end` completes structural traversal.
+
+Nodes execute sequentially. A workflow does not currently fan out one node into
+multiple runs or execute parallel branches.
+
+## Runtime behavior
+
+The BullMQ workflow worker observes persisted child-run state instead of doing
+model or browser work itself. It delays while a child run is active and resumes
+from the stored node after a restart. Cancelling an instance also cancels its
+active child run.
+
+Goal-aware definitions declare observable success criteria. Deterministic
+criteria are evaluated before model-based criteria. Reaching an `end` node does
+not produce `workflow.completed` when the persisted input and output fail those
+criteria.
+
+Clients can follow an instance through an authenticated SSE stream. Durable
+sequence IDs support `Last-Event-ID` replay, and the normal instance endpoint
+provides a complete recovery snapshot.

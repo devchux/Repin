@@ -1,0 +1,43 @@
+---
+title: "Local development"
+description: "Set up the Repin monorepo for application and documentation development."
+---
+
+## Requirements
+
+- Node.js 22.18 or newer
+- Corepack and pnpm 9
+- Docker with Docker Compose
+
+## Install dependencies
+
+```bash
+corepack enable
+pnpm install
+```
+
+Start PostgreSQL and Redis, then run the workspace applications:
+
+```bash
+docker compose up -d postgres redis
+pnpm dev
+```
+
+## Preview documentation
+
+```bash
+pnpm --filter docs dev
+```
+
+Mintlify serves the docs preview at `http://localhost:3002`.
+
+## Validate changes
+
+```bash
+pnpm build
+pnpm lint
+pnpm check-types
+pnpm --filter server test
+```
+
+Run `pnpm --filter docs lint` to detect broken internal documentation links.

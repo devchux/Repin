@@ -36,6 +36,22 @@ incrementally as those safeguards mature.
 - Persist data in PostgreSQL and process background work with Redis and BullMQ
 - Export vendor-neutral traces and metrics through OpenTelemetry
 
+### Browser access from the web application
+
+Web conversations include a **Browser access** selector. Managed browsing is
+enabled by default so requests for current online information can use browser
+tools without additional setup:
+
+- **Off** keeps the conversation text-only.
+- **Managed browser** runs automation in an isolated server-side Chromium
+  session. Docker builds install the required Playwright browser automatically.
+- **Connected browser** routes tools through an authenticated Repin extension
+  and can use that browser's existing tabs and signed-in sessions.
+
+The connected-browser option appears while the extension is authenticated and
+its browser-session status is connected. Consequential actions continue to use
+the run approval flow.
+
 ## Project structure
 
 | Path                     | Purpose                                                                                        |
@@ -43,7 +59,7 @@ incrementally as those safeguards mature.
 | `apps/server`            | NestJS API, AI orchestration, agent runtime, browser tools, workflows, queues, and persistence |
 | `apps/web`               | Next.js workspace for conversations, activity, saved content, and settings                     |
 | `apps/extension`         | WXT browser extension for contextual assistance and browser actions                            |
-| `apps/docs`              | Product and developer documentation application                                                |
+| `apps/docs`              | Mintlify product and developer documentation                                                   |
 | `packages/contracts`     | Shared wire contracts and schemas                                                              |
 | `packages/client`        | Shared API and client-state utilities                                                          |
 | `packages/ui`            | Shared React components                                                                        |
@@ -212,6 +228,20 @@ pnpm --filter server test
 
 Environment options are documented in [`.env.example`](./.env.example) and
 [`apps/server/.env.example`](./apps/server/.env.example).
+
+## Documentation
+
+Repin's product and developer documentation uses Mintlify. Content and site
+configuration live in `apps/docs`.
+
+```bash
+pnpm --filter docs dev
+pnpm --filter docs build
+pnpm --filter docs lint
+```
+
+The local preview runs at `http://localhost:3002`. Mintlify deployment should
+be configured with `apps/docs` as the documentation directory.
 
 ## License
 

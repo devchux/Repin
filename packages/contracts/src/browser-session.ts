@@ -1,5 +1,10 @@
 export const BROWSER_SESSION_PROTOCOL_VERSION = 1 as const;
 
+export interface ConnectedBrowserSession {
+  readonly id: string;
+  readonly connectedAt: string;
+}
+
 export interface BrowserCommandEnvelope {
   readonly protocolVersion: typeof BROWSER_SESSION_PROTOCOL_VERSION;
   readonly type: 'browser.command';

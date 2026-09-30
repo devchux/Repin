@@ -8,6 +8,7 @@ import type {
   CreateAssistantRunRequest,
   CreateConversationMessageRequest,
 } from "@repo/contracts/assistant";
+import type { ConnectedBrowserSession } from "@repo/contracts/browser-session";
 import { useQueryClient } from "@repo/client/query";
 import { Button } from "@repo/ui/button";
 import { ChatComposer } from "@repo/ui/chat-composer";
@@ -65,6 +66,7 @@ export function ConversationChat({
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [olderMessagesError, setOlderMessagesError] = useState(false);
+  const [browserTarget, setBrowserTarget] = useState("managed");
   const loadedConversationRef = useRef<string | undefined>(undefined);
   const loadedOlderMessagesRef = useRef(false);
   const scrollRestoreRef = useRef<{ height: number; top: number } | undefined>(
@@ -76,6 +78,13 @@ export function ConversationChat({
     hideToast: "all",
   });
   const currentConversation = conversation.data?.data.data;
+  const browserSessions = useFetch<ConnectedBrowserSession[]>(
+    "/browser-sessions",
+    {
+      hideToast: "all",
+      refetchInterval: 5_000,
+    },
+  );
   const lastMessage = messages.at(-1);
   const streamingRunId =
     lastMessage?.role === "user" ? lastMessage.runId : undefined;
@@ -307,16 +316,29 @@ export function ConversationChat({
     const trimmed = content.trim();
     if (!trimmed || isSending) return;
     setSuggestedMessage("");
+    const browserExecution =
+      browserTarget === "managed"
+        ? {
+            browserExecutionTarget: "managed" as const,
+            executionLane: "long" as const,
+          }
+        : browserTarget.startsWith("extension:")
+          ? {
+              browserExecutionTarget: "extension" as const,
+              browserSessionId: browserTarget.slice("extension:".length),
+              executionLane: "long" as const,
+            }
+          : { executionLane: "short" as const };
     if (conversationId) {
       setPendingMessage(trimmed);
-      sendMessage.mutate({ content: trimmed, executionLane: "short" });
+      sendMessage.mutate({ content: trimmed, ...browserExecution });
       return;
     }
     createRun.mutate({
       capability: "chat",
       context: { url: window.location.href, title: "Repin web conversation" },
       input: trimmed,
-      executionLane: "short",
+      ...browserExecution,
     });
   }
 
@@ -474,6 +496,33 @@ export function ConversationChat({
           ) : null}
         </div>
 
+        <div className="border-t bg-background px-4 pt-3 md:px-6">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="shrink-0 font-medium">Browser access</span>
+            <select
+              aria-label="Browser access for this conversation"
+              className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              disabled={isResponding}
+              value={browserTarget}
+              onChange={(event) => setBrowserTarget(event.target.value)}
+            >
+              <option value="none">Off</option>
+              <option value="managed">Managed browser</option>
+              {(browserSessions.data?.data.data ?? []).map((session) => (
+                <option key={session.id} value={`extension:${session.id}`}>
+                  Connected browser · {session.id.slice(0, 8)}
+                </option>
+              ))}
+            </select>
+            <span className="hidden truncate sm:inline">
+              {browserTarget === "managed"
+                ? "Isolated server browser"
+                : browserTarget.startsWith("extension:")
+                  ? "Uses your extension and signed-in tabs"
+                  : "Repin will not use browser tools"}
+            </span>
+          </label>
+        </div>
         <ChatComposer
           key={composerKey}
           disabled={isResponding}

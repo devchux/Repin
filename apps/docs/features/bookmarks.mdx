@@ -1,0 +1,34 @@
+---
+title: "Bookmarks"
+description: "Save pages with searchable content, metadata, tags, and AI enrichment."
+---
+
+Bookmarks are durable, user-owned page records. A bookmark can retain its URL,
+canonical URL, title, readable content, selected text, note, tags, save reason,
+and source metadata.
+
+## Saving a page
+
+Bookmarks can be created from the web workspace, extension, or the
+`bookmark_page` application tool. URLs are normalized by removing fragments and
+common tracking parameters and sorting query parameters. Saving an existing
+normalized URL returns the existing record instead of creating a duplicate.
+
+## Search
+
+Bookmark search supports lexical, semantic, and hybrid modes. Hybrid search
+combines PostgreSQL full-text rank with embedding cosine similarity. Results
+can also be filtered by collection and tags.
+
+The `search_bookmarks` agent tool returns short passages and source URLs rather
+than sending complete captured pages to the model.
+
+## Enrichment
+
+New bookmarks enter a BullMQ enrichment job. The provider-neutral AI service
+generates a short summary and topic labels, then creates a 1536-dimensional
+embedding. The bookmark exposes `pending`, `processing`, `complete`, or
+`failed` enrichment state.
+
+Deleting a bookmark is a soft delete, allowing its normalized URL to be saved
+again later.

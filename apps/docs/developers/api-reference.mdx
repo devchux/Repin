@@ -1,0 +1,21 @@
+---
+title: "API reference"
+description: "Explore the Repin REST API and its generated OpenAPI definition."
+---
+
+The NestJS server exposes versionable REST APIs under `/api`. In local
+development, enable Swagger and open `http://localhost:3001/docs` for the
+generated interactive API reference.
+
+## Authentication
+
+The web application uses secure access and refresh cookies. The extension uses
+an authorization-code flow with PKCE and rotates an opaque refresh credential.
+
+## Response contracts
+
+Controllers validate request DTOs and return serialized response contracts.
+Internal database entities are not public API contracts.
+
+Swagger is disabled unless `ENABLE_SWAGGER=true`. The repository does not
+currently publish a static OpenAPI artifact through this documentation site.

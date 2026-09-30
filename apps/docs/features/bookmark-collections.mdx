@@ -1,0 +1,19 @@
+---
+title: "Bookmark collections"
+description: "Organize bookmarks into reusable many-to-many collections."
+---
+
+Collections group related bookmarks without changing bookmark ownership or
+duplicating the saved page. One bookmark can belong to multiple collections.
+
+The authenticated collection API supports:
+
+- Listing collections with bookmark counts
+- Creating, renaming, and deleting a collection
+- Adding a bookmark to a collection
+- Removing a bookmark from a collection
+- Filtering the bookmark list by collection
+
+Bookmark list responses include the collection IDs associated with each item,
+which lets the web workspace render and update collection membership without a
+separate lookup per bookmark.

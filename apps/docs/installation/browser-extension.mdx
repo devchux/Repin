@@ -1,0 +1,40 @@
+---
+title: "Install the browser extension"
+description: "Build and load the Repin extension in Chromium or Firefox."
+---
+
+## Export a Chromium build with Docker
+
+From the repository root, run:
+
+```bash
+docker compose --profile extension run --rm extension
+```
+
+The exporter writes the unpacked build to `extension-dist`.
+
+1. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
+2. Enable **Developer mode**.
+3. Select **Load unpacked**.
+4. Choose the generated `extension-dist` directory.
+5. Pin Repin from the browser toolbar.
+
+## Build with WXT
+
+Install the workspace dependencies, then create a Chromium build:
+
+```bash
+pnpm --filter extension build
+```
+
+WXT writes generated browser builds under `apps/extension/.output`.
+
+For Firefox development or a Firefox build, use:
+
+```bash
+pnpm --filter extension dev:firefox
+pnpm --filter extension build:firefox
+```
+
+Load the generated Firefox `manifest.json` from
+`about:debugging#/runtime/this-firefox`.

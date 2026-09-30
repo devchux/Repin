@@ -3,6 +3,7 @@ import { Request } from 'express';
 export enum AuthCodePurpose {
   LOGIN = 'login',
   REGISTER = 'register',
+  CHANGE_EMAIL = 'change_email',
 }
 
 export type AuthUser = {
@@ -27,6 +28,10 @@ export type RefreshTokenPayload = AuthUser & {
 export type StoredAuthCode = {
   codeHash: string;
   purpose: AuthCodePurpose;
+};
+
+export type StoredEmailChangeCode = StoredAuthCode & {
+  email: string;
 };
 
 export type RefreshSession = {

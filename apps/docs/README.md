@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# Repin documentation
 
-## Getting Started
+Repin's public documentation is built with [Mintlify](https://mintlify.com).
+Pages are MDX files and site configuration lives in `docs.json`.
 
-First, run the development server:
+## Local preview
+
+From the repository root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm --filter docs dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The preview runs at `http://localhost:3002`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Validate the site and its internal links before publishing:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+```bash
+pnpm --filter docs build
+pnpm --filter docs lint
+```
 
-## Learn More
+## Publishing
 
-To learn more about Next.js, take a look at the following resources:
+Create a Mintlify project, connect this repository, and set its docs directory
+to `apps/docs`. Configure the production custom domain in the Mintlify
+dashboard. Changes to the configured deployment branch are published by the
+Mintlify GitHub app.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Content conventions
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Use sentence case for headings.
+- Write directly to the reader using active voice.
+- Keep product guides separate from internal implementation details.
+- Update a page whenever the behavior it documents changes.
+- Never publish secrets, internal credentials, or private operational details.

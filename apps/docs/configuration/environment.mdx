@@ -1,0 +1,43 @@
+---
+title: "Environment configuration"
+description: "Configure Repin's runtime services, authentication, and AI provider."
+---
+
+Copy `.env.example` to `.env` before starting the Docker Compose stack.
+
+## Application services
+
+| Variable | Purpose |
+| --- | --- |
+| `SERVER_PORT` | Host port for the NestJS server |
+| `WEB_PORT` | Host port for the Next.js web application |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `BACKEND_API_URL` | Server-side API URL used by the web proxy |
+| `CORS_ORIGIN` | Comma-separated web origins accepted by the API |
+| `ENABLE_SWAGGER` | Enables the Swagger UI when set to `true` |
+
+## Authentication
+
+| Variable | Purpose |
+| --- | --- |
+| `ACCESS_TOKEN_SECRET` | Signs web access tokens |
+| `REFRESH_TOKEN_SECRET` | Signs web refresh tokens |
+| `ACCESS_TOKEN_TTL` | Access-token lifetime in milliseconds |
+| `REFRESH_TOKEN_TTL` | Refresh-token lifetime in milliseconds |
+
+Never deploy the example authentication secrets.
+
+## AI provider
+
+| Variable | Purpose |
+| --- | --- |
+| `AI_PROVIDER` | Provider identifier used by the configured adapter |
+| `AI_API_KEY` | Provider API credential |
+| `AI_BASE_URL` | Base URL for the provider API |
+| `AI_MODEL` | Model used for generation |
+| `AI_REQUEST_TIMEOUT` | Provider request timeout in milliseconds |
+
+The checked-in defaults use an OpenAI-compatible base URL and model
+configuration. The server reads these values through its typed configuration
+layer.

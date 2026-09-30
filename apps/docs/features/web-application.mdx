@@ -1,0 +1,53 @@
+---
+title: "Web application"
+description: "Use Repin's persistent workspace for conversations, saved content, memory, activity, and settings."
+---
+
+The Next.js web application is Repin's persistent workspace. It uses the same
+backend resources as the extension and keeps account data and execution history
+available outside the context of a single browser page.
+
+## Overview
+
+The dashboard overview is the entry point to the authenticated workspace. Its
+navigation exposes conversations, activity, bookmarks, notes, highlights,
+memory, and settings.
+
+## Conversations
+
+Start a new assistant conversation, continue an existing conversation, and
+follow live generation. A conversation can be text-only or use managed or
+connected-browser access. Run feedback, approval controls, and execution
+timeline information are rendered alongside the corresponding assistant work.
+
+## Activity
+
+The Activity area lists durable assistant runs. Open a run to inspect its
+status, timing, output, failure information, and persisted timeline. Suspended
+runs can be resumed after their browser connection becomes available.
+
+## Saved content
+
+The workspace provides dedicated areas for:
+
+- Bookmarks and bookmark collections
+- Notes
+- Highlights
+- Durable memories
+
+Users can create and edit supported records, search or filter lists, inspect
+details, delete owned records, and explicitly convert bookmarks, notes, or
+highlights into memories.
+
+## Settings
+
+Settings support first-name and last-name updates, verified email changes, and
+appearance preferences. The current codebase does not implement profile photo
+uploads.
+
+## Relationship with the extension
+
+The web application does not duplicate browser DOM logic. Page observation and
+local browser APIs stay in the extension. The web application reads and writes
+shared server data and can request a connected-browser run when an authenticated
+extension session is available.

@@ -1,0 +1,75 @@
+---
+title: "Agent workflow"
+description: "Follow a request from task dispatch through reasoning, tools, verification, and completion."
+---
+
+Repin has one execution path for direct assistant requests and browser-backed
+agent work. The model proposes decisions, but the harness controls execution.
+
+```text
+User request
+    |
+    v
+Task dispatch or assistant endpoint
+    |
+    v
+Create durable run -> select queue lane -> worker claims run
+    |
+    v
+Initialize context and retrieve relevant memory
+    |
+    v
+Model decision
+    |-----------------------------|
+    | tool calls                  | final response
+    v                             v
+Policy and approval checks     Validate terminal output
+    |                             |
+    v                             v
+Execute typed tools           Finalize durable run
+    |
+    v
+Verify side effects and persist result
+    |
+    +----> next model decision
+```
+
+## 1. Dispatch
+
+Clients can create a direct assistant run or submit a task to
+`POST /api/tasks`. Task dispatch compares the request with the authenticated
+user's workflow definitions. It selects a workflow only when an exact candidate
+is classified as multi-stage with sufficient confidence; otherwise it starts a
+direct assistant run.
+
+## 2. Queue selection
+
+Short interactive work and long browser work use separate BullMQ queues. Both
+delegate to the same run handler and agent harness. Queue selection changes
+capacity and timeout boundaries, not execution semantics.
+
+## 3. Context assembly
+
+The harness constructs bounded model input from the user request, conversation
+history, relevant memories, and page context. Page content and visual
+observations are explicitly treated as untrusted data.
+
+## 4. Reasoning and tools
+
+Provider output is normalized into either typed tool calls or completion text.
+Before a tool runs, harness policy checks its risk, side effects, approval
+requirements, observation requirements, and verification strategy.
+
+## 5. Approval and suspension
+
+A consequential action creates a durable, single-use approval. The run leaves
+the worker while waiting. Browser disconnection or timeout suspends the run.
+Approval or manual resume requeues the same persisted continuation instead of
+reconstructing state from model output.
+
+## 6. Verification and completion
+
+Side effects create a verification step and request fresh state when possible.
+The loop continues until the provider returns valid, non-empty terminal content
+or the run reaches a failure, cancellation, deadline, or no-progress boundary.
+Every transition is persisted and exposed through the run event stream.

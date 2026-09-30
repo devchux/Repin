@@ -1,0 +1,28 @@
+---
+title: "Activity and run history"
+description: "Inspect assistant runs, execution status, timeline events, and outcomes."
+---
+
+The Activity area presents the durable history of assistant runs. A run is the
+execution record behind one assistant turn, whether it only calls a model or
+uses browser and application tools.
+
+## Run information
+
+Each run records its capability, execution lane, lifecycle status, orchestration
+phase, timing, output, and failure information. The list endpoint supports
+paginated history, and the detail endpoint returns the latest complete state.
+
+## Timeline
+
+The run timeline exposes persisted activity such as lifecycle transitions,
+model work, tool execution, approvals, recovery, and terminal outcomes. This
+data is separate from the user-facing answer so execution can be audited
+without exposing internal records inside the conversation message.
+
+## Control and recovery
+
+Active runs can be cancelled. A run suspended because its connected browser is
+unavailable can be resumed after the connection returns. Runs awaiting a
+consequential action expose an approval that the authenticated user can approve
+or deny.

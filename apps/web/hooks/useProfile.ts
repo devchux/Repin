@@ -17,6 +17,16 @@ export interface UpdateProfileRequest {
   readonly lastName: string;
 }
 
+export interface EmailChangeRequest {
+  readonly email: string;
+}
+
+export interface EmailChangeChallenge {
+  readonly email: string;
+  readonly expiresIn: number;
+  readonly mockCode?: string;
+}
+
 const profileQueryKey = (id: number) => ["user", id] as const;
 
 export function useProfile() {
@@ -44,4 +54,42 @@ export function useUpdateProfile(
       onUpdated?.(profile);
     },
   });
+}
+
+export function useRequestEmailChange(
+  onRequested: (challenge: EmailChangeChallenge) => void,
+) {
+  return useSend<EmailChangeRequest, EmailChangeChallenge>(
+    "/auth/email-change/request",
+    {
+      successMessage: "Verification code sent",
+      onSuccess: (response) => onRequested(response.data.data),
+    },
+  );
+}
+
+export function useConfirmEmailChange(
+  onChanged: (profile: UserProfile) => void,
+) {
+  const queryClient = useQueryClient();
+  const currentUser = useStore((state) => state.user);
+  const setUser = useStore((state) => state.setUser);
+  return useSend<{ code: string }, { user: UserProfile }>(
+    "/auth/email-change/confirm",
+    {
+      onSuccess: (response) => {
+        const profile = response.data.data.user;
+        queryClient.setQueryData(["user", "me"], {
+          ...response,
+          data: { ...response.data, data: profile },
+        });
+        queryClient.setQueryData(profileQueryKey(profile.id), {
+          ...response,
+          data: { ...response.data, data: profile },
+        });
+        if (currentUser) setUser({ ...currentUser, ...profile });
+        onChanged(profile);
+      },
+    },
+  );
 }

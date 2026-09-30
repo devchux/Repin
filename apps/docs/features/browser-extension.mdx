@@ -1,0 +1,29 @@
+---
+title: "Browser extension"
+description: "Use contextual assistance and execute connected-browser tools on the active page."
+---
+
+The WXT browser extension is Repin's contextual client. Its content scripts
+extract page context and render page-level UI, while the background process
+owns authentication, browser APIs, event streams, and long-running commands.
+
+## Contextual capabilities
+
+From the active page, the extension can:
+
+- Explain or translate selected text
+- Summarize page content
+- Continue assistant conversations
+- Save bookmarks, notes, and highlights
+- Connect the browser to a run created in the web workspace
+
+## Typed browser execution
+
+Browser commands pass through typed message contracts. Content-level commands
+operate through content scripts, while advanced browser control can use the
+browser debugger permission when the user grants the optional permission.
+
+The background worker maintains the run event stream and reconnect cursor so
+React components remain presentation-focused. It also retains bounded
+idempotency results for completed side-effect commands, allowing a retried
+command to return its prior result.

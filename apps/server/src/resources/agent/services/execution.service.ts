@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type {
@@ -10,11 +11,11 @@ import type {
   AssistantStepType,
 } from '@repo/contracts/assistant';
 import { EntityManager, Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Run } from '../entities/run.entity';
 import { RunCheckpoint } from '../entities/run-checkpoint.entity';
 import { RunEvent } from '../entities/run-event.entity';
 import { RunStep } from '../entities/run-step.entity';
-import { REPEATED_ACTION_LIMIT } from '../constants';
 import { RunContinuation } from '../entities/run-continuation.entity';
 import type { AiMessage, AiToolCall } from '../../ai/types/provider';
 import { RunLiveEventService } from './run-live-event.service';
@@ -23,6 +24,7 @@ import {
   redactProperties,
   stableStringify,
 } from '../../../shared/utils/helper';
+import type { Configuration } from '../../../shared/types';
 
 interface TransitionInput {
   readonly expectedStatuses: readonly AssistantRunStatus[];
@@ -61,6 +63,8 @@ export class ExecutionService {
     @InjectRepository(Run)
     private readonly runRepository: Repository<Run>,
     private readonly liveEvents: RunLiveEventService,
+    @Optional()
+    private readonly config?: ConfigService<Configuration>,
   ) {}
 
   async transition(runId: string, input: TransitionInput): Promise<Run> {
@@ -160,15 +164,8 @@ export class ExecutionService {
     return this.runRepository.manager.transaction(async (manager) => {
       const run = await this.lockRun(manager, runId);
       if (type === 'model') {
-        if (run.modelCallCount >= run.maxModelCalls) {
-          throw new BudgetExceededError('model calls');
-        }
         run.modelCallCount += 1;
       } else if (type === 'tool') {
-        if (run.toolCallCount >= run.maxToolCalls) {
-          throw new BudgetExceededError('tool calls');
-        }
-        await this.assertToolProgress(manager, runId, input);
         run.toolCallCount += 1;
       }
       await manager.save(run);
@@ -335,32 +332,40 @@ export class ExecutionService {
     return run;
   }
 
-  private async assertToolProgress(
-    manager: EntityManager,
-    runId: string,
-    input: unknown,
-  ): Promise<void> {
-    const recent = await manager.find(RunStep, {
+  async assertToolResultProgress(runId: string): Promise<void> {
+    const threshold =
+      this.config?.get('assistantAgent.noProgressThreshold', {
+        infer: true,
+      }) ?? 3;
+    if (!Number.isInteger(threshold) || threshold < 2) {
+      throw new Error(`Invalid agent no-progress threshold: ${threshold}`);
+    }
+    const recent = await this.runRepository.manager.find(RunStep, {
       where: { runId, type: 'tool' },
       order: { sequence: 'DESC' },
-      take: REPEATED_ACTION_LIMIT - 1,
+      take: threshold,
     });
-    if (recent.length < REPEATED_ACTION_LIMIT - 1) return;
-    const signature = this.actionSignature(
-      redactProperties(input, TEXT_PROPERTIES),
-    );
+    if (recent.length < threshold) return;
+    const signature = this.toolProgressSignature(recent[0]);
     if (
-      recent.every((step) => this.actionSignature(step.input) === signature)
+      recent.every((step) => this.toolProgressSignature(step) === signature)
     ) {
       throw new LoopDetectedError();
     }
   }
 
-  private actionSignature(input: unknown): string {
-    if (!isRecord(input)) return stableStringify(input) ?? '';
-    const action = { ...input };
+  private toolProgressSignature(step: RunStep): string {
+    const input = isRecord(step.input) ? { ...step.input } : step.input;
+    const action = isRecord(input) ? input : { input };
     delete action.toolCallId;
-    return stableStringify(action) ?? '';
+    return (
+      stableStringify({
+        action,
+        status: step.status,
+        output: step.output,
+        error: step.error,
+      }) ?? ''
+    );
   }
 
   private async appendEvent(
@@ -385,16 +390,9 @@ export class ExecutionService {
   }
 }
 
-export class BudgetExceededError extends Error {
-  constructor(resource: string) {
-    super(`Assistant run exhausted its ${resource} budget`);
-    this.name = 'BudgetExceededError';
-  }
-}
-
 export class LoopDetectedError extends Error {
   constructor() {
-    super('Assistant repeated the same browser action without progress');
+    super('Assistant repeated the same action and result without progress');
     this.name = 'LoopDetectedError';
   }
 }

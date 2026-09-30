@@ -1,0 +1,50 @@
+---
+title: "Install with Docker"
+description: "Run the Repin web app, API, PostgreSQL, and Redis with Docker Compose."
+---
+
+## Requirements
+
+- Docker with Docker Compose
+- An API key for the configured AI provider
+
+## Configure the environment
+
+Create the root environment file:
+
+```bash
+cp .env.example .env
+```
+
+Set `AI_API_KEY`. For a production environment, also replace the example
+database password and authentication secrets, configure `CORS_ORIGIN`, and
+configure a transactional email provider.
+
+## Start Repin
+
+```bash
+docker compose up --build -d
+```
+
+Docker Compose starts these services:
+
+| Service | Default address |
+| --- | --- |
+| Web application | `http://localhost:3000` |
+| Server API | `http://localhost:3001/api` |
+| PostgreSQL | `localhost:5432` |
+| Redis | `localhost:6379` |
+
+When `ENABLE_SWAGGER=true`, the API documentation is available at
+`http://localhost:3001/docs`.
+
+## Stop Repin
+
+```bash
+docker compose down
+```
+
+<Warning>
+`docker compose down -v` also deletes the PostgreSQL and Redis volumes. Run it
+only when you intend to remove local persisted data.
+</Warning>

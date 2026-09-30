@@ -1,0 +1,24 @@
+---
+title: "Highlights"
+description: "Save selected passages and restore their visual highlight on a page."
+---
+
+A highlight stores an exact quote, source URL, page title, optional surrounding
+text, note, color, and capture time. Prefix and suffix text help distinguish
+the intended quote when the page contains repeated text.
+
+## Saving and editing
+
+Highlights can be created by the web application, extension, or the
+`highlight_selection` application tool. A client-generated UUID makes retries
+idempotent. The API supports paginated search, URL and color filters, note and
+color updates, and soft deletion.
+
+## Rendering on a page
+
+The extension restores saved colors with the CSS Custom Highlight API when a
+page is revisited or refreshed. It checks the surrounding text before applying
+the highlight and skips a passage when it can no longer identify a safe match.
+
+The server stores selectors and highlight data; DOM matching and visual
+rendering remain client responsibilities.
